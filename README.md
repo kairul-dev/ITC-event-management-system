@@ -2,17 +2,50 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies first:
+
+```bash
+npm install
+```
+
+If you want approved certificates to be emailed to students, add these environment variables in `.env.local`:
+
+```bash
+GMAIL_USER=yourgmail@gmail.com
+GMAIL_APP_PASSWORD=your-gmail-app-password
+```
+
+Use a Gmail App Password, not your normal Gmail password.
+
+To enable Stripe sandbox checkout for event payments, add:
+
+```bash
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+STRIPE_SECRET_KEY=sk_test_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+```
+
+Then run Stripe webhook forwarding during local development:
+
+```bash
+stripe listen --forward-to localhost:3000/api/payments/webhook
+```
+
+Use Stripe test card `4242 4242 4242 4242` with any future expiry date and any CVC.
+
+Then run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
+
+Development modes:
+
+- `npm run dev`: Uses Webpack (default, recommended on Windows for this project).
+- `npm run dev:turbo`: Uses Turbopack (faster when compatible in your environment).
+
+Certificate emails are sent automatically when a president approves a certificate.
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
