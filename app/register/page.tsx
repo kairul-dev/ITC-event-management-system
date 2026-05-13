@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function Register() {
+function RegisterContent() {
   const [name, setName] = useState("");
   const [matrixNumber, setMatrixNumber] = useState("");
   const [email, setEmail] = useState("");
@@ -13,6 +13,12 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = searchParams.get("next");
+  const safeNextPath =
+    nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//")
+      ? nextPath
+      : null;
 
   const validate = () => {
     setError(null);
@@ -66,7 +72,11 @@ export default function Register() {
       }
 
       // success
-      router.push("/login");
+      router.push(
+        safeNextPath
+          ? `/login?role=student&next=${encodeURIComponent(safeNextPath)}`
+          : "/login"
+      );
     } catch (err: any) {
       console.error(err);
       setError(err?.message || "Registration failed");
@@ -129,9 +139,26 @@ export default function Register() {
 
         <div className="mt-4 text-center text-sm text-gray-600">
           Already have an account?{' '}
-          <Link href="/login" className="text-indigo-600 hover:underline">Sign in</Link>
+          <Link
+            href={
+              safeNextPath
+                ? `/login?role=student&next=${encodeURIComponent(safeNextPath)}`
+                : "/login"
+            }
+            className="text-indigo-600 hover:underline"
+          >
+            Sign in
+          </Link>
         </div>
       </div>
     </main>
+  );
+}
+
+export default function Register() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-gray-50" />}>
+      <RegisterContent />
+    </Suspense>
   );
 }

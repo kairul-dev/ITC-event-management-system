@@ -7,6 +7,14 @@ export const runtime = "nodejs";
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
+type CheckoutSessionPayload = {
+  id: string;
+  metadata?: {
+    registration_id?: string;
+  } | null;
+  payment_intent?: string | null;
+};
+
 const updatePaymentStatus = async (
   registrationId: string,
   payload: {
@@ -28,7 +36,7 @@ const updatePaymentStatus = async (
   }
 };
 
-const handleCompletedCheckout = async (session: Stripe.Checkout.Session) => {
+const handleCompletedCheckout = async (session: CheckoutSessionPayload) => {
   const registrationId = session.metadata?.registration_id;
   if (!registrationId) return;
 
@@ -45,7 +53,7 @@ const handleCompletedCheckout = async (session: Stripe.Checkout.Session) => {
   });
 };
 
-const handleFailedCheckout = async (session: Stripe.Checkout.Session) => {
+const handleFailedCheckout = async (session: CheckoutSessionPayload) => {
   const registrationId = session.metadata?.registration_id;
   if (!registrationId) return;
 
@@ -91,11 +99,11 @@ export async function POST(request: Request) {
     );
 
     if (event.type === "checkout.session.completed") {
-      await handleCompletedCheckout(event.data.object as Stripe.Checkout.Session);
+      await handleCompletedCheckout(event.data.object as CheckoutSessionPayload);
     }
 
     if (event.type === "checkout.session.expired") {
-      await handleFailedCheckout(event.data.object as Stripe.Checkout.Session);
+      await handleFailedCheckout(event.data.object as CheckoutSessionPayload);
     }
 
     return NextResponse.json({ received: true });

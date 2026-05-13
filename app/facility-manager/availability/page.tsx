@@ -22,6 +22,10 @@ type AvailabilityRecord = {
   };
 };
 
+type AvailabilityRow = Omit<AvailabilityRecord, "facilities"> & {
+  facilities?: { name: string } | { name: string }[] | null;
+};
+
 export default function AvailabilityPage() {
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [availabilityRecords, setAvailabilityRecords] = useState<AvailabilityRecord[]>([]);
@@ -72,7 +76,14 @@ export default function AvailabilityPage() {
       .order("start_date", { ascending: false });
 
     if (!availabilityError && availabilityData) {
-      setAvailabilityRecords(availabilityData as AvailabilityRecord[]);
+      const records = (availabilityData as AvailabilityRow[]).map((record) => ({
+        ...record,
+        facilities: Array.isArray(record.facilities)
+          ? record.facilities[0]
+          : record.facilities || undefined,
+      }));
+
+      setAvailabilityRecords(records);
     }
 
     setLoading(false);

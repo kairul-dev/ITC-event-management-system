@@ -23,7 +23,6 @@ export default function AuthGuard({
         } = await supabase.auth.getSession();
 
         if (sessionError || !session) {
-          console.error("AuthGuard: No session", sessionError);
           setLoading(false);
           router.replace("/login");
           return;

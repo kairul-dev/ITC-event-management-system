@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 type RegisteredEvent = {
@@ -23,7 +23,11 @@ type RegisteredEvent = {
   };
 };
 
-export default function RegisteredEventsPage() {
+type RegisteredEventRow = Omit<RegisteredEvent, "events"> & {
+  events?: RegisteredEvent["events"] | RegisteredEvent["events"][] | null;
+};
+
+function RegisteredEventsContent() {
   const searchParams = useSearchParams();
   const [events, setEvents] = useState<RegisteredEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,7 +75,14 @@ export default function RegisteredEventsPage() {
       console.error("Error loading registered events:", error);
       setEvents([]);
     } else {
-      setEvents((data || []) as RegisteredEvent[]);
+      const rows = ((data || []) as RegisteredEventRow[])
+        .map((row) => ({
+          ...row,
+          events: Array.isArray(row.events) ? row.events[0] : row.events,
+        }))
+        .filter((row): row is RegisteredEvent => Boolean(row.events));
+
+      setEvents(rows);
     }
 
     setLoading(false);
@@ -383,5 +394,19 @@ export default function RegisteredEventsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function RegisteredEventsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-64 items-center justify-center">
+          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-indigo-600" />
+        </div>
+      }
+    >
+      <RegisteredEventsContent />
+    </Suspense>
   );
 }
