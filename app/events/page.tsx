@@ -130,8 +130,6 @@ export default function PublicEventsPage() {
     return matchesQuery && matchesFee;
   });
 
-  const featuredEvent = filteredEvents[0];
-  const remainingEvents = filteredEvents.slice(1);
   const freeEvents = events.filter((event) => !event.fee_amount || event.fee_amount === 0).length;
 
   return (
@@ -243,75 +241,6 @@ export default function PublicEventsPage() {
           </div>
         ) : (
           <div className="mt-10 space-y-8">
-            {featuredEvent && (() => {
-              const visual = getVisual(featuredEvent.title);
-              const date = new Date(featuredEvent.start_date);
-
-              return (
-                <article className="grid overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.16)] lg:grid-cols-[1.05fr_0.95fr]">
-                  <div className="relative min-h-80 overflow-hidden">
-                    <img
-                      src={visual.image}
-                      alt=""
-                      className="h-full min-h-80 w-full object-cover"
-                    />
-                    <div className={`absolute inset-0 bg-gradient-to-br ${visual.color} opacity-40`} />
-                    <span className={`absolute left-5 top-5 rounded-md bg-gradient-to-r ${visual.color} px-3 py-1.5 text-xs font-bold uppercase text-white shadow-lg`}>
-                      Featured {visual.type}
-                    </span>
-                    <span className="absolute right-5 top-5 grid h-20 w-16 place-items-center rounded-md bg-white text-center font-black leading-none text-slate-950 shadow-lg">
-                      <span className="text-3xl">{date.getDate()}</span>
-                      <span className="text-xs text-slate-500">
-                        {date.toLocaleDateString("en-US", { month: "short" })}
-                      </span>
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col justify-center p-6 sm:p-8">
-                    <p className="text-sm font-bold uppercase text-[#1f7a8c]">
-                      Next Highlight
-                    </p>
-                    <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
-                      {featuredEvent.title}
-                    </h2>
-                    <p className="mt-4 leading-7 text-slate-600">
-                      {featuredEvent.purpose || featuredEvent.objective || "View event details, venue, capacity, and registration information."}
-                    </p>
-
-                    <div className="mt-6 grid gap-3 text-sm text-slate-700 sm:grid-cols-3">
-                      <p className="rounded-md bg-slate-50 px-4 py-3 font-bold">
-                        {formatDate(featuredEvent.start_date)}
-                      </p>
-                      <p className="rounded-md bg-slate-50 px-4 py-3 font-bold">
-                        {formatTime(featuredEvent.start_date)}
-                      </p>
-                      <p className="rounded-md bg-slate-50 px-4 py-3 font-bold">
-                        {getFeeLabel(featuredEvent.fee_amount)}
-                      </p>
-                    </div>
-
-                    <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
-                      <p className="rounded-md bg-slate-50 px-4 py-3 font-bold">
-                        {featuredEvent.location || "Venue will be announced"}
-                      </p>
-                      <p className="rounded-md bg-slate-50 px-4 py-3 font-bold">
-                        {featuredEvent.max_students} seats
-                      </p>
-                    </div>
-
-                    <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                      <Link href={`/events/${featuredEvent.id}`} className={`inline-flex justify-center rounded-md bg-gradient-to-r ${visual.color} px-5 py-3 text-sm font-bold text-white shadow-lg transition hover:brightness-110`}>
-                        Register
-                      </Link>
-                      <Link href={`/events/${featuredEvent.id}`} className={`inline-flex justify-center rounded-md border px-5 py-3 text-sm font-bold transition ${visual.outline}`}>
-                        View Details
-                      </Link>
-                    </div>
-                  </div>
-                </article>
-              );
-            })()}
-
             <div>
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
                 <div>
@@ -325,7 +254,7 @@ export default function PublicEventsPage() {
               </div>
 
               <div className="mt-5 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {remainingEvents.map((event) => {
+                {filteredEvents.map((event) => {
                   const visual = getVisual(event.title);
                   const date = new Date(event.start_date);
 
@@ -389,12 +318,6 @@ export default function PublicEventsPage() {
                   );
                 })}
               </div>
-
-              {remainingEvents.length === 0 && featuredEvent && (
-                <div className="mt-5 rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-600">
-                  This is the only event matching your filters.
-                </div>
-              )}
             </div>
           </div>
         )}
