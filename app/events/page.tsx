@@ -278,30 +278,55 @@ export default function PublicEventsPage() {
                         </span>
                       </div>
 
-                      <div className="p-5">
-                        <h3 className="text-xl font-black tracking-tight text-slate-950">
-                          {event.title}
-                        </h3>
-                        <p className="min-h-16 text-sm leading-6 text-slate-600">
+                      <div className="relative p-5">
+                        <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${visual.color}`} />
+                        <div className="flex items-start justify-between gap-3">
+                          <h3 className="text-xl font-black tracking-tight text-slate-950">
+                            {event.title}
+                          </h3>
+                          <span className={`shrink-0 rounded-full bg-gradient-to-r ${visual.color} px-2.5 py-1 text-xs font-black text-white shadow-sm`}>
+                            {getFeeLabel(event.fee_amount)}
+                          </span>
+                        </div>
+
+                        <p className="mt-3 min-h-16 text-sm leading-6 text-slate-600">
                           {event.purpose || event.objective || "View event details, venue, capacity, and registration information."}
                         </p>
 
-                        <div className="mt-5 grid gap-3 text-sm text-slate-600">
-                          <p className="flex items-center gap-2">
-                            <span className="h-2 w-2 rounded-full bg-[#1f7a8c]" />
-                            {formatDate(event.start_date)} at {formatTime(event.start_date)}
-                          </p>
-                          <p className="flex items-center gap-2">
-                            <span className="h-2 w-2 rounded-full bg-[#d98e04]" />
-                            {event.location || "Venue will be announced"}
-                          </p>
-                          <div className="grid grid-cols-2 gap-3 pt-1">
-                            <p className="rounded-md bg-slate-50 px-3 py-2 font-bold text-slate-700">
-                              {getFeeLabel(event.fee_amount)}
-                            </p>
-                            <p className="rounded-md bg-slate-50 px-3 py-2 font-bold text-slate-700">
-                              {event.max_students} seats
-                            </p>
+                        <div className="mt-5 grid gap-3 text-sm">
+                          <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+                            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-md bg-gradient-to-br ${visual.color} text-white shadow-sm`}>
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3M5 11h14M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                            </span>
+                            <span>
+                              <span className="block text-xs font-bold uppercase text-slate-400">Schedule</span>
+                              <span className="font-bold text-slate-800">{formatDate(event.start_date)} at {formatTime(event.start_date)}</span>
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+                            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-md bg-gradient-to-br ${visual.color} text-white shadow-sm`}>
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 21s7-4.438 7-11a7 7 0 10-14 0c0 6.562 7 11 7 11zm0-8a3 3 0 100-6 3 3 0 000 6z" />
+                              </svg>
+                            </span>
+                            <span>
+                              <span className="block text-xs font-bold uppercase text-slate-400">Venue</span>
+                              <span className="font-bold text-slate-800">{event.location || "Venue will be announced"}</span>
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+                              <span className="block text-xs font-bold uppercase text-slate-400">Fee</span>
+                              <span className="mt-1 block text-lg font-black text-slate-950">{getFeeLabel(event.fee_amount)}</span>
+                            </div>
+                            <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+                              <span className="block text-xs font-bold uppercase text-slate-400">Seats</span>
+                              <span className="mt-1 block text-lg font-black text-slate-950">{event.max_students}</span>
+                            </div>
                           </div>
                         </div>
 
