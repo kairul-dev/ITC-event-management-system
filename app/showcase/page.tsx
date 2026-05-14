@@ -1,16 +1,40 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
-const events = [
+type ShowcaseEvent = {
+  id?: string;
+  title: string;
+  type: string;
+  date: string;
+  month: string;
+  fullDate: string;
+  time: string;
+  venue: string;
+  description: string;
+  image: string;
+  color: string;
+  outline: string;
+};
+
+type EventRow = {
+  id: string;
+  title: string;
+  start_date: string;
+  end_date: string;
+  fee_amount?: number | null;
+  max_students: number;
+  location?: string | null;
+  purpose?: string | null;
+  objective?: string | null;
+};
+
+const eventVisuals = [
   {
     title: "Web Development Bootcamp",
     type: "Workshop",
-    date: "22",
-    month: "JUN",
-    time: "09:00 AM",
-    venue: "Computer Lab 3, FSKTM",
     image:
       "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80",
     color: "from-violet-600 to-indigo-600",
@@ -19,10 +43,6 @@ const events = [
   {
     title: "UI/UX Design Sprint",
     type: "Design",
-    date: "28",
-    month: "JUN",
-    time: "10:00 AM",
-    venue: "Seminar Room, FSKTM",
     image:
       "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=900&q=80",
     color: "from-emerald-500 to-green-600",
@@ -31,10 +51,6 @@ const events = [
   {
     title: "ITC Coding Challenge",
     type: "Competition",
-    date: "05",
-    month: "JUL",
-    time: "08:30 AM",
-    venue: "Main Hall, FSKTM",
     image:
       "https://images.unsplash.com/photo-1555949963-aa79dcee981c?auto=format&fit=crop&w=900&q=80",
     color: "from-pink-500 to-rose-500",
@@ -43,10 +59,6 @@ const events = [
   {
     title: "Cybersecurity Awareness Talk",
     type: "Talk",
-    date: "12",
-    month: "JUL",
-    time: "09:30 AM",
-    venue: "Lecture Hall 1, FSKTM",
     image:
       "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=900&q=80",
     color: "from-sky-500 to-blue-600",
@@ -55,10 +67,6 @@ const events = [
   {
     title: "Tech Career Sharing Session",
     type: "Career",
-    date: "20",
-    month: "JUL",
-    time: "02:30 PM",
-    venue: "Auditorium, FSKTM",
     image:
       "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=900&q=80",
     color: "from-orange-500 to-red-500",
@@ -67,16 +75,47 @@ const events = [
   {
     title: "Final Year Project Showcase",
     type: "Showcase",
-    date: "27",
-    month: "JUL",
-    time: "11:00 AM",
-    venue: "Innovation Space, FSKTM",
     image:
       "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=900&q=80",
     color: "from-indigo-500 to-violet-600",
     outline: "border-indigo-300 text-indigo-700",
   },
 ];
+
+const fallbackVisual = eventVisuals[0];
+
+const formatShowcaseEvent = (event: EventRow, index: number): ShowcaseEvent => {
+  const startDate = new Date(event.start_date);
+  const visual =
+    eventVisuals.find((item) => item.title === event.title) ||
+    eventVisuals[index % eventVisuals.length] ||
+    fallbackVisual;
+
+  return {
+    id: event.id,
+    title: event.title,
+    type: visual.type,
+    date: startDate.toLocaleDateString("en-US", { day: "2-digit" }),
+    month: startDate.toLocaleDateString("en-US", { month: "short" }).toUpperCase(),
+    fullDate: startDate.toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }),
+    time: startDate.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    }),
+    venue: event.location || "Venue will be announced",
+    description:
+      event.purpose ||
+      event.objective ||
+      "View the full details, check the venue and schedule, then register your seat through the student portal.",
+    image: visual.image,
+    color: visual.color,
+    outline: visual.outline,
+  };
+};
 
 const stats = [
   {
@@ -122,12 +161,31 @@ const stats = [
 
 export default function ShowcasePage() {
   const eventsPerPage = 4;
+  const [events, setEvents] = useState<ShowcaseEvent[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(events.length / eventsPerPage);
+  const activePage = Math.min(currentPage, totalPages || 1);
   const visibleEvents = events.slice(
-    (currentPage - 1) * eventsPerPage,
-    currentPage * eventsPerPage,
+    (activePage - 1) * eventsPerPage,
+    activePage * eventsPerPage,
   );
+
+  useEffect(() => {
+    const loadEvents = async () => {
+      const { data, error } = await supabase
+        .from("events")
+        .select("id,title,start_date,end_date,fee_amount,max_students,location,purpose,objective")
+        .eq("status", "approved")
+        .order("start_date", { ascending: true })
+        .limit(12);
+
+      if (!error && data) {
+        setEvents((data as EventRow[]).map(formatShowcaseEvent));
+      }
+    };
+
+    loadEvents();
+  }, []);
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
@@ -260,10 +318,15 @@ export default function ShowcasePage() {
           </Link>
         </div>
 
-        <div className="mt-7 grid gap-7 md:grid-cols-2 xl:grid-cols-4">
-          {visibleEvents.map((event) => (
+        {visibleEvents.length === 0 ? (
+          <div className="mt-7 rounded-lg border border-slate-200 bg-white p-10 text-center text-sm text-slate-600">
+            No approved events are available yet.
+          </div>
+        ) : (
+          <div className="mt-7 grid gap-7 md:grid-cols-2 xl:grid-cols-4">
+            {visibleEvents.map((event) => (
             <article
-              key={event.title}
+              key={event.id || event.title}
               className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.10)]"
             >
               <div className="relative h-48 overflow-hidden">
@@ -283,9 +346,8 @@ export default function ShowcasePage() {
 
               <div className="p-5">
                 <h3 className="text-xl font-black text-slate-950">{event.title}</h3>
-                <p className="mt-3 min-h-12 text-sm leading-6 text-slate-600">
-                  View the full details, check the venue and schedule, then
-                  register your seat through the student portal.
+                <p className="mt-3 line-clamp-3 min-h-12 text-sm leading-6 text-slate-600">
+                  {event.description}
                 </p>
 
                 <div className="mt-4 grid gap-2 text-sm text-slate-500">
@@ -293,7 +355,7 @@ export default function ShowcasePage() {
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3M5 11h14M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                    {event.date} {event.month === "JUN" ? "June" : "July"} 2024
+                    {event.fullDate}
                     <span className="ml-4 inline-flex items-center gap-2">
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -311,13 +373,13 @@ export default function ShowcasePage() {
 
                 <div className="mt-5 grid grid-cols-2 gap-3">
                   <Link
-                    href="/events"
+                    href={event.id ? `/events/${event.id}` : "/events"}
                     className={`rounded-md border px-4 py-3 text-center text-sm font-bold transition hover:bg-slate-50 ${event.outline}`}
                   >
                     View Details
                   </Link>
                   <Link
-                    href="/events"
+                    href={event.id ? `/events/${event.id}` : "/events"}
                     className={`rounded-md bg-gradient-to-r px-4 py-3 text-center text-sm font-bold text-white transition hover:brightness-110 ${event.color}`}
                   >
                     Register Now
@@ -325,10 +387,12 @@ export default function ShowcasePage() {
                 </div>
               </div>
             </article>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
-        <div className="mt-8 flex items-center justify-center gap-2">
+        {totalPages > 1 && (
+          <div className="mt-8 flex items-center justify-center gap-2">
           {Array.from({ length: totalPages }, (_, index) => {
             const page = index + 1;
 
@@ -338,18 +402,19 @@ export default function ShowcasePage() {
                 type="button"
                 onClick={() => setCurrentPage(page)}
                 className={`grid h-10 w-10 place-items-center rounded-md border text-sm font-black transition ${
-                  currentPage === page
+                  activePage === page
                     ? "border-violet-600 bg-violet-600 text-white shadow-lg shadow-violet-950/20"
                     : "border-slate-300 bg-white text-slate-700 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
                 }`}
                 aria-label={`Show event page ${page}`}
-                aria-current={currentPage === page ? "page" : undefined}
+                aria-current={activePage === page ? "page" : undefined}
               >
                 {page}
               </button>
             );
           })}
-        </div>
+          </div>
+        )}
       </section>
 
       <section id="about" className="mx-auto max-w-7xl px-5 pb-14 sm:px-8 lg:px-10">

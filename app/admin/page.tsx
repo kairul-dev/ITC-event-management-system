@@ -1,20 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import Link from "next/link";
 
+type RecentEvent = {
+  id: string;
+  title: string;
+  start_date?: string | null;
+  status?: string | null;
+  rejection_reason?: string | null;
+};
+
 export default function AdminPage() {
-  const router = useRouter();
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalEvents: 0,
     totalCertificates: 0,
     pendingEvents: 0,
+    publicEvents: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [recentEvents, setRecentEvents] = useState<any[]>([]);
+  const [recentEvents, setRecentEvents] = useState<RecentEvent[]>([]);
 
   useEffect(() => {
     loadDashboardData();
@@ -39,6 +46,11 @@ export default function AdminPage() {
         .select("*", { count: "exact", head: true })
         .eq("status", "pending");
 
+      const { count: publicCount } = await supabase
+        .from("events")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "approved");
+
       // Get total certificates
       const { count: certCount } = await supabase
         .from("certificates")
@@ -56,6 +68,7 @@ export default function AdminPage() {
         totalEvents: eventCount || 0,
         totalCertificates: certCount || 0,
         pendingEvents: pendingCount || 0,
+        publicEvents: publicCount || 0,
       });
       setRecentEvents(events || []);
     } catch (error) {
@@ -119,12 +132,12 @@ export default function AdminPage() {
           </Link>
         </div>
 
-        {/* Pending Events Card */}
+        {/* Public Events Card */}
         <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-500">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-500 text-sm font-medium">Pending Events</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{stats.pendingEvents}</p>
+              <p className="text-gray-500 text-sm font-medium">Public Events</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{stats.publicEvents}</p>
             </div>
             <div className="bg-yellow-100 rounded-full p-3">
               <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -132,8 +145,8 @@ export default function AdminPage() {
               </svg>
             </div>
           </div>
-          <Link href="/admin/event" className="text-yellow-600 text-sm font-medium mt-4 inline-block hover:underline">
-            Review pending →
+          <Link href="/admin/event?mode=edit#event-details" className="text-yellow-600 text-sm font-medium mt-4 inline-block hover:underline">
+            Edit event details →
           </Link>
         </div>
 
@@ -159,7 +172,7 @@ export default function AdminPage() {
       {/* Quick Actions */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <Link
             href="/admin/event"
             className="flex items-center p-4 border-2 border-gray-200 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition"
@@ -179,6 +192,15 @@ export default function AdminPage() {
             <span className="font-medium text-gray-900">Manage Users</span>
           </Link>
           <Link
+            href="/admin/event?mode=edit#event-details"
+            className="flex items-center p-4 border-2 border-gray-200 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition"
+          >
+            <svg className="w-6 h-6 text-indigo-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+            <span className="font-medium text-gray-900">Edit Event</span>
+          </Link>
+          <Link
             href="/admin/certificates"
             className="flex items-center p-4 border-2 border-gray-200 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition"
           >
@@ -194,7 +216,7 @@ export default function AdminPage() {
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-gray-900">Recent Events</h2>
-          <Link href="/admin/event" className="text-indigo-600 text-sm font-medium hover:underline">
+          <Link href="/admin/event?mode=edit#event-details" className="text-indigo-600 text-sm font-medium hover:underline">
             View all →
           </Link>
         </div>
@@ -216,7 +238,7 @@ export default function AdminPage() {
                   <tr key={event.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{event.title}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(event.event_date).toLocaleDateString()}
+                      {event.start_date ? new Date(event.start_date).toLocaleDateString() : "-"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span

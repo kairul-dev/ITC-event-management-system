@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 type Event = {
   id: string;
@@ -20,7 +21,29 @@ type Event = {
   rejection_reason?: string;
 };
 
-export default function AdminEventPage() {
+type EditableEvent = {
+  id: string;
+  title: string;
+  location: string;
+  purpose: string;
+  objective: string;
+  start_date: string;
+  end_date: string;
+  budget: string;
+  fee_amount: string;
+  max_students: string;
+  status: string;
+};
+
+const toDateTimeInputValue = (value?: string) => {
+  if (!value) return "";
+  if (value.includes("T")) return value.slice(0, 16);
+  return `${value}T09:00`;
+};
+
+function AdminEventContent() {
+  const searchParams = useSearchParams();
+  const isEditMode = searchParams.get("mode") === "edit";
   const [title, setTitle] = useState("");
   const [organizedBy, setOrganizedBy] = useState("");
   const [purpose, setPurpose] = useState("");
@@ -53,8 +76,12 @@ export default function AdminEventPage() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [editingEvent, setEditingEvent] = useState<EditableEvent | null>(null);
+  const [updatingEvent, setUpdatingEvent] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
-  const loadEvents = async () => {
+  const loadEvents = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("events")
@@ -66,11 +93,15 @@ export default function AdminEventPage() {
     }
 
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
-    loadEvents();
-  }, []);
+    const timer = window.setTimeout(() => {
+      void loadEvents();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadEvents]);
 
   const buildPurposePayload = () => {
     const blocks: string[] = [];
@@ -153,7 +184,7 @@ export default function AdminEventPage() {
       created_at: new Date().toISOString(),
     };
 
-    const { data: insertedEvents, error } = await supabase
+    const { error } = await supabase
       .from("events")
       .insert(eventPayload)
       .select("id")
@@ -229,9 +260,75 @@ export default function AdminEventPage() {
 
   const filteredEvents = useMemo(() => {
     const needle = searchQuery.trim().toLowerCase();
-    if (!needle) return events;
-    return events.filter((event) => event.title.toLowerCase().includes(needle));
-  }, [events, searchQuery]);
+    return events.filter((event) => {
+      const matchesSearch = !needle || event.title.toLowerCase().includes(needle);
+      const matchesStatus = statusFilter === "all" || event.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [events, searchQuery, statusFilter]);
+
+  const publicEventCount = events.filter((event) => event.status === "approved").length;
+
+  const startEditingEvent = (event: Event) => {
+    setShowPreview(false);
+    setEditingEvent({
+      id: event.id,
+      title: event.title || "",
+      location: event.location || "",
+      purpose: event.purpose || "",
+      objective: event.objective || "",
+      start_date: toDateTimeInputValue(event.start_date),
+      end_date: toDateTimeInputValue(event.end_date),
+      budget: String(event.budget ?? 0),
+      fee_amount: String(event.fee_amount ?? 0),
+      max_students: String(event.max_students ?? 0),
+      status: event.status || "pending",
+    });
+  };
+
+  const updateEvent = async () => {
+    if (!editingEvent) return;
+
+    if (
+      !editingEvent.title.trim() ||
+      !editingEvent.location.trim() ||
+      !editingEvent.start_date ||
+      !editingEvent.end_date ||
+      !editingEvent.max_students.trim()
+    ) {
+      alert("Please fill in title, location, start date, end date, and capacity.");
+      return;
+    }
+
+    setUpdatingEvent(true);
+    const { error } = await supabase
+      .from("events")
+      .update({
+        title: editingEvent.title.trim(),
+        location: editingEvent.location.trim(),
+        purpose: editingEvent.purpose.trim(),
+        objective: editingEvent.objective.trim(),
+        start_date: editingEvent.start_date,
+        end_date: editingEvent.end_date,
+        budget: parseFloat(editingEvent.budget || "0"),
+        fee_amount: parseFloat(editingEvent.fee_amount || "0"),
+        max_students: parseInt(editingEvent.max_students, 10),
+        status: editingEvent.status,
+        ...(editingEvent.status === "rejected" ? {} : { rejection_reason: null }),
+      })
+      .eq("id", editingEvent.id);
+
+    setUpdatingEvent(false);
+
+    if (error) {
+      alert("Error updating event: " + error.message);
+      return;
+    }
+
+    setEditingEvent(null);
+    setShowPreview(false);
+    await loadEvents();
+  };
 
   const requiredChecks = useMemo(
     () => [
@@ -302,10 +399,17 @@ export default function AdminEventPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Manage Events</h1>
-        <p className="text-sm text-slate-600">Isi borang kertas kerja rasmi berdasarkan format UTHM.</p>
+        <h1 className="text-3xl font-bold text-slate-900">
+          {isEditMode ? "Edit Event" : "Manage Events"}
+        </h1>
+        <p className="text-sm text-slate-600">
+          {isEditMode
+            ? "Update existing event details shown across the public event pages."
+            : "Isi borang kertas kerja rasmi berdasarkan format UTHM."}
+        </p>
       </div>
 
+      {!isEditMode && (
       <div className="ds-card p-6 md:p-8 space-y-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <h2 className="text-2xl font-semibold text-slate-900">Borang Kertas Kerja Aktiviti</h2>
@@ -470,18 +574,235 @@ export default function AdminEventPage() {
           </button>
         </div>
       </div>
+      )}
 
-      <div className="ds-card p-6">
-        <div className="mb-4">
-          <h2 className="text-xl font-semibold text-slate-900">All Events</h2>
-          <input
-            type="text"
-            placeholder="Search events by title..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="mt-3 ds-input"
-          />
+      <div id="event-details" className="ds-card scroll-mt-6 p-6">
+        <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900">All Events</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              {publicEventCount} event{publicEventCount === 1 ? "" : "s"} are visible on the main page.
+            </p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-[1fr_220px] lg:w-[620px]">
+            <input
+              type="text"
+              placeholder="Search events by title..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="ds-input"
+            />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="ds-input"
+            >
+              <option value="all">All statuses</option>
+              <option value="pending">Pending high council</option>
+              <option value="high_council_approved">Sent to president</option>
+              <option value="approved">Visible on main page</option>
+              <option value="rejected">Rejected</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
         </div>
+
+        {editingEvent && (
+          <div className="mb-6 rounded-xl border border-indigo-200 bg-indigo-50/60 p-5">
+            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">Edit Event Details</h3>
+                <p className="text-sm text-slate-600">
+                  Approved events update the main page and public event directory.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingEvent(null);
+                  setShowPreview(false);
+                }}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                <label className="ds-label">Event Title</label>
+                <input
+                  value={editingEvent.title}
+                  onChange={(e) => setEditingEvent({ ...editingEvent, title: e.target.value })}
+                  className="ds-input"
+                />
+              </div>
+              <div>
+                <label className="ds-label">Location</label>
+                <input
+                  value={editingEvent.location}
+                  onChange={(e) => setEditingEvent({ ...editingEvent, location: e.target.value })}
+                  className="ds-input"
+                />
+              </div>
+              <div>
+                <label className="ds-label">Start Date & Time</label>
+                <input
+                  type="datetime-local"
+                  value={editingEvent.start_date}
+                  onChange={(e) => setEditingEvent({ ...editingEvent, start_date: e.target.value })}
+                  className="ds-input"
+                />
+              </div>
+              <div>
+                <label className="ds-label">End Date & Time</label>
+                <input
+                  type="datetime-local"
+                  value={editingEvent.end_date}
+                  onChange={(e) => setEditingEvent({ ...editingEvent, end_date: e.target.value })}
+                  className="ds-input"
+                />
+              </div>
+              <div>
+                <label className="ds-label">Fee Amount (RM)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={editingEvent.fee_amount}
+                  onChange={(e) => setEditingEvent({ ...editingEvent, fee_amount: e.target.value })}
+                  className="ds-input"
+                />
+              </div>
+              <div>
+                <label className="ds-label">Capacity</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={editingEvent.max_students}
+                  onChange={(e) => setEditingEvent({ ...editingEvent, max_students: e.target.value })}
+                  className="ds-input"
+                />
+              </div>
+              <div>
+                <label className="ds-label">Budget (RM)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={editingEvent.budget}
+                  onChange={(e) => setEditingEvent({ ...editingEvent, budget: e.target.value })}
+                  className="ds-input"
+                />
+              </div>
+              <div>
+                <label className="ds-label">Status</label>
+                <select
+                  value={editingEvent.status}
+                  onChange={(e) => setEditingEvent({ ...editingEvent, status: e.target.value })}
+                  className="ds-input"
+                >
+                  <option value="pending">Pending high council</option>
+                  <option value="high_council_approved">Sent to president</option>
+                  <option value="approved">Visible on main page</option>
+                  <option value="completed">Completed</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+              <div className="lg:col-span-2">
+                <label className="ds-label">Public Summary / Purpose</label>
+                <textarea
+                  rows={4}
+                  value={editingEvent.purpose}
+                  onChange={(e) => setEditingEvent({ ...editingEvent, purpose: e.target.value })}
+                  className="ds-textarea"
+                />
+              </div>
+              <div className="lg:col-span-2">
+                <label className="ds-label">Objective</label>
+                <textarea
+                  rows={4}
+                  value={editingEvent.objective}
+                  onChange={(e) => setEditingEvent({ ...editingEvent, objective: e.target.value })}
+                  className="ds-textarea"
+                />
+              </div>
+            </div>
+
+            {showPreview && (
+              <div className="mt-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-wide text-indigo-600">
+                  Same Page Preview
+                </p>
+                <div className="mt-3 overflow-hidden rounded-lg border border-slate-200">
+                  <div className="bg-gradient-to-br from-slate-950 via-violet-950 to-violet-700 p-5 text-white">
+                    <p className="text-xs font-bold uppercase text-violet-200">
+                      {editingEvent.start_date
+                        ? new Date(editingEvent.start_date).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })
+                        : "Date not set"}
+                    </p>
+                    <h4 className="mt-3 text-2xl font-black">{editingEvent.title || "Untitled event"}</h4>
+                  </div>
+                  <div className="grid gap-5 bg-white p-5 lg:grid-cols-[1fr_280px]">
+                    <div>
+                      <p className="text-sm leading-6 text-slate-600">
+                        {editingEvent.purpose ||
+                          editingEvent.objective ||
+                          "Event summary will appear here for students and public visitors."}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm">
+                      <div className="grid gap-3">
+                        <p>
+                          <span className="block text-xs font-bold uppercase text-slate-500">Venue</span>
+                          <span className="font-semibold text-slate-900">
+                            {editingEvent.location || "Venue will be announced"}
+                          </span>
+                        </p>
+                        <p>
+                          <span className="block text-xs font-bold uppercase text-slate-500">Fee</span>
+                          <span className="font-semibold text-slate-900">
+                            {Number(editingEvent.fee_amount || 0) > 0
+                              ? `RM ${Number(editingEvent.fee_amount).toFixed(2)}`
+                              : "Free"}
+                          </span>
+                        </p>
+                        <p>
+                          <span className="block text-xs font-bold uppercase text-slate-500">Seats</span>
+                          <span className="font-semibold text-slate-900">
+                            {editingEvent.max_students || "0"} seats
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setShowPreview((value) => !value)}
+                className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                {showPreview ? "Hide Preview" : "Preview Here"}
+              </button>
+              <button
+                type="button"
+                onClick={updateEvent}
+                disabled={updatingEvent}
+                className="ds-btn-primary"
+              >
+                {updatingEvent ? "Saving..." : "Save Event Changes"}
+              </button>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="text-gray-500 py-4">Loading events...</div>
@@ -514,6 +835,12 @@ export default function AdminEventPage() {
                     <td className="px-4 py-2 text-sm text-gray-600">{event.rejection_reason || "-"}</td>
                     <td className="px-4 py-2 text-sm">
                       <div className="flex gap-2">
+                        <button
+                          onClick={() => startEditingEvent(event)}
+                          className="px-2 py-1 bg-slate-800 text-white rounded hover:bg-slate-900"
+                        >
+                          Edit
+                        </button>
                         <Link
                           href={`/admin/report?eventId=${event.id}`}
                           className="px-2 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700"
@@ -544,5 +871,13 @@ export default function AdminEventPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function AdminEventPage() {
+  return (
+    <Suspense fallback={<div className="text-gray-500 py-4">Loading events...</div>}>
+      <AdminEventContent />
+    </Suspense>
   );
 }
