@@ -22,11 +22,11 @@ export default function PresidentHomePage() {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      // Get pending events count
+      // Get events forwarded by high council for final approval
       const { count: pendingEventsCount } = await supabase
         .from("events")
         .select("*", { count: "exact", head: true })
-        .eq("status", "pending");
+        .eq("status", "high_council_approved");
 
       // Get approved events count
       const { count: approvedEventsCount } = await supabase
@@ -46,11 +46,11 @@ export default function PresidentHomePage() {
         .select("*", { count: "exact", head: true })
         .eq("status", "approved");
 
-      // Get recent pending events
+      // Get recent high-council-approved events
       const { data: pendingEvents } = await supabase
         .from("events")
         .select("*")
-        .eq("status", "pending")
+        .eq("status", "high_council_approved")
         .order("created_at", { ascending: false })
         .limit(5);
 
@@ -90,7 +90,7 @@ export default function PresidentHomePage() {
       {/* Welcome Section */}
       <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl p-6 text-white">
         <h1 className="text-3xl font-bold mb-2">Welcome, President!</h1>
-        <p className="text-purple-100">Review and approve events and certificates</p>
+        <p className="text-purple-100">Give final approval after high council review</p>
       </div>
 
       {/* Statistics Cards */}
@@ -99,7 +99,7 @@ export default function PresidentHomePage() {
         <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-500">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-500 text-sm font-medium">Pending Events</p>
+              <p className="text-gray-500 text-sm font-medium">Awaiting Final Approval</p>
               <p className="text-3xl font-bold text-gray-900 mt-2">{stats.pendingEvents}</p>
             </div>
             <div className="bg-yellow-100 rounded-full p-3">
@@ -173,7 +173,7 @@ export default function PresidentHomePage() {
             <svg className="w-6 h-6 text-purple-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
             </svg>
-            <span className="font-medium text-gray-900">Approve/Reject Events</span>
+            <span className="font-medium text-gray-900">Final Event Approval</span>
           </Link>
           <Link
             href="/president/certificates"
@@ -190,7 +190,7 @@ export default function PresidentHomePage() {
       {/* Pending Events */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900">Pending Events Review</h2>
+          <h2 className="text-xl font-bold text-gray-900">Events From High Council</h2>
           <Link href="/president/events" className="text-purple-600 text-sm font-medium hover:underline">
             View all →
           </Link>
@@ -200,7 +200,7 @@ export default function PresidentHomePage() {
             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <p className="mt-2 text-gray-500">No pending events to review.</p>
+            <p className="mt-2 text-gray-500">No high council approved events to review.</p>
           </div>
         ) : (
           <div className="space-y-4">

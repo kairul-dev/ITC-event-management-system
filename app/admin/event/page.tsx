@@ -289,8 +289,14 @@ export default function AdminEventPage() {
   const statusBadgeClass = (status: string) => {
     if (status === "approved") return "ds-badge-approved";
     if (status === "rejected") return "ds-badge-rejected";
+    if (status === "high_council_approved") return "ds-badge bg-indigo-100 text-indigo-800";
     if (status === "completed") return "ds-badge-completed";
     return "ds-badge-pending";
+  };
+
+  const statusLabel = (status: string) => {
+    if (status === "high_council_approved") return "sent to president";
+    return status;
   };
 
   return (
@@ -503,7 +509,7 @@ export default function AdminEventPage() {
                     <td className="px-4 py-2 text-sm text-gray-600">{event.location || "-"}</td>
                     <td className="px-4 py-2 text-sm text-gray-600">RM {Number(event.fee_amount || 0).toFixed(2)}</td>
                     <td className="px-4 py-2 text-sm text-gray-700">
-                      <span className={statusBadgeClass(event.status)}>{event.status}</span>
+                      <span className={statusBadgeClass(event.status)}>{statusLabel(event.status)}</span>
                     </td>
                     <td className="px-4 py-2 text-sm text-gray-600">{event.rejection_reason || "-"}</td>
                     <td className="px-4 py-2 text-sm">

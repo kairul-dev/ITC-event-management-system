@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { usePathname } from "next/navigation";
 
 type Event = {
   id: string;
@@ -18,19 +19,39 @@ type Event = {
 };
 
 export default function PresidentEventsPage() {
+  const pathname = usePathname();
+  const isHighCouncil = pathname.startsWith("/high-council");
+  const reviewConfig = {
+    queueStatus: isHighCouncil ? "pending" : "high_council_approved",
+    approveStatus: isHighCouncil ? "high_council_approved" : "approved",
+    title: isHighCouncil ? "High Council Event Review" : "President Event Approval",
+    description: isHighCouncil
+      ? "Review admin paperwork before forwarding it to the president."
+      : "Give final approval for events already approved by the high council.",
+    countLabel: isHighCouncil ? "Awaiting High Council" : "Awaiting President",
+    emptyTitle: isHighCouncil ? "No Events Awaiting High Council" : "No Events Awaiting President",
+    emptyDescription: isHighCouncil
+      ? "All submitted paperwork has been reviewed by the high council."
+      : "No high council approved events are waiting for final approval.",
+    queueBadge: isHighCouncil ? "High Council Review" : "Final Review",
+    approveLabel: isHighCouncil ? "Send to President" : "Approve Event",
+    rejectLabel: isHighCouncil ? "Reject Paperwork" : "Reject Event",
+    rejectedAtColumn: "approved_at",
+    approvedAtColumn: "approved_at",
+  };
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
-  const loadEvents = async () => {
+  const loadEvents = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from("events")
         .select("*")
-        .eq("status", "pending")
+        .eq("status", reviewConfig.queueStatus)
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -44,11 +65,11 @@ export default function PresidentEventsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [reviewConfig.queueStatus]);
 
   useEffect(() => {
     loadEvents();
-  }, []);
+  }, [loadEvents]);
 
   const selectedEvent = useMemo(
     () => events.find((event) => event.id === selectedEventId) ?? null,
@@ -71,7 +92,7 @@ export default function PresidentEventsPage() {
 
   const updateStatus = async (
     id: string,
-    status: "approved" | "rejected",
+    status: "approved" | "high_council_approved" | "rejected",
     rejectionReason?: string,
   ) => {
     if (status === "rejected") {
@@ -88,7 +109,7 @@ export default function PresidentEventsPage() {
           .update({
             status,
             rejection_reason: reason,
-            approved_at: new Date().toISOString(),
+            [reviewConfig.rejectedAtColumn]: new Date().toISOString(),
           })
           .eq("id", id);
 
@@ -114,7 +135,8 @@ export default function PresidentEventsPage() {
         .from("events")
         .update({
           status,
-          approved_at: new Date().toISOString(),
+          rejection_reason: null,
+          [reviewConfig.approvedAtColumn]: new Date().toISOString(),
         })
         .eq("id", id);
 
@@ -144,13 +166,13 @@ export default function PresidentEventsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Approve Events</h1>
-        <p className="text-sm text-slate-600">Review pending submissions using the queue and detail panel.</p>
+        <h1 className="text-3xl font-bold text-slate-900">{reviewConfig.title}</h1>
+        <p className="text-sm text-slate-600">{reviewConfig.description}</p>
       </div>
 
       <div className="ds-card p-5 flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide">Pending Events</p>
+          <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide">{reviewConfig.countLabel}</p>
           <p className="text-3xl font-bold text-slate-900 mt-1">{events.length}</p>
         </div>
         <span className="ds-badge-pending">Queue Open</span>
@@ -161,13 +183,13 @@ export default function PresidentEventsPage() {
           <svg className="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <h3 className="text-xl font-semibold text-slate-900 mb-2">No Pending Events</h3>
-          <p className="text-slate-500">All events have been reviewed. Check back later for new submissions.</p>
+          <h3 className="text-xl font-semibold text-slate-900 mb-2">{reviewConfig.emptyTitle}</h3>
+          <p className="text-slate-500">{reviewConfig.emptyDescription}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           <aside className="xl:col-span-4 ds-card p-4">
-            <h2 className="text-lg font-semibold text-slate-900 mb-3">Pending Queue</h2>
+            <h2 className="text-lg font-semibold text-slate-900 mb-3">{reviewConfig.countLabel}</h2>
             <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
               {events.map((event) => {
                 const isActive = selectedEventId === event.id;
@@ -199,7 +221,7 @@ export default function PresidentEventsPage() {
                       })}
                     </p>
                     <span className={`mt-2 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${isActive ? "bg-slate-100 text-slate-900" : "bg-amber-100 text-amber-800"}`}>
-                      Pending Review
+                      {reviewConfig.queueBadge}
                     </span>
                   </button>
                 );
@@ -217,7 +239,7 @@ export default function PresidentEventsPage() {
                     <h2 className="text-2xl font-semibold text-slate-900">{selectedEvent.title}</h2>
                     <p className="text-sm text-slate-600 mt-1">Submitted on {new Date(selectedEvent.created_at).toLocaleDateString()}</p>
                   </div>
-                  <span className="ds-badge-pending">Pending</span>
+                  <span className="ds-badge-pending">{reviewConfig.queueBadge}</span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-6">
@@ -271,14 +293,19 @@ export default function PresidentEventsPage() {
                       disabled={processingId === selectedEvent.id}
                       className="px-5 py-2.5 rounded-xl text-white font-semibold bg-rose-700 hover:bg-rose-800 disabled:opacity-50"
                     >
-                      {processingId === selectedEvent.id ? "Processing..." : "Reject Event"}
+                      {processingId === selectedEvent.id ? "Processing..." : reviewConfig.rejectLabel}
                     </button>
                     <button
-                      onClick={() => updateStatus(selectedEvent.id, "approved")}
+                      onClick={() =>
+                        updateStatus(
+                          selectedEvent.id,
+                          reviewConfig.approveStatus as "approved" | "high_council_approved",
+                        )
+                      }
                       disabled={processingId === selectedEvent.id}
                       className="ds-btn-primary"
                     >
-                      {processingId === selectedEvent.id ? "Processing..." : "Approve Event"}
+                      {processingId === selectedEvent.id ? "Processing..." : reviewConfig.approveLabel}
                     </button>
                   </div>
                 </div>

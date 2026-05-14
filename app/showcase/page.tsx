@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 
 const events = [
   {
@@ -118,6 +121,14 @@ const stats = [
 ];
 
 export default function ShowcasePage() {
+  const eventsPerPage = 4;
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.ceil(events.length / eventsPerPage);
+  const visibleEvents = events.slice(
+    (currentPage - 1) * eventsPerPage,
+    currentPage * eventsPerPage,
+  );
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
       <section className="relative overflow-hidden bg-slate-950 text-white">
@@ -140,16 +151,19 @@ export default function ShowcasePage() {
             </Link>
 
             <nav className="hidden items-center gap-9 text-sm font-semibold text-white/80 lg:flex">
-              <a href="#" className="border-b-2 border-violet-400 pb-2 text-violet-300">
+              <Link href="/" className="border-b-2 border-violet-400 pb-2 text-violet-300">
                 Home
-              </a>
-              <Link href="/events" className="transition hover:text-white">
-                Events
               </Link>
+              <a href="#events" className="transition hover:text-white">
+                Events
+              </a>
               <a href="#about" className="transition hover:text-white">
                 About ITC
               </a>
-              <Link href="/student/registered-events" className="transition hover:text-white">
+              <Link
+                href="/login?role=student&next=%2Fstudent%2Fregistered-events"
+                className="transition hover:text-white"
+              >
                 My Events
               </Link>
               <a href="#contact" className="transition hover:text-white">
@@ -157,29 +171,12 @@ export default function ShowcasePage() {
               </a>
             </nav>
 
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                aria-label="Search"
-                className="hidden h-10 w-10 place-items-center rounded-full text-white/80 transition hover:bg-white/10 hover:text-white sm:grid"
-              >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 110-15 7.5 7.5 0 010 15z" />
-                </svg>
-              </button>
-              <Link
-                href="/login"
-                className="rounded-md border border-white/30 px-4 py-2 text-sm font-semibold transition hover:bg-white/10"
-              >
-                Student Login
-              </Link>
-              <Link
-                href="/register"
-                className="rounded-md bg-violet-600 px-4 py-2 text-sm font-semibold shadow-lg shadow-violet-950/30 transition hover:bg-violet-500"
-              >
-                Join ITC
-              </Link>
-            </div>
+            <Link
+              href="/login"
+              className="rounded-md border border-white/30 px-4 py-2 text-sm font-semibold transition hover:bg-white/10"
+            >
+              Login
+            </Link>
           </div>
         </header>
 
@@ -253,17 +250,18 @@ export default function ShowcasePage() {
           </div>
           <Link
             href="/events"
-            className="inline-flex w-fit items-center gap-2 rounded-md border border-violet-300 px-5 py-3 text-sm font-bold text-violet-700 transition hover:bg-violet-50"
+            prefetch
+            className="group inline-flex w-fit items-center gap-2 rounded-md border border-violet-300 px-5 py-3 text-sm font-bold text-violet-700 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:bg-violet-50 hover:shadow-md active:translate-y-0"
           >
             Browse All Events
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-4 w-4 transition duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m9 5 7 7-7 7" />
             </svg>
           </Link>
         </div>
 
-        <div className="mt-7 grid gap-7 md:grid-cols-2 lg:grid-cols-3">
-          {events.map((event) => (
+        <div className="mt-7 grid gap-7 md:grid-cols-2 xl:grid-cols-4">
+          {visibleEvents.map((event) => (
             <article
               key={event.title}
               className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.10)]"
@@ -329,6 +327,29 @@ export default function ShowcasePage() {
             </article>
           ))}
         </div>
+
+        <div className="mt-8 flex items-center justify-center gap-2">
+          {Array.from({ length: totalPages }, (_, index) => {
+            const page = index + 1;
+
+            return (
+              <button
+                key={page}
+                type="button"
+                onClick={() => setCurrentPage(page)}
+                className={`grid h-10 w-10 place-items-center rounded-md border text-sm font-black transition ${
+                  currentPage === page
+                    ? "border-violet-600 bg-violet-600 text-white shadow-lg shadow-violet-950/20"
+                    : "border-slate-300 bg-white text-slate-700 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                }`}
+                aria-label={`Show event page ${page}`}
+                aria-current={currentPage === page ? "page" : undefined}
+              >
+                {page}
+              </button>
+            );
+          })}
+        </div>
       </section>
 
       <section id="about" className="mx-auto max-w-7xl px-5 pb-14 sm:px-8 lg:px-10">
@@ -348,7 +369,6 @@ export default function ShowcasePage() {
             </div>
           </div>
           <Link
-            id="contact"
             href="/register"
             className="inline-flex items-center justify-center gap-2 rounded-md bg-white px-7 py-3 text-sm font-bold text-pink-600 transition hover:bg-slate-100"
           >
@@ -360,7 +380,7 @@ export default function ShowcasePage() {
         </div>
       </section>
 
-      <footer id="venues" className="border-t border-slate-200 bg-white">
+      <footer id="contact" className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-col justify-between gap-4 px-5 py-8 text-sm text-slate-500 sm:flex-row sm:items-center sm:px-8 lg:px-10">
           <p className="font-semibold text-slate-700">Information Technology Club Event Portal</p>
           <div className="flex gap-5 font-semibold">

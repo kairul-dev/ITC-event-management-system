@@ -1,11 +1,11 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-type AccessRole = "student" | "president" | "admin";
+type AccessRole = "student" | "president" | "high_council" | "admin";
 
 function LoginContent() {
   const searchParams = useSearchParams();
@@ -17,30 +17,19 @@ function LoginContent() {
       : null;
   const roleParam = searchParams.get("role");
   const lockedRole =
-    roleParam === "admin" || roleParam === "president" || roleParam === "student"
+    roleParam === "admin" ||
+    roleParam === "president" ||
+    roleParam === "high_council" ||
+    roleParam === "student"
       ? roleParam
       : null;
-  const initialRole: AccessRole =
-    roleParam === "admin" || roleParam === "president"
-      ? roleParam
-      : "student";
-
-  const [accessRole, setAccessRole] = useState<AccessRole>(initialRole);
+  const [selectedRole, setSelectedRole] = useState<AccessRole>("student");
+  const accessRole = lockedRole || selectedRole;
   const [matrixNumber, setMatrixNumber] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
-  useEffect(() => {
-    const role = searchParams.get("role");
-    if (role === "admin" || role === "president" || role === "student") {
-      setAccessRole(role);
-      setMatrixNumber("");
-      setEmail("");
-      setPassword("");
-    }
-  }, [searchParams]);
 
   const isStudent = accessRole === "student";
 
@@ -121,6 +110,8 @@ function LoginContent() {
       router.replace("/admin");
     } else if (role === "president") {
       router.replace("/president");
+    } else if (role === "high_council") {
+      router.replace("/high-council");
     } else {
       router.replace(safeNextPath || "/student");
     }
@@ -142,13 +133,21 @@ function LoginContent() {
       description: "Approve events and certificates",
     },
     {
+      role: "high_council",
+      label: "High Council",
+      description: "Review approvals and council records",
+    },
+    {
       role: "admin",
       label: "Admin",
       description: "Manage users and system records",
     },
   ];
 
-  const headingRole = accessRole.charAt(0).toUpperCase() + accessRole.slice(1);
+  const headingRole =
+    accessRole === "high_council"
+      ? "High Council"
+      : accessRole.charAt(0).toUpperCase() + accessRole.slice(1);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.14),transparent_28%),radial-gradient(circle_at_top_right,rgba(15,23,42,0.12),transparent_26%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)] relative overflow-hidden">
@@ -189,7 +188,12 @@ function LoginContent() {
                 <button
                   key={item.role}
                   type="button"
-                  onClick={() => setAccessRole(item.role)}
+                  onClick={() => {
+                    setSelectedRole(item.role);
+                    setMatrixNumber("");
+                    setEmail("");
+                    setPassword("");
+                  }}
                   className={`rounded-2xl border px-4 py-3 text-left transition ${
                     accessRole === item.role
                       ? "border-emerald-400 bg-white/10"
@@ -213,7 +217,7 @@ function LoginContent() {
           <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
             {accessRole === "student"
               ? "Create your student account once, then register future events with one confirmation."
-              : "Admin and president access is separated from the student event browsing experience."}
+              : "Staff access is separated from the student event browsing experience."}
           </div>
         </div>
 
