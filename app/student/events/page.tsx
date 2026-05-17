@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { getObjectiveText, getPurposeText } from "@/lib/eventDisplay";
 
 type Event = {
   id: string;
@@ -34,21 +35,23 @@ export default function StudentEventsPage() {
   const [filterLocation, setFilterLocation] = useState<string>("");
   const [filterPriceRange, setFilterPriceRange] = useState<"all" | "free" | "paid">("all");
   const [locations, setLocations] = useState<string[]>([]);
+  const [now] = useState(() => Date.now());
   const formatYearMonth = (d: Date) => `${d.getFullYear()}-${String(
     d.getMonth() + 1
   ).padStart(2, "0")}`;
 
+  const getRegistrationDeadline = (event: Event) => new Date(event.start_date);
+  const getStudentStatus = (event: Event) => {
+    const isFull = (event.registered_count || 0) >= event.max_students;
+    const isClosed = event.status === "Closed" || getRegistrationDeadline(event).getTime() <= now;
+    if (isFull) return "Full";
+    if (isClosed) return "Closed";
+    return "Open";
+  };
+
   const [selectedMonth, setSelectedMonth] = useState<string>(
     formatYearMonth(new Date())
   );
-
-  useEffect(() => {
-    loadEvents();
-  }, []);
-
-  useEffect(() => {
-    filterAndSortEvents();
-  }, [allEvents, searchQuery, sortBy, filterLocation, filterPriceRange]);
 
   const loadEvents = async () => {
     setLoading(true);
@@ -56,7 +59,7 @@ export default function StudentEventsPage() {
     const { data, error } = await supabase
       .from("events")
       .select("*")
-      .eq("status", "approved")
+      .eq("status", "Published")
       .order("start_date", { ascending: true });
 
     if (error) {
@@ -99,8 +102,8 @@ export default function StudentEventsPage() {
       filtered = filtered.filter(
         (event) =>
           event.title.toLowerCase().includes(query) ||
-          event.purpose?.toLowerCase().includes(query) ||
-          event.objective?.toLowerCase().includes(query)
+          getPurposeText(event.purpose).toLowerCase().includes(query) ||
+          getObjectiveText(event.purpose, event.objective).toLowerCase().includes(query)
       );
     }
 
@@ -128,6 +131,22 @@ export default function StudentEventsPage() {
     setFilteredEvents(filtered);
   };
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadEvents();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      filterAndSortEvents();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [allEvents, searchQuery, sortBy, filterLocation, filterPriceRange]);
+
   const registerEvent = async (eventId: string) => {
     const {
       data: { user },
@@ -143,13 +162,49 @@ export default function StudentEventsPage() {
     // Get event to check if it's free
     const { data: eventData, error: eventError } = await supabase
       .from("events")
-      .select("fee_amount")
+      .select("fee_amount, max_students, start_date, status")
       .eq("id", eventId)
       .single();
 
     if (eventError || !eventData) {
       setRegisteringId(null);
       setToast({ message: "Event not found", type: "error" });
+      return;
+    }
+
+    if (eventData.status !== "Published") {
+      setRegisteringId(null);
+      setToast({ message: "This event is not open for registration.", type: "error" });
+      return;
+    }
+
+    if (new Date(eventData.start_date).getTime() <= new Date().getTime()) {
+      setRegisteringId(null);
+      setToast({ message: "Registration deadline has passed.", type: "error" });
+      return;
+    }
+
+    const { count } = await supabase
+      .from("event_registrations")
+      .select("*", { count: "exact", head: true })
+      .eq("event_id", eventId);
+
+    if ((count || 0) >= eventData.max_students) {
+      setRegisteringId(null);
+      setToast({ message: "This event is full.", type: "error" });
+      return;
+    }
+
+    const { data: existingRegistration } = await supabase
+      .from("event_registrations")
+      .select("id")
+      .eq("event_id", eventId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (existingRegistration) {
+      setRegisteringId(null);
+      setToast({ message: "You already registered for this event", type: "error" });
       return;
     }
 
@@ -186,7 +241,7 @@ export default function StudentEventsPage() {
     return "";
   };
 
-  const CalendarView = () => {
+  const renderCalendarView = () => {
     const [year, month] = selectedMonth.split("-").map(Number);
     const firstDay = new Date(year, month - 1, 1);
     const lastDay = new Date(year, month, 0);
@@ -448,7 +503,7 @@ export default function StudentEventsPage() {
       )}
 
       {/* Calendar View */}
-      {viewMode === "calendar" && filteredEvents.length > 0 && <CalendarView />}
+      {viewMode === "calendar" && filteredEvents.length > 0 && renderCalendarView()}
 
       {/* Grid View */}
       {viewMode === "grid" && filteredEvents.length > 0 && (
@@ -457,6 +512,9 @@ export default function StudentEventsPage() {
             const spotsRemaining = Math.max(0, event.max_students - (event.registered_count || 0));
             const isEventFull = spotsRemaining === 0;
             const eventTrend = getEventTrend(event.registered_count || 0);
+            const studentStatus = getStudentStatus(event);
+            const isRegistrationClosed = studentStatus !== "Open";
+            const purposeText = getPurposeText(event.purpose);
 
             return (
               <Link
@@ -483,8 +541,8 @@ export default function StudentEventsPage() {
 
                 {/* Card Body */}
                 <div className="p-4 space-y-3">
-                  {event.purpose && (
-                    <p className="text-sm text-gray-600 line-clamp-2">{event.purpose}</p>
+                  {purposeText && (
+                    <p className="text-sm text-gray-600 line-clamp-2">{purposeText}</p>
                   )}
 
                   {/* Date */}
@@ -528,6 +586,11 @@ export default function StudentEventsPage() {
                     </p>
                   </div>
 
+                  <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                    <span>Deadline: {getRegistrationDeadline(event).toLocaleDateString()}</span>
+                    <span className="text-right font-bold">Status: {studentStatus}</span>
+                  </div>
+
                   {/* Fee */}
                   <div className="flex items-center justify-between pt-2 border-t border-gray-200">
                     {!event.fee_amount || event.fee_amount === 0 ? (
@@ -544,10 +607,10 @@ export default function StudentEventsPage() {
                         e.preventDefault();
                         registerEvent(event.id);
                       }}
-                      disabled={registeringId === event.id || isEventFull}
+                      disabled={registeringId === event.id || isRegistrationClosed}
                       className="px-3 py-1 bg-indigo-600 text-white text-sm font-medium rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                     >
-                      {registeringId === event.id ? "..." : "Register"}
+                      {registeringId === event.id ? "..." : isRegistrationClosed ? studentStatus : "Register"}
                     </button>
                   </div>
                 </div>
@@ -564,6 +627,9 @@ export default function StudentEventsPage() {
             const spotsRemaining = Math.max(0, event.max_students - (event.registered_count || 0));
             const isEventFull = spotsRemaining === 0;
             const eventTrend = getEventTrend(event.registered_count || 0);
+            const studentStatus = getStudentStatus(event);
+            const isRegistrationClosed = studentStatus !== "Open";
+            const purposeText = getPurposeText(event.purpose);
 
             return (
               <div
@@ -583,14 +649,16 @@ export default function StudentEventsPage() {
                           </span>
                         )}
                       </div>
-                      {event.purpose && (
+                      {purposeText && (
                         <p className="text-sm text-gray-600 mb-2 line-clamp-1">
-                          {event.purpose}
+                          {purposeText}
                         </p>
                       )}
                       <div className="flex flex-wrap gap-4 text-sm text-gray-600">
                         <span>📅 {new Date(event.start_date).toLocaleDateString()}</span>
                         {event.location && <span>📍 {event.location}</span>}
+                        <span>Deadline: {getRegistrationDeadline(event).toLocaleDateString()}</span>
+                        <span>Status: {studentStatus}</span>
                         {!event.fee_amount || event.fee_amount === 0 ? (
                           <span className="inline-flex items-center gap-1 text-green-700 font-semibold">
                             ✓ FREE
@@ -641,7 +709,7 @@ export default function StudentEventsPage() {
                   </Link>
                   <button
                     onClick={() => registerEvent(event.id)}
-                    disabled={registeringId === event.id || isEventFull}
+                    disabled={registeringId === event.id || isRegistrationClosed}
                     className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
                   >
                     {registeringId === event.id ? (
@@ -667,8 +735,8 @@ export default function StudentEventsPage() {
                         </svg>
                         Registering...
                       </>
-                    ) : isEventFull ? (
-                      "Full"
+                    ) : isRegistrationClosed ? (
+                      studentStatus
                     ) : (
                       "Register"
                     )}

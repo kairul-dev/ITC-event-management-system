@@ -22,22 +22,20 @@ export default function PresidentEventsPage() {
   const pathname = usePathname();
   const isHighCouncil = pathname.startsWith("/high-council");
   const reviewConfig = {
-    queueStatus: isHighCouncil ? "pending" : "high_council_approved",
-    approveStatus: isHighCouncil ? "high_council_approved" : "approved",
-    title: isHighCouncil ? "High Council Event Review" : "President Event Approval",
+    queueStatus: isHighCouncil ? "Pending High Council Approval" : "Pending Club Advisor Approval",
+    approveStatus: isHighCouncil ? "Pending Club Advisor Approval" : "Approved",
+    title: isHighCouncil ? "High Council Paperwork Review" : "Club Advisor Paperwork Review",
     description: isHighCouncil
-      ? "Review admin paperwork before forwarding it to the president."
-      : "Give final approval for events already approved by the high council.",
-    countLabel: isHighCouncil ? "Awaiting High Council" : "Awaiting President",
-    emptyTitle: isHighCouncil ? "No Events Awaiting High Council" : "No Events Awaiting President",
+      ? "Review admin paperwork before forwarding it to the club advisor."
+      : "Give final paperwork approval after high council review.",
+    countLabel: isHighCouncil ? "Pending High Council Approval" : "Pending Club Advisor Approval",
+    emptyTitle: isHighCouncil ? "No Paperwork Awaiting High Council" : "No Paperwork Awaiting Club Advisor",
     emptyDescription: isHighCouncil
       ? "All submitted paperwork has been reviewed by the high council."
-      : "No high council approved events are waiting for final approval.",
-    queueBadge: isHighCouncil ? "High Council Review" : "Final Review",
-    approveLabel: isHighCouncil ? "Send to President" : "Approve Event",
-    rejectLabel: isHighCouncil ? "Reject Paperwork" : "Reject Event",
-    rejectedAtColumn: "approved_at",
-    approvedAtColumn: "approved_at",
+      : "No high council approved paperwork is waiting for final approval.",
+    queueBadge: isHighCouncil ? "High Council Review" : "Club Advisor Review",
+    approveLabel: isHighCouncil ? "Send to Club Advisor" : "Approve Paperwork",
+    rejectLabel: "Reject Paperwork",
   };
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,10 +90,10 @@ export default function PresidentEventsPage() {
 
   const updateStatus = async (
     id: string,
-    status: "approved" | "high_council_approved" | "rejected",
+    status: "Approved" | "Pending Club Advisor Approval" | "Rejected",
     rejectionReason?: string,
   ) => {
-    if (status === "rejected") {
+    if (status === "Rejected") {
       const reason = (rejectionReason ?? "").trim();
       if (!reason) {
         alert("Rejection reason is required");
@@ -104,14 +102,11 @@ export default function PresidentEventsPage() {
 
       setProcessingId(id);
       try {
-        const { error } = await supabase
-          .from("events")
-          .update({
-            status,
-            rejection_reason: reason,
-            [reviewConfig.rejectedAtColumn]: new Date().toISOString(),
-          })
-          .eq("id", id);
+        const { error } = await supabase.rpc("review_event_paperwork", {
+          p_event_id: id,
+          p_next_status: status,
+          p_rejection_reason: reason,
+        });
 
         if (error) {
           alert("Error: " + error.message);
@@ -131,14 +126,11 @@ export default function PresidentEventsPage() {
 
     setProcessingId(id);
     try {
-      const { error } = await supabase
-        .from("events")
-        .update({
-          status,
-          rejection_reason: null,
-          [reviewConfig.approvedAtColumn]: new Date().toISOString(),
-        })
-        .eq("id", id);
+      const { error } = await supabase.rpc("review_event_paperwork", {
+        p_event_id: id,
+        p_next_status: status,
+        p_rejection_reason: null,
+      });
 
       if (error) {
         alert("Error: " + error.message);
@@ -289,7 +281,7 @@ export default function PresidentEventsPage() {
                   />
                   <div className="flex flex-col sm:flex-row gap-3 sm:justify-end mt-3">
                     <button
-                      onClick={() => updateStatus(selectedEvent.id, "rejected", rejectReason)}
+                      onClick={() => updateStatus(selectedEvent.id, "Rejected", rejectReason)}
                       disabled={processingId === selectedEvent.id}
                       className="px-5 py-2.5 rounded-xl text-white font-semibold bg-rose-700 hover:bg-rose-800 disabled:opacity-50"
                     >
@@ -299,7 +291,7 @@ export default function PresidentEventsPage() {
                       onClick={() =>
                         updateStatus(
                           selectedEvent.id,
-                          reviewConfig.approveStatus as "approved" | "high_council_approved",
+                          reviewConfig.approveStatus as "Approved" | "Pending Club Advisor Approval",
                         )
                       }
                       disabled={processingId === selectedEvent.id}

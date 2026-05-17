@@ -35,6 +35,16 @@ type EditableEvent = {
   status: string;
 };
 
+const STATUSES = {
+  draft: "Draft",
+  pendingHighCouncil: "Pending High Council Approval",
+  pendingClubAdvisor: "Pending Club Advisor Approval",
+  approved: "Approved",
+  rejected: "Rejected",
+  published: "Published",
+  closed: "Closed",
+} as const;
+
 const toDateTimeInputValue = (value?: string) => {
   if (!value) return "";
   if (value.includes("T")) return value.slice(0, 16);
@@ -43,7 +53,8 @@ const toDateTimeInputValue = (value?: string) => {
 
 function AdminEventContent() {
   const searchParams = useSearchParams();
-  const isEditMode = searchParams.get("mode") === "edit";
+  const mode = searchParams.get("mode");
+  const isEventListMode = mode === "events" || mode === "edit";
   const [title, setTitle] = useState("");
   const [organizedBy, setOrganizedBy] = useState("");
   const [purpose, setPurpose] = useState("");
@@ -79,6 +90,7 @@ function AdminEventContent() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [editingEvent, setEditingEvent] = useState<EditableEvent | null>(null);
   const [updatingEvent, setUpdatingEvent] = useState(false);
+  const [publishingEventId, setPublishingEventId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
   const loadEvents = useCallback(async () => {
@@ -140,7 +152,7 @@ function AdminEventContent() {
     return blocks.join("\n\n");
   };
 
-  const addEvent = async () => {
+  const addEvent = async (nextStatus: string) => {
     if (
       !title ||
       !organizedBy ||
@@ -180,7 +192,7 @@ function AdminEventContent() {
       budget: parseFloat(budget),
       fee_amount: parseFloat(feeAmount),
       max_students: parseInt(maxStudents, 10),
-      status: "pending",
+      status: nextStatus,
       created_at: new Date().toISOString(),
     };
 
@@ -231,7 +243,7 @@ function AdminEventContent() {
   const resubmitEvent = async (eventId: string) => {
     const { error } = await supabase
       .from("events")
-      .update({ status: "pending", rejection_reason: null })
+      .update({ status: STATUSES.pendingHighCouncil, rejection_reason: null })
       .eq("id", eventId);
 
     if (error) {
@@ -267,7 +279,7 @@ function AdminEventContent() {
     });
   }, [events, searchQuery, statusFilter]);
 
-  const publicEventCount = events.filter((event) => event.status === "approved").length;
+  const publicEventCount = events.filter((event) => event.status === STATUSES.published).length;
 
   const startEditingEvent = (event: Event) => {
     setShowPreview(false);
@@ -282,7 +294,7 @@ function AdminEventContent() {
       budget: String(event.budget ?? 0),
       fee_amount: String(event.fee_amount ?? 0),
       max_students: String(event.max_students ?? 0),
-      status: event.status || "pending",
+      status: event.status || STATUSES.draft,
     });
   };
 
@@ -314,7 +326,7 @@ function AdminEventContent() {
         fee_amount: parseFloat(editingEvent.fee_amount || "0"),
         max_students: parseInt(editingEvent.max_students, 10),
         status: editingEvent.status,
-        ...(editingEvent.status === "rejected" ? {} : { rejection_reason: null }),
+        ...(editingEvent.status === STATUSES.rejected ? {} : { rejection_reason: null }),
       })
       .eq("id", editingEvent.id);
 
@@ -327,6 +339,30 @@ function AdminEventContent() {
 
     setEditingEvent(null);
     setShowPreview(false);
+    await loadEvents();
+  };
+
+  const updateEventVisibility = async (event: Event, visible: boolean) => {
+    const confirmed = confirm(
+      visible
+        ? `Show "${event.title}" on the main page and student event list?`
+        : `Hide "${event.title}" from the main page and student event list?`
+    );
+    if (!confirmed) return;
+
+    setPublishingEventId(event.id);
+    const { error } = await supabase
+      .from("events")
+      .update({ status: visible ? STATUSES.published : STATUSES.draft, rejection_reason: null })
+      .eq("id", event.id);
+
+    setPublishingEventId(null);
+
+    if (error) {
+      alert("Error updating event visibility: " + error.message);
+      return;
+    }
+
     await loadEvents();
   };
 
@@ -384,32 +420,30 @@ function AdminEventContent() {
   const completionPercent = Math.round((completedRequired / requiredChecks.length) * 100);
 
   const statusBadgeClass = (status: string) => {
-    if (status === "approved") return "ds-badge-approved";
-    if (status === "rejected") return "ds-badge-rejected";
-    if (status === "high_council_approved") return "ds-badge bg-indigo-100 text-indigo-800";
-    if (status === "completed") return "ds-badge-completed";
+    if (status === STATUSES.published || status === STATUSES.approved) return "ds-badge-approved";
+    if (status === STATUSES.rejected) return "ds-badge-rejected";
+    if (status === STATUSES.pendingClubAdvisor) return "ds-badge bg-indigo-100 text-indigo-800";
+    if (status === STATUSES.closed) return "ds-badge-completed";
+    if (status === STATUSES.draft) return "ds-badge bg-slate-100 text-slate-700";
     return "ds-badge-pending";
   };
 
-  const statusLabel = (status: string) => {
-    if (status === "high_council_approved") return "sent to president";
-    return status;
-  };
+  const statusLabel = (status: string) => status;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-slate-900">
-          {isEditMode ? "Edit Event" : "Manage Events"}
+          {isEventListMode ? "Events" : "Paperwork"}
         </h1>
         <p className="text-sm text-slate-600">
-          {isEditMode
+          {isEventListMode
             ? "Update existing event details shown across the public event pages."
             : "Isi borang kertas kerja rasmi berdasarkan format UTHM."}
         </p>
       </div>
 
-      {!isEditMode && (
+      {!isEventListMode && (
       <div className="ds-card p-6 md:p-8 space-y-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <h2 className="text-2xl font-semibold text-slate-900">Borang Kertas Kerja Aktiviti</h2>
@@ -564,9 +598,16 @@ function AdminEventContent() {
           <textarea value={sustainabilityDetails} onChange={(e) => setSustainabilityDetails(e.target.value)} rows={3} className="ds-textarea" />
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex flex-col justify-end gap-3 sm:flex-row">
           <button
-            onClick={addEvent}
+            onClick={() => addEvent(STATUSES.draft)}
+            disabled={submitting}
+            className="rounded-xl border border-slate-300 bg-white px-6 py-2.5 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            {submitting ? "Saving..." : "Save Draft"}
+          </button>
+          <button
+            onClick={() => addEvent(STATUSES.pendingHighCouncil)}
             disabled={submitting}
             className="ds-btn-primary"
           >
@@ -581,7 +622,7 @@ function AdminEventContent() {
           <div>
             <h2 className="text-xl font-semibold text-slate-900">All Events</h2>
             <p className="mt-1 text-sm text-slate-600">
-              {publicEventCount} event{publicEventCount === 1 ? "" : "s"} are visible on the main page.
+              {publicEventCount} published event{publicEventCount === 1 ? "" : "s"} are visible to students.
             </p>
           </div>
           <div className="grid gap-3 md:grid-cols-[1fr_220px] lg:w-[620px]">
@@ -598,11 +639,13 @@ function AdminEventContent() {
               className="ds-input"
             >
               <option value="all">All statuses</option>
-              <option value="pending">Pending high council</option>
-              <option value="high_council_approved">Sent to president</option>
-              <option value="approved">Visible on main page</option>
-              <option value="rejected">Rejected</option>
-              <option value="completed">Completed</option>
+              <option value={STATUSES.draft}>Draft</option>
+              <option value={STATUSES.pendingHighCouncil}>Pending High Council Approval</option>
+              <option value={STATUSES.pendingClubAdvisor}>Pending Club Advisor Approval</option>
+              <option value={STATUSES.approved}>Approved</option>
+              <option value={STATUSES.rejected}>Rejected</option>
+              <option value={STATUSES.published}>Published</option>
+              <option value={STATUSES.closed}>Closed</option>
             </select>
           </div>
         </div>
@@ -613,7 +656,7 @@ function AdminEventContent() {
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">Edit Event Details</h3>
                 <p className="text-sm text-slate-600">
-                  Approved events update the main page and public event directory.
+                  Only Published events appear on the main page and student event list.
                 </p>
               </div>
               <button
@@ -702,11 +745,13 @@ function AdminEventContent() {
                   onChange={(e) => setEditingEvent({ ...editingEvent, status: e.target.value })}
                   className="ds-input"
                 >
-                  <option value="pending">Pending high council</option>
-                  <option value="high_council_approved">Sent to president</option>
-                  <option value="approved">Visible on main page</option>
-                  <option value="completed">Completed</option>
-                  <option value="rejected">Rejected</option>
+                  <option value={STATUSES.draft}>Draft</option>
+                  <option value={STATUSES.pendingHighCouncil}>Pending High Council Approval</option>
+                  <option value={STATUSES.pendingClubAdvisor}>Pending Club Advisor Approval</option>
+                  <option value={STATUSES.approved}>Approved</option>
+                  <option value={STATUSES.rejected}>Rejected</option>
+                  <option value={STATUSES.published}>Published</option>
+                  <option value={STATUSES.closed}>Closed</option>
                 </select>
               </div>
               <div className="lg:col-span-2">
@@ -847,7 +892,25 @@ function AdminEventContent() {
                         >
                           Report
                         </Link>
-                        {event.status === "rejected" && (
+                        {event.status !== STATUSES.published && (
+                          <button
+                            onClick={() => updateEventVisibility(event, true)}
+                            disabled={publishingEventId === event.id}
+                            className="px-2 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {publishingEventId === event.id ? "Updating..." : "Show on Main Page"}
+                          </button>
+                        )}
+                        {event.status === STATUSES.published && (
+                          <button
+                            onClick={() => updateEventVisibility(event, false)}
+                            disabled={publishingEventId === event.id}
+                            className="px-2 py-1 bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {publishingEventId === event.id ? "Updating..." : "Hide from Main Page"}
+                          </button>
+                        )}
+                        {event.status === STATUSES.rejected && (
                           <button
                             onClick={() => resubmitEvent(event.id)}
                             className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { getObjectiveText, getPurposeText } from "@/lib/eventDisplay";
 
 type EventRow = {
   id: string;
@@ -14,6 +15,7 @@ type EventRow = {
   location?: string | null;
   purpose?: string | null;
   objective?: string | null;
+  registered_count?: number;
 };
 
 type EventVisual = {
@@ -93,6 +95,12 @@ const getFeeLabel = (fee?: number | null) =>
   fee && fee > 0 ? `RM ${Number(fee).toFixed(2)}` : "Free";
 
 const getVisual = (title: string) => eventVisuals[title] || fallbackVisual;
+const getEventStatus = (event: EventRow) => {
+  const registered = event.registered_count || 0;
+  if (registered >= event.max_students) return "Full";
+  if (new Date(event.start_date).getTime() <= Date.now()) return "Closed";
+  return "Open";
+};
 
 export default function PublicEventsPage() {
   const [events, setEvents] = useState<EventRow[]>([]);
@@ -105,11 +113,22 @@ export default function PublicEventsPage() {
       const { data, error } = await supabase
         .from("events")
         .select("id,title,start_date,end_date,max_students,fee_amount,location,purpose,objective")
-        .eq("status", "approved")
+        .eq("status", "Published")
         .order("start_date", { ascending: true });
 
       if (!error) {
-        setEvents((data || []) as EventRow[]);
+        const rows = (data || []) as EventRow[];
+        const rowsWithCounts = await Promise.all(
+          rows.map(async (event) => {
+            const { count } = await supabase
+              .from("event_registrations")
+              .select("*", { count: "exact", head: true })
+              .eq("event_id", event.id);
+
+            return { ...event, registered_count: count || 0 };
+          }),
+        );
+        setEvents(rowsWithCounts);
       }
 
       setLoading(false);
@@ -119,7 +138,7 @@ export default function PublicEventsPage() {
   }, []);
 
   const filteredEvents = events.filter((event) => {
-    const text = `${event.title} ${event.location || ""} ${event.purpose || ""} ${event.objective || ""}`.toLowerCase();
+    const text = `${event.title} ${event.location || ""} ${getPurposeText(event.purpose)} ${getObjectiveText(event.purpose, event.objective)}`.toLowerCase();
     const matchesQuery = text.includes(query.toLowerCase());
     const isPaid = !!event.fee_amount && event.fee_amount > 0;
     const matchesFee =
@@ -167,7 +186,7 @@ export default function PublicEventsPage() {
               Choose the next event for your IT journey.
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-8 text-slate-100">
-              Explore approved workshops, talks, competitions, and showcases.
+              Explore published workshops, talks, competitions, and showcases.
               Open an event to see the full details before registering with
               your student account.
             </p>
@@ -236,7 +255,7 @@ export default function PublicEventsPage() {
           </div>
         ) : filteredEvents.length === 0 ? (
           <div className="mt-10 rounded-lg border border-slate-200 bg-white p-10 text-center shadow-sm">
-            <h2 className="text-xl font-black text-slate-950">No approved events found</h2>
+            <h2 className="text-xl font-black text-slate-950">No published events found</h2>
             <p className="mt-2 text-sm text-slate-600">Try another search term or check again later.</p>
           </div>
         ) : (
@@ -257,6 +276,12 @@ export default function PublicEventsPage() {
                 {filteredEvents.map((event) => {
                   const visual = getVisual(event.title);
                   const date = new Date(event.start_date);
+                  const status = getEventStatus(event);
+                  const availableSlots = Math.max(0, event.max_students - (event.registered_count || 0));
+                  const summaryText =
+                    getPurposeText(event.purpose) ||
+                    getObjectiveText(event.purpose, event.objective) ||
+                    "View event details, venue, capacity, and registration information.";
 
                   return (
                     <article key={event.id} className="group overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.10)] transition hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(15,23,42,0.16)]">
@@ -290,7 +315,7 @@ export default function PublicEventsPage() {
                         </div>
 
                         <p className="mt-3 min-h-16 text-sm leading-6 text-slate-600">
-                          {event.purpose || event.objective || "View event details, venue, capacity, and registration information."}
+                          {summaryText}
                         </p>
 
                         <div className="mt-5 grid gap-3 text-sm">
@@ -323,9 +348,19 @@ export default function PublicEventsPage() {
                               <span className="block text-xs font-bold uppercase text-slate-400">Fee</span>
                               <span className="mt-1 block text-lg font-black text-slate-950">{getFeeLabel(event.fee_amount)}</span>
                             </div>
+                          <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+                              <span className="block text-xs font-bold uppercase text-slate-400">Available Slots</span>
+                              <span className="mt-1 block text-lg font-black text-slate-950">{availableSlots}</span>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
                             <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-                              <span className="block text-xs font-bold uppercase text-slate-400">Seats</span>
-                              <span className="mt-1 block text-lg font-black text-slate-950">{event.max_students}</span>
+                              <span className="block text-xs font-bold uppercase text-slate-400">Deadline</span>
+                              <span className="mt-1 block text-sm font-black text-slate-950">{formatDate(event.start_date)}</span>
+                            </div>
+                            <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+                              <span className="block text-xs font-bold uppercase text-slate-400">Status</span>
+                              <span className="mt-1 block text-sm font-black text-slate-950">{status}</span>
                             </div>
                           </div>
                         </div>

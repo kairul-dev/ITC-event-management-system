@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
+import { getObjectiveText, getPurposeText } from "@/lib/eventDisplay";
 
 type EventRow = {
   id: string;
@@ -37,6 +38,7 @@ export default function PublicEventDetailsPage() {
   const [isRegistered, setIsRegistered] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [registering, setRegistering] = useState(false);
+  const [now] = useState(() => Date.now());
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   useEffect(() => {
@@ -50,7 +52,7 @@ export default function PublicEventDetailsPage() {
         .from("events")
         .select("*")
         .eq("id", params.id)
-        .eq("status", "approved")
+        .eq("status", "Published")
         .single();
 
       if (!error && data) {
@@ -101,6 +103,16 @@ export default function PublicEventDetailsPage() {
 
     if (isRegistered) {
       setMessage({ text: "You are already registered for this event.", type: "error" });
+      return;
+    }
+
+    if (!event || event.max_students <= registeredCount) {
+      setMessage({ text: "This event is full.", type: "error" });
+      return;
+    }
+
+    if (new Date(event.start_date).getTime() <= new Date().getTime()) {
+      setMessage({ text: "Registration deadline has passed.", type: "error" });
       return;
     }
 
@@ -171,6 +183,9 @@ export default function PublicEventDetailsPage() {
   }
 
   const spotsLeft = Math.max(0, event.max_students - registeredCount);
+  const isClosed = new Date(event.start_date).getTime() <= now;
+  const purposeText = getPurposeText(event.purpose);
+  const objectiveText = getObjectiveText(event.purpose, event.objective);
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
@@ -209,15 +224,15 @@ export default function PublicEventDetailsPage() {
 
             <div className="space-y-6">
               <section>
-                <h2 className="text-xl font-black">Purpose</h2>
+                <h2 className="text-xl font-black">Tujuan</h2>
                 <p className="mt-2 leading-7 text-slate-600">
-                  {event.purpose || "Purpose will be announced soon."}
+                  {purposeText || "Tujuan akan dimaklumkan kemudian."}
                 </p>
               </section>
               <section>
-                <h2 className="text-xl font-black">Objective</h2>
+                <h2 className="text-xl font-black">Objektif</h2>
                 <p className="mt-2 leading-7 text-slate-600">
-                  {event.objective || "Objective will be announced soon."}
+                  {objectiveText || "Objektif akan dimaklumkan kemudian."}
                 </p>
               </section>
             </div>
@@ -242,6 +257,10 @@ export default function PublicEventDetailsPage() {
                   </dd>
                 </div>
                 <div>
+                  <dt className="font-bold text-slate-500">Registration Deadline</dt>
+                  <dd className="mt-1 text-slate-900">{new Date(event.start_date).toLocaleString()}</dd>
+                </div>
+                <div>
                   <dt className="font-bold text-slate-500">Seats</dt>
                   <dd className="mt-1 text-slate-900">
                     {spotsLeft} left from {event.max_students}
@@ -251,13 +270,15 @@ export default function PublicEventDetailsPage() {
               <button
                 type="button"
                 onClick={startRegister}
-                disabled={spotsLeft === 0 || isRegistered}
+                disabled={spotsLeft === 0 || isRegistered || isClosed}
                 className="mt-6 w-full rounded-md bg-violet-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isRegistered
                   ? "Already Registered"
                   : spotsLeft === 0
                   ? "Event Full"
+                  : isClosed
+                  ? "Registration Closed"
                   : user
                   ? "Register for Event"
                   : "Login to Register"}

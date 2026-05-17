@@ -21,7 +21,6 @@ export default function AdminGuard({
         } = await supabase.auth.getSession();
 
         if (sessionError || !session) {
-          console.error("AdminGuard: No session", sessionError);
           setLoading(false);
           router.replace("/login");
           return;

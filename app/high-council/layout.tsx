@@ -1,9 +1,29 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
+import RoleDashboardShell, { type RoleNavItem } from "@/lib/RoleDashboardShell";
+
+const navItems: RoleNavItem[] = [
+  {
+    href: "/high-council",
+    label: "Dashboard",
+    icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m3 11 9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9Z" />,
+  },
+  {
+    section: "Approval",
+    href: "/high-council/events",
+    label: "Review Paperwork",
+    icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm7 0v5h5M9 13h6M9 17h6" />,
+  },
+  {
+    section: "Account",
+    href: "/high-council/profile",
+    label: "Profile",
+    icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0" />,
+  },
+];
 
 export default function HighCouncilLayout({
   children,
@@ -11,7 +31,6 @@ export default function HighCouncilLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const pathname = usePathname();
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
@@ -45,68 +64,22 @@ export default function HighCouncilLayout({
     router.replace("/login");
   };
 
-  const isActive = (path: string) => {
-    return pathname === path ? "bg-slate-800" : "hover:bg-slate-800";
-  };
-
   if (checking) {
     return (
-      <main className="grid min-h-screen place-items-center bg-gray-100 text-sm text-gray-600">
+      <main className="grid min-h-screen place-items-center bg-[#f6f8fc] text-sm text-slate-600">
         Checking high council access...
       </main>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      <aside className="flex w-64 flex-col bg-slate-900 text-slate-100">
-        <div className="border-b border-slate-800 px-6 py-5 text-lg font-semibold">
-          ITC High Council
-        </div>
-
-        <nav className="flex-1 space-y-1 px-4 py-6 text-sm">
-          <Link href="/high-council" className={`block rounded px-4 py-2 transition ${isActive("/high-council")}`}>
-            Dashboard
-          </Link>
-          <Link href="/high-council/events" className={`block rounded px-4 py-2 transition ${isActive("/high-council/events")}`}>
-            Approve Events
-          </Link>
-          <Link href="/high-council/certificates" className={`block rounded px-4 py-2 transition ${isActive("/high-council/certificates")}`}>
-            Approve Certificates
-          </Link>
-          <Link href="/high-council/profile" className={`block rounded px-4 py-2 transition ${isActive("/high-council/profile")}`}>
-            Profile
-          </Link>
-        </nav>
-      </aside>
-
-      <div className="flex flex-1 flex-col">
-        <header className="flex h-16 items-center justify-between border-b bg-white px-6">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.back()}
-              className="rounded p-2 transition hover:bg-gray-200"
-              title="Go back"
-            >
-              <svg className="h-5 w-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <h1 className="text-lg font-medium text-gray-800">High Council Dashboard</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-500">High Council</span>
-            <button
-              onClick={logout}
-              className="rounded bg-red-600 px-4 py-2 text-sm text-white transition hover:bg-red-700"
-            >
-              Logout
-            </button>
-          </div>
-        </header>
-
-        <main className="p-6">{children}</main>
-      </div>
-    </div>
+    <RoleDashboardShell
+      title="High Council Dashboard"
+      roleLabel="High Council"
+      navItems={navItems}
+      onLogout={logout}
+    >
+      {children}
+    </RoleDashboardShell>
   );
 }

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import type { User } from "@supabase/supabase-js";
+import { getObjectiveText, getPurposeText } from "@/lib/eventDisplay";
 
 type Event = {
   id: string;
@@ -32,7 +34,8 @@ export default function EventDetailsPage() {
   const [stats, setStats] = useState<EventStats>({ registered_count: 0, is_registered: false });
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [now] = useState(() => Date.now());
   const [toast, setToast] = useState<{ message: string; type?: "success" | "error" } | null>(null);
 
   useEffect(() => {
@@ -53,7 +56,7 @@ export default function EventDetailsPage() {
         .from("events")
         .select("*")
         .eq("id", id)
-        .eq("status", "approved")
+        .eq("status", "Published")
         .single();
 
       if (error) {
@@ -99,6 +102,21 @@ export default function EventDetailsPage() {
 
     if (stats.is_registered) {
       setToast({ message: "You are already registered for this event", type: "error" });
+      return;
+    }
+
+    if (!event || event.status !== "Published") {
+      setToast({ message: "This event is not open for registration", type: "error" });
+      return;
+    }
+
+    if (event.max_students <= stats.registered_count) {
+      setToast({ message: "This event is full", type: "error" });
+      return;
+    }
+
+    if (new Date(event.start_date).getTime() <= new Date().getTime()) {
+      setToast({ message: "Registration deadline has passed", type: "error" });
       return;
     }
 
@@ -150,7 +168,7 @@ export default function EventDetailsPage() {
         <div className="bg-white rounded-lg shadow-md p-10 text-center">
           <h2 className="text-lg font-semibold text-gray-900">Event not found</h2>
           <p className="text-gray-500 text-sm mt-2">
-            The event you're looking for doesn't exist or is not available.
+            The event you&apos;re looking for doesn&apos;t exist or is not available.
           </p>
         </div>
       </div>
@@ -159,7 +177,10 @@ export default function EventDetailsPage() {
 
   const spotsRemaining = Math.max(0, event.max_students - stats.registered_count);
   const capacityPercentage = (stats.registered_count / event.max_students) * 100;
-  const eventStatus = new Date(event.start_date) < new Date() ? "Ended" : "Upcoming";
+  const isDeadlinePassed = new Date(event.start_date).getTime() <= now;
+  const eventStatus = spotsRemaining === 0 ? "Full" : isDeadlinePassed ? "Closed" : "Open";
+  const purposeText = getPurposeText(event.purpose);
+  const objectiveText = getObjectiveText(event.purpose, event.objective);
 
   return (
     <div className="space-y-6">
@@ -187,15 +208,15 @@ export default function EventDetailsPage() {
               <div className="flex items-center gap-3 mb-2">
                 <h1 className="text-3xl font-bold text-white">{event.title}</h1>
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  eventStatus === "Ended"
+                  eventStatus !== "Open"
                     ? "bg-red-100 text-red-800"
                     : "bg-green-100 text-green-800"
                 }`}>
                   {eventStatus}
                 </span>
               </div>
-              {event.purpose && (
-                <p className="text-indigo-100 mt-2">{event.purpose}</p>
+              {purposeText && (
+                <p className="text-indigo-100 mt-2">{purposeText}</p>
               )}
             </div>
           </div>
@@ -214,6 +235,12 @@ export default function EventDetailsPage() {
                     <p className="text-sm text-gray-500">Location</p>
                     <p className="text-base font-medium text-gray-900">
                       {event.location || "TBA"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Registration Deadline</p>
+                    <p className="text-base font-medium text-gray-900">
+                      {new Date(event.start_date).toLocaleString()}
                     </p>
                   </div>
                   <div>
@@ -252,10 +279,10 @@ export default function EventDetailsPage() {
               </div>
 
               {/* Objective */}
-              {event.objective && (
+              {objectiveText && (
                 <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
-                  <h3 className="text-base font-semibold text-gray-900 mb-2">Objective</h3>
-                  <p className="text-gray-700">{event.objective}</p>
+                  <h3 className="text-base font-semibold text-gray-900 mb-2">Objektif</h3>
+                  <p className="text-gray-700">{objectiveText}</p>
                 </div>
               )}
             </div>
@@ -339,7 +366,7 @@ export default function EventDetailsPage() {
                       disabled={
                         registering ||
                         spotsRemaining === 0 ||
-                        eventStatus === "Ended"
+                        eventStatus === "Closed"
                       }
                       className="w-full px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg shadow hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
                     >
@@ -368,8 +395,8 @@ export default function EventDetailsPage() {
                         </span>
                       ) : spotsRemaining === 0 ? (
                         "Event is Full"
-                      ) : eventStatus === "Ended" ? (
-                        "Event Ended"
+                      ) : eventStatus === "Closed" ? (
+                        "Registration Closed"
                       ) : (
                         "Register Now"
                       )}

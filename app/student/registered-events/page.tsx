@@ -279,13 +279,13 @@ function RegisteredEventsContent() {
                     <p className="text-sm text-gray-500">
                       <span className="font-medium">Status:</span>{" "}
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                        event.events.status === "completed"
+                        event.events.status === "Closed"
                           ? "bg-green-100 text-green-800"
-                          : event.events.status === "approved"
+                          : event.events.status === "Published"
                           ? "bg-blue-100 text-blue-800"
                           : "bg-gray-100 text-gray-800"
                       }`}>
-                        {event.events.status === "completed" ? "Completed" : event.events.status === "approved" ? "Ongoing" : event.events.status}
+                        {event.events.status === "Closed" ? "Closed" : event.events.status === "Published" ? "Published" : event.events.status}
                       </span>
                     </p>
                     <p className="text-xs text-gray-400">

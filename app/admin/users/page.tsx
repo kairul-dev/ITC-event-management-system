@@ -16,7 +16,7 @@ export default function AdminUsers() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "student" | "president" | "high_council">("all");
+  const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "student" | "club_advisor" | "high_council">("all");
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
@@ -45,23 +45,32 @@ export default function AdminUsers() {
   const updateUserRole = async (userId: string, newRole: string) => {
     setUpdatingUserId(userId);
     try {
-      const { data, error } = await supabase
-        .from("users")
-        .update({ role: newRole })
-        .eq("id", userId)
-        .select("id, role");
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
 
-      if (error) {
-        alert("Error updating user role: " + error.message);
-      } else if (!data || data.length === 0) {
-        alert(
-          "Role was not updated. This is usually an RLS policy issue. " +
-            "Run migration: 20260411_admin_update_user_roles.sql"
-        );
-      } else {
-        alert("User role updated successfully");
-        await loadUsers();
+      if (!token) {
+        alert("Your session has expired. Please log in again.");
+        return;
       }
+
+      const response = await fetch("/api/admin/users/role", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId, role: newRole }),
+      });
+
+      const result = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        alert("Error updating user role: " + (result.error || "Unknown error"));
+        return;
+      }
+
+      alert("User role updated successfully");
+      await loadUsers();
     } catch (error) {
       console.error("Error:", error);
       alert("Error updating user role");
@@ -203,14 +212,14 @@ export default function AdminUsers() {
           <select
             value={roleFilter}
             onChange={(e) =>
-              setRoleFilter(e.target.value as "all" | "admin" | "student" | "president" | "high_council")
+              setRoleFilter(e.target.value as "all" | "admin" | "student" | "club_advisor" | "high_council")
             }
             className="w-full md:w-56 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           >
             <option value="all">All Roles</option>
             <option value="admin">Admin Only</option>
             <option value="student">Student Only</option>
-            <option value="president">President Only</option>
+            <option value="club_advisor">Club Advisor Only</option>
             <option value="high_council">High Council Only</option>
           </select>
         </div>
@@ -269,11 +278,9 @@ export default function AdminUsers() {
                         className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                           user.role === "admin"
                             ? "bg-purple-100 text-purple-800"
-                            : user.role === "facility_manager"
-                            ? "bg-emerald-100 text-emerald-800"
                             : user.role === "high_council"
                             ? "bg-amber-100 text-amber-800"
-                            : user.role === "president"
+                            : user.role === "club_advisor" || user.role === "president"
                             ? "bg-blue-100 text-blue-800"
                             : "bg-gray-100 text-gray-800"
                         }`}
@@ -296,8 +303,7 @@ export default function AdminUsers() {
                         >
                           <option value="student">Student</option>
                           <option value="admin">Admin</option>
-                          <option value="facility_manager">Facility Manager</option>
-                          <option value="president">President</option>
+                          <option value="club_advisor">Club Advisor</option>
                           <option value="high_council">High Council</option>
                         </select>
                         <button

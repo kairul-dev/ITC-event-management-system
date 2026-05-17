@@ -16,8 +16,8 @@ export default function HighCouncilHomePage() {
   useEffect(() => {
     const loadDashboardData = async () => {
       const [pendingEvents, approvedEvents, pendingCertificates, approvedCertificates] = await Promise.all([
-        supabase.from("events").select("*", { count: "exact", head: true }).eq("status", "pending"),
-        supabase.from("events").select("*", { count: "exact", head: true }).eq("status", "approved"),
+        supabase.from("events").select("*", { count: "exact", head: true }).eq("status", "Pending High Council Approval"),
+        supabase.from("events").select("*", { count: "exact", head: true }).eq("status", "Pending Club Advisor Approval"),
         supabase.from("certificates").select("*", { count: "exact", head: true }).eq("status", "pending"),
         supabase.from("certificates").select("*", { count: "exact", head: true }).eq("status", "approved"),
       ]);
@@ -46,15 +46,13 @@ export default function HighCouncilHomePage() {
     <div className="space-y-6">
       <div className="rounded-xl bg-gradient-to-r from-slate-900 to-amber-700 p-6 text-white">
         <h1 className="mb-2 text-3xl font-bold">Welcome, High Council</h1>
-        <p className="text-amber-100">Review event and certificate approvals for ITC operations.</p>
+        <p className="text-amber-100">Review submitted event paperwork before Club Advisor approval.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         {[
-          ["Pending Events", stats.pendingEvents, "border-yellow-500"],
-          ["Pending Certificates", stats.pendingCertificates, "border-orange-500"],
-          ["Approved Events", stats.approvedEvents, "border-green-500"],
-          ["Approved Certificates", stats.approvedCertificates, "border-blue-500"],
+          ["Pending High Council Approval", stats.pendingEvents, "border-yellow-500"],
+          ["Forwarded to Club Advisor", stats.approvedEvents, "border-green-500"],
         ].map(([label, value, border]) => (
           <div key={label} className={`rounded-lg border-l-4 ${border} bg-white p-6 shadow-md`}>
             <p className="text-sm font-medium text-gray-500">{label}</p>
@@ -70,13 +68,7 @@ export default function HighCouncilHomePage() {
             href="/high-council/events"
             className="rounded-lg border-2 border-gray-200 p-4 font-medium text-gray-900 transition hover:border-amber-500 hover:bg-amber-50"
           >
-            Approve or reject events
-          </Link>
-          <Link
-            href="/high-council/certificates"
-            className="rounded-lg border-2 border-gray-200 p-4 font-medium text-gray-900 transition hover:border-amber-500 hover:bg-amber-50"
-          >
-            Approve or reject certificates
+            Approve or reject paperwork
           </Link>
         </div>
       </div>

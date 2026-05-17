@@ -65,6 +65,14 @@ type ParsedSection = {
   body: string;
 };
 
+type Html2PdfFactory = () => {
+  set: (options: Record<string, unknown>) => {
+    from: (element: HTMLElement) => {
+      save: () => Promise<void>;
+    };
+  };
+};
+
 const parseNumberedSections = (...sources: Array<string | null | undefined>) => {
   const text = sources.filter(Boolean).join("\n\n").trim();
   if (!text) return [] as ParsedSection[];
@@ -233,10 +241,10 @@ export default function AdminEventReportPage() {
   }, [filteredEvents]);
 
   const statusClass = (status: string) => {
-    if (status === "approved") return "bg-green-100 text-green-800";
-    if (status === "pending") return "bg-amber-100 text-amber-800";
-    if (status === "completed") return "bg-blue-100 text-blue-800";
-    if (status === "rejected") return "bg-red-100 text-red-800";
+    if (status === "Published" || status === "Approved") return "bg-green-100 text-green-800";
+    if (status.startsWith("Pending")) return "bg-amber-100 text-amber-800";
+    if (status === "Closed") return "bg-blue-100 text-blue-800";
+    if (status === "Rejected") return "bg-red-100 text-red-800";
     return "bg-gray-100 text-gray-800";
   };
 
@@ -291,7 +299,7 @@ export default function AdminEventReportPage() {
     setExportingPdf(true);
     try {
       const mod = await import("html2pdf.js");
-      const html2pdf = (mod as any).default || mod;
+      const html2pdf = ((mod as { default?: Html2PdfFactory }).default || mod) as Html2PdfFactory;
       await html2pdf()
         .set({
           margin: 10,

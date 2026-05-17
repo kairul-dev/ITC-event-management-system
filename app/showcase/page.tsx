@@ -175,7 +175,7 @@ export default function ShowcasePage() {
       const { data, error } = await supabase
         .from("events")
         .select("id,title,start_date,end_date,fee_amount,max_students,location,purpose,objective")
-        .eq("status", "approved")
+        .eq("status", "Published")
         .order("start_date", { ascending: true })
         .limit(12);
 
@@ -320,7 +320,7 @@ export default function ShowcasePage() {
 
         {visibleEvents.length === 0 ? (
           <div className="mt-7 rounded-lg border border-slate-200 bg-white p-10 text-center text-sm text-slate-600">
-            No approved events are available yet.
+            No published events are available yet.
           </div>
         ) : (
           <div className="mt-7 grid gap-7 md:grid-cols-2 xl:grid-cols-4">

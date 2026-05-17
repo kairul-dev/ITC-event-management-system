@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import RoleDashboardShell, { type RoleNavItem } from "@/lib/RoleDashboardShell";
 
 export default function PresidentLayout({
   children,
@@ -12,85 +12,79 @@ export default function PresidentLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const basePath = pathname.startsWith("/club-advisor") ? "/club-advisor" : "/president";
+  const [checking, setChecking] = useState(true);
+
+  const navItems = useMemo<RoleNavItem[]>(
+    () => [
+      {
+        href: basePath,
+        label: "Dashboard",
+        icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m3 11 9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9Z" />,
+      },
+      {
+        section: "Approval",
+        href: `${basePath}/events`,
+        label: "Review Paperwork",
+        icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm7 0v5h5M9 13h6M9 17h6" />,
+      },
+      {
+        section: "Account",
+        href: `${basePath}/profile`,
+        label: "Profile",
+        icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0" />,
+      },
+    ],
+    [basePath],
+  );
+
+  useEffect(() => {
+    const checkAccess = async () => {
+      const { data: userData } = await supabase.auth.getUser();
+
+      if (!userData.user) {
+        router.replace("/login?role=club_advisor");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", userData.user.id)
+        .single();
+
+      if (error || !["club_advisor", "president"].includes(data?.role || "")) {
+        router.replace("/login?role=club_advisor");
+        return;
+      }
+
+      setChecking(false);
+    };
+
+    checkAccess();
+  }, [router]);
 
   const logout = async () => {
     await supabase.auth.signOut();
     router.replace("/login");
   };
 
-  const isActive = (path: string) => {
-    return pathname === path ? "bg-slate-800" : "hover:bg-slate-800";
-  };
-
-  const handleBack = () => {
-    router.back();
-  };
+  if (checking) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-[#f6f8fc] text-sm text-slate-600">
+        Checking club advisor access...
+      </main>
+    );
+  }
 
   return (
-    <div className="min-h-screen flex bg-gray-100">
-      {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 text-slate-100 flex flex-col">
-        <div className="px-6 py-5 text-lg font-semibold border-b border-slate-800">
-          ITC Secure President
-        </div>
-
-        <nav className="flex-1 px-4 py-6 space-y-1 text-sm">
-          <Link
-            href="/president"
-            className={`block px-4 py-2 rounded transition ${isActive("/president")}`}
-          >
-            Dashboard
-          </Link>
-          <Link
-            href="/president/events"
-            className={`block px-4 py-2 rounded transition ${isActive("/president/events")}`}
-          >
-            Approve Events
-          </Link>
-          <Link
-            href="/president/certificates"
-            className={`block px-4 py-2 rounded transition ${isActive("/president/certificates")}`}
-          >
-            Approve Certificates
-          </Link>
-          <Link
-            href="/president/profile"
-            className={`block px-4 py-2 rounded transition ${isActive("/president/profile")}`}
-          >
-            Profile
-          </Link>
-        </nav>
-      </aside>
-
-      {/* Main */}
-      <div className="flex-1 flex flex-col">
-        {/* Topbar */}
-        <header className="h-16 bg-white border-b px-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleBack}
-              className="p-2 hover:bg-gray-200 rounded transition"
-              title="Go back"
-            >
-              <svg className="w-5 h-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <h1 className="text-lg font-medium text-gray-800">President Dashboard</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-500">President</span>
-            <button
-              onClick={logout}
-              className="px-4 py-2 text-sm bg-red-600 hover:bg-red-700 rounded text-white transition"
-            >
-              Logout
-            </button>
-          </div>
-        </header>
-
-        <main className="p-6">{children}</main>
-      </div>
-    </div>
+    <RoleDashboardShell
+      title="Club Advisor Dashboard"
+      roleLabel="Club Advisor"
+      navItems={navItems}
+      onLogout={logout}
+    >
+      {children}
+    </RoleDashboardShell>
   );
 }

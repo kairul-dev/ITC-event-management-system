@@ -5,7 +5,7 @@ import { supabase } from "../../lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-type AccessRole = "student" | "president" | "high_council" | "admin";
+type AccessRole = "student" | "club_advisor" | "high_council" | "admin";
 
 function LoginContent() {
   const searchParams = useSearchParams();
@@ -16,40 +16,45 @@ function LoginContent() {
       ? nextPath
       : null;
   const roleParam = searchParams.get("role");
-  const lockedRole =
-    roleParam === "admin" ||
-    roleParam === "president" ||
-    roleParam === "high_council" ||
-    roleParam === "student"
+  const lockedRole: AccessRole | null =
+    roleParam === "president"
+      ? "club_advisor"
+      : roleParam === "admin" ||
+        roleParam === "club_advisor" ||
+        roleParam === "high_council" ||
+        roleParam === "student"
       ? roleParam
       : null;
   const [selectedRole, setSelectedRole] = useState<AccessRole>("student");
   const accessRole = lockedRole || selectedRole;
   const [matrixNumber, setMatrixNumber] = useState("");
-  const [email, setEmail] = useState("");
+  const [advisorName, setAdvisorName] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const isStudent = accessRole === "student";
+  const usesMatrixLogin =
+    accessRole === "student" || accessRole === "admin" || accessRole === "high_council";
+  const usesNameLogin = accessRole === "club_advisor";
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    let loginEmail = email;
+    let loginEmail: string | null = null;
 
-    if (isStudent) {
+    if (usesMatrixLogin) {
       const { data: matrixRows, error: matrixError } = await supabase.rpc(
-        "get_email_by_matrix",
+        "get_email_by_matrix_and_role",
         {
           p_matrix: matrixNumber.trim().toUpperCase(),
+          p_role: accessRole,
         }
       );
 
       if (matrixError) {
         alert(
-          "Login lookup is not configured yet. Please run the migration for get_email_by_matrix.\n\n" +
+          "Login lookup is not configured yet. Please run the migration for get_email_by_matrix_and_role.\n\n" +
             matrixError.message
         );
         setLoading(false);
@@ -62,12 +67,41 @@ function LoginContent() {
           : null;
 
       if (!loginEmail) {
-        alert("Matrix number not found or invalid.");
+        alert("Matrix number not found for this login role.");
         setLoading(false);
         return;
       }
-    } else if (!loginEmail.trim()) {
-      alert("Please enter your email address.");
+    } else if (usesNameLogin) {
+      const { data: nameRows, error: nameError } = await supabase.rpc(
+        "get_email_by_club_advisor_name",
+        {
+          p_name: advisorName.trim(),
+        }
+      );
+
+      if (nameError) {
+        alert(
+          "Club advisor login lookup is not configured yet. Please run the migration for get_email_by_club_advisor_name.\n\n" +
+            nameError.message
+        );
+        setLoading(false);
+        return;
+      }
+
+      loginEmail =
+        Array.isArray(nameRows) && nameRows.length > 0
+          ? nameRows[0]?.email
+          : null;
+
+      if (!loginEmail) {
+        alert("Club advisor name not found or invalid.");
+        setLoading(false);
+        return;
+      }
+    }
+
+    if (!loginEmail) {
+      alert("Login account not found.");
       setLoading(false);
       return;
     }
@@ -108,8 +142,8 @@ function LoginContent() {
 
     if (role === "admin") {
       router.replace("/admin");
-    } else if (role === "president") {
-      router.replace("/president");
+    } else if (role === "club_advisor" || role === "president") {
+      router.replace("/club-advisor");
     } else if (role === "high_council") {
       router.replace("/high-council");
     } else {
@@ -128,25 +162,27 @@ function LoginContent() {
       description: "Use matrix number login",
     },
     {
-      role: "president",
-      label: "President",
-      description: "Approve events and certificates",
+      role: "club_advisor",
+      label: "Club Advisor",
+      description: "Use name login",
     },
     {
       role: "high_council",
       label: "High Council",
-      description: "Review approvals and council records",
+      description: "Use matrix number login",
     },
     {
       role: "admin",
       label: "Admin",
-      description: "Manage users and system records",
+      description: "Use matrix number login",
     },
   ];
 
   const headingRole =
     accessRole === "high_council"
       ? "High Council"
+      : accessRole === "club_advisor"
+      ? "Club Advisor"
       : accessRole.charAt(0).toUpperCase() + accessRole.slice(1);
 
   return (
@@ -179,7 +215,9 @@ function LoginContent() {
           <p className="mt-4 text-sm leading-7 text-slate-300">
             {accessRole === "student"
               ? "Students use matrix number login. After signing in, registration uses your saved account details."
-              : "This role uses email login and opens its own management workspace."}
+              : accessRole === "club_advisor"
+              ? "Club advisors use name login and open the paperwork approval workspace."
+              : "This role uses matrix number login and opens its own management workspace."}
           </p>
 
           {!lockedRole && (
@@ -191,7 +229,7 @@ function LoginContent() {
                   onClick={() => {
                     setSelectedRole(item.role);
                     setMatrixNumber("");
-                    setEmail("");
+                    setAdvisorName("");
                     setPassword("");
                   }}
                   className={`rounded-2xl border px-4 py-3 text-left transition ${
@@ -217,6 +255,8 @@ function LoginContent() {
           <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
             {accessRole === "student"
               ? "Create your student account once, then register future events with one confirmation."
+              : accessRole === "club_advisor"
+              ? "Use your registered advisor name with your password."
               : "Staff access is separated from the student event browsing experience."}
           </div>
         </div>
@@ -233,14 +273,14 @@ function LoginContent() {
                 {headingRole} Login
               </h2>
               <p className="text-slate-600">
-                {isStudent
+                {usesMatrixLogin
                   ? "Enter your matrix number and password to continue"
-                  : "Enter your email and password to continue"}
+                  : "Enter your name and password to continue"}
               </p>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-5">
-              {isStudent ? (
+              {usesMatrixLogin ? (
                 <div className="space-y-2">
                   <label htmlFor="matrixNumber" className="text-sm font-medium text-slate-700 block">
                     Matrix Number
@@ -264,21 +304,21 @@ function LoginContent() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium text-slate-700 block">
-                    Email Address
+                  <label htmlFor="advisorName" className="text-sm font-medium text-slate-700 block">
+                    Club Advisor Name
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <svg className="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0" />
                       </svg>
                     </div>
                     <input
-                      id="email"
-                      type="email"
-                      placeholder="your.email@faculty.edu"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      id="advisorName"
+                      type="text"
+                      placeholder="e.g., Dr. Advisor Name"
+                      value={advisorName}
+                      onChange={(e) => setAdvisorName(e.target.value)}
                       required
                       className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition duration-200 bg-white hover:bg-slate-50"
                     />
