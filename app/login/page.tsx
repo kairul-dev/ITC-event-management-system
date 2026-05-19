@@ -44,60 +44,46 @@ function LoginContent() {
     let loginEmail: string | null = null;
 
     if (usesMatrixLogin) {
-      const { data: matrixRows, error: matrixError } = await supabase.rpc(
-        "get_email_by_matrix_and_role",
-        {
-          p_matrix: matrixNumber.trim().toUpperCase(),
-          p_role: accessRole,
-        }
-      );
+      const response = await fetch("/api/auth/matrix-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          matrixNumber: matrixNumber.trim(),
+          role: accessRole,
+        }),
+      });
 
-      if (matrixError) {
-        alert(
-          "Login lookup is not configured yet. Please run the migration for get_email_by_matrix_and_role.\n\n" +
-            matrixError.message
-        );
+      const result = (await response.json()) as {
+        email?: string;
+        error?: string;
+      };
+
+      if (!response.ok || !result.email) {
+        alert(result.error || "Matrix number not found for this login role.");
         setLoading(false);
         return;
       }
 
-      loginEmail =
-        Array.isArray(matrixRows) && matrixRows.length > 0
-          ? matrixRows[0]?.email
-          : null;
-
-      if (!loginEmail) {
-        alert("Matrix number not found for this login role.");
-        setLoading(false);
-        return;
-      }
+      loginEmail = result.email;
     } else if (usesNameLogin) {
-      const { data: nameRows, error: nameError } = await supabase.rpc(
-        "get_email_by_club_advisor_name",
-        {
-          p_name: advisorName.trim(),
-        }
-      );
+      const response = await fetch("/api/auth/club-advisor-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: advisorName.trim() }),
+      });
 
-      if (nameError) {
-        alert(
-          "Club advisor login lookup is not configured yet. Please run the migration for get_email_by_club_advisor_name.\n\n" +
-            nameError.message
-        );
+      const result = (await response.json()) as {
+        email?: string;
+        error?: string;
+      };
+
+      if (!response.ok || !result.email) {
+        alert(result.error || "Club advisor name not found or invalid.");
         setLoading(false);
         return;
       }
 
-      loginEmail =
-        Array.isArray(nameRows) && nameRows.length > 0
-          ? nameRows[0]?.email
-          : null;
-
-      if (!loginEmail) {
-        alert("Club advisor name not found or invalid.");
-        setLoading(false);
-        return;
-      }
+      loginEmail = result.email;
     }
 
     if (!loginEmail) {

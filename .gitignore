@@ -2,6 +2,7 @@ node_modules/
 .next/
 .DS_Store
 .vscode/
+.playwright-mcp/
 .env.local
 .env
 npm-debug.log*

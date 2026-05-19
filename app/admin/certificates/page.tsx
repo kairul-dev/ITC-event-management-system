@@ -1,262 +1,397 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabase";
 
-type Event = {
+type EventRow = {
   id: string;
   title: string;
+  status?: string | null;
+  registrationCount: number;
+  certificateCount: number;
 };
 
 type Student = {
   user_id: string;
   name: string;
   email: string;
+  payment_status?: string | null;
+  certificate_id?: string | null;
+  certificate_no?: string | null;
+  certificate_status?: string | null;
+};
+
+type RegistrationRow = {
+  event_id: string;
+  user_id: string;
+  payment_status?: string | null;
+};
+
+type CertificateRow = {
+  id: string;
+  user_id: string;
+  event_id: string;
+  certificate_no: string;
+  status?: string | null;
 };
 
 export default function AdminCertificatesPage() {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [selectedEvent, setSelectedEvent] = useState<string>("");
+  const [events, setEvents] = useState<EventRow[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState("");
   const [students, setStudents] = useState<Student[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loadingEvents, setLoadingEvents] = useState(true);
+  const [loadingStudents, setLoadingStudents] = useState(false);
   const [issuingAll, setIssuingAll] = useState(false);
+  const [issuingUserId, setIssuingUserId] = useState<string | null>(null);
   const [searchStudent, setSearchStudent] = useState("");
 
-  /* ===============================
-     LOAD EVENTS
-  =============================== */
-  useEffect(() => {
-    const loadEvents = async () => {
-      const { data, error } = await supabase
-        .from("events")
-        .select("id, title")
-        .order("created_at", { ascending: false });
+  const loadEvents = async () => {
+    setLoadingEvents(true);
 
-      if (!error) {
-        setEvents(data || []);
-      }
-    };
+    const [{ data: eventRows, error: eventsError }, { data: registrations }, { data: certificates }] =
+      await Promise.all([
+        supabase.from("events").select("id, title, status, created_at").order("created_at", { ascending: false }),
+        supabase.from("event_registrations").select("event_id"),
+        supabase.from("certificates").select("event_id"),
+      ]);
 
-    loadEvents();
-  }, []);
+    if (eventsError) {
+      alert("Error loading events: " + eventsError.message);
+      setEvents([]);
+      setLoadingEvents(false);
+      return;
+    }
 
-  /* ===============================
-     LOAD STUDENTS FOR EVENT
-  =============================== */
-  useEffect(() => {
+    const registrationCounts = new Map<string, number>();
+    const certificateCounts = new Map<string, number>();
+
+    (registrations ?? []).forEach((row: any) => {
+      registrationCounts.set(row.event_id, (registrationCounts.get(row.event_id) ?? 0) + 1);
+    });
+
+    (certificates ?? []).forEach((row: any) => {
+      certificateCounts.set(row.event_id, (certificateCounts.get(row.event_id) ?? 0) + 1);
+    });
+
+    const nextEvents = (eventRows ?? []).map((event: any) => ({
+      id: event.id,
+      title: event.title,
+      status: event.status,
+      registrationCount: registrationCounts.get(event.id) ?? 0,
+      certificateCount: certificateCounts.get(event.id) ?? 0,
+    }));
+
+    setEvents(nextEvents);
+    setLoadingEvents(false);
+
+    if (!selectedEvent) {
+      const firstWithStudents = nextEvents.find((event) => event.registrationCount > 0);
+      if (firstWithStudents) setSelectedEvent(firstWithStudents.id);
+    }
+  };
+
+  const loadStudents = async () => {
     if (!selectedEvent) {
       setStudents([]);
       return;
     }
 
-    const loadStudents = async () => {
-      setLoading(true);
+    setLoadingStudents(true);
 
-      const { data, error } = await supabase
-        .from("event_registrations")
-        .select(`
-          user_id,
-          users!fk_event_registrations_user (
-            id,
-            name,
-            email
-          )
-        `)
-        .eq("event_id", selectedEvent);
+    const { data: registrations, error: registrationsError } = await supabase
+      .from("event_registrations")
+      .select("event_id, user_id, payment_status")
+      .eq("event_id", selectedEvent)
+      .order("registered_at", { ascending: false });
 
-      if (error) {
-        console.error("Error loading students:", error);
-        setStudents([]);
-      } else {
-        const cleanStudents: Student[] = (data ?? [])
-          .filter((row: any) => row.users)
-          .map((row: any) => ({
-            user_id: row.user_id,
-            name: row.users.name || "N/A",
-            email: row.users.email || "N/A",
-          }));
+    if (registrationsError) {
+      alert("Error loading event registrations: " + registrationsError.message);
+      setStudents([]);
+      setLoadingStudents(false);
+      return;
+    }
 
-        console.log("Loaded students:", cleanStudents);
-        setStudents(cleanStudents);
-      }
+    const registrationRows = (registrations ?? []) as RegistrationRow[];
+    const userIds = [...new Set(registrationRows.map((row) => row.user_id).filter(Boolean))];
 
-      setLoading(false);
-    };
+    if (userIds.length === 0) {
+      setStudents([]);
+      setLoadingStudents(false);
+      return;
+    }
 
+    const [{ data: users, error: usersError }, { data: certificates, error: certificatesError }] =
+      await Promise.all([
+        supabase.from("users").select("id, name, email").in("id", userIds),
+        supabase.from("certificates").select("id, user_id, event_id, certificate_no, status").eq("event_id", selectedEvent),
+      ]);
+
+    if (usersError || certificatesError) {
+      alert("Error loading certificate data: " + (usersError?.message || certificatesError?.message));
+      setStudents([]);
+      setLoadingStudents(false);
+      return;
+    }
+
+    const usersById = new Map((users ?? []).map((user: any) => [user.id, user]));
+    const certsByUserId = new Map(
+      ((certificates ?? []) as CertificateRow[]).map((certificate) => [certificate.user_id, certificate])
+    );
+
+    setStudents(
+      registrationRows.map((registration) => {
+        const user = usersById.get(registration.user_id);
+        const certificate = certsByUserId.get(registration.user_id);
+
+        return {
+          user_id: registration.user_id,
+          name: user?.name || "N/A",
+          email: user?.email || "N/A",
+          payment_status: registration.payment_status,
+          certificate_id: certificate?.id,
+          certificate_no: certificate?.certificate_no,
+          certificate_status: certificate?.status || null,
+        };
+      })
+    );
+
+    setLoadingStudents(false);
+  };
+
+  useEffect(() => {
+    loadEvents();
+  }, []);
+
+  useEffect(() => {
     loadStudents();
   }, [selectedEvent]);
 
-  /* ===============================
-     ISSUE CERTIFICATE
-  =============================== */
   const issueCertificate = async (userId: string) => {
-    const certificateNo = `CERT-${Date.now()}`;
+    if (!selectedEvent) return;
+    const student = students.find((item) => item.user_id === userId);
+    if (student?.payment_status !== "paid") {
+      alert("Certificates can only be generated for paid registrations.");
+      return;
+    }
+
+    setIssuingUserId(userId);
+    const certificateNo = `CERT-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
     const { error } = await supabase.from("certificates").insert({
       user_id: userId,
       event_id: selectedEvent,
       certificate_no: certificateNo,
       issued_at: new Date().toISOString(),
+      status: "pending",
     });
+
+    setIssuingUserId(null);
 
     if (error) {
       alert(error.message);
-    } else {
-      alert("Certificate issued successfully");
+      return;
     }
+
+    alert("Certificate generated and sent to Club Advisor for approval.");
+    await Promise.all([loadEvents(), loadStudents()]);
   };
 
   const issueAllCertificates = async () => {
     if (!selectedEvent) return alert("Select an event first.");
-    if (students.length === 0) return alert("No students to issue certificates for.");
 
-    if (!confirm(`Issue certificates for ${students.length} students? This will skip users who already have a certificate for this event.`)) return;
+    const studentsWithoutCert = students.filter(
+      (student) => student.payment_status === "paid" && !student.certificate_id
+    );
+    if (studentsWithoutCert.length === 0) {
+      return alert("All students for this event already have certificates.");
+    }
+
+    if (!confirm(`Generate certificates for ${studentsWithoutCert.length} student(s)?`)) return;
 
     setIssuingAll(true);
-    try {
-      const userIds = students.map((s) => s.user_id).filter(Boolean);
+    const now = new Date().toISOString();
+    const rows = studentsWithoutCert.map((student) => ({
+      user_id: student.user_id,
+      event_id: selectedEvent,
+      certificate_no: `CERT-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+      issued_at: now,
+      status: "pending",
+    }));
 
-      // Fetch existing certificates for these users for this event
-      const { data: existingCerts, error: existingError } = await supabase
-        .from("certificates")
-        .select("user_id")
-        .eq("event_id", selectedEvent)
-        .in("user_id", userIds);
+    const { error } = await supabase.from("certificates").insert(rows);
+    setIssuingAll(false);
 
-      if (existingError) throw existingError;
-
-      const already = new Set((existingCerts ?? []).map((c: any) => c.user_id));
-      const toIssue = userIds.filter((id) => !already.has(id));
-
-      if (toIssue.length === 0) {
-        alert("All students already have certificates for this event.");
-        return;
-      }
-
-      const now = new Date().toISOString();
-      const rows = toIssue.map((uid) => ({
-        user_id: uid,
-        event_id: selectedEvent,
-        certificate_no: `CERT-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
-        issued_at: now,
-      }));
-
-      const { error: insertError } = await supabase.from("certificates").insert(rows);
-      if (insertError) throw insertError;
-
-      alert(`Issued ${rows.length} certificates.`);
-    } catch (err: any) {
-      console.error(err);
-      alert("Error issuing certificates: " + (err.message || err));
-    } finally {
-      setIssuingAll(false);
+    if (error) {
+      alert("Error generating certificates: " + error.message);
+      return;
     }
+
+    alert(`Generated ${rows.length} certificate(s).`);
+    await Promise.all([loadEvents(), loadStudents()]);
   };
 
-  /* ===============================
-     UI
-  =============================== */
-  const filteredStudents = students.filter(
-    (student) =>
-      student.name.toLowerCase().includes(searchStudent.toLowerCase()) ||
-      student.email.toLowerCase().includes(searchStudent.toLowerCase())
+  const filteredStudents = useMemo(
+    () =>
+      students.filter(
+        (student) =>
+          student.name.toLowerCase().includes(searchStudent.toLowerCase()) ||
+          student.email.toLowerCase().includes(searchStudent.toLowerCase())
+      ),
+    [students, searchStudent]
   );
 
-  return (
-    <div className="space-y-6" style={{ padding: 20 }}>
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Issue Certificates</h1>
+  const selectedEventRow = events.find((event) => event.id === selectedEvent);
+  const pendingCount = students.filter((student) => student.certificate_status === "pending").length;
+  const approvedCount = students.filter((student) => student.certificate_status === "approved").length;
+  const unpaidCount = students.filter((student) => student.payment_status !== "paid").length;
+  const missingCount = students.filter(
+    (student) => student.payment_status === "paid" && !student.certificate_id
+  ).length;
 
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Select Event
-          </label>
+  return (
+    <div className="space-y-6 p-5">
+      <div className="rounded-lg bg-white p-6 shadow-md">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Generate Certificates</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Choose an event with registered students, then generate certificates for Club Advisor approval.
+            </p>
+          </div>
+          <button
+            onClick={loadEvents}
+            disabled={loadingEvents}
+            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            Refresh
+          </button>
+        </div>
+
+        <div className="mt-6">
+          <label className="mb-2 block text-sm font-medium text-gray-700">Select Event</label>
           <select
             value={selectedEvent}
-            onChange={(e) => setSelectedEvent(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            onChange={(event) => setSelectedEvent(event.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="">Select Event</option>
             {events.map((event) => (
               <option key={event.id} value={event.id}>
-                {event.title}
+                {event.title} - {event.registrationCount} student(s), {event.certificateCount} certificate(s)
               </option>
             ))}
           </select>
         </div>
 
-        {selectedEvent && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Search Students
-            </label>
-            <input
-              type="text"
-              placeholder="Search by name or email..."
-              value={searchStudent}
-              onChange={(e) => setSearchStudent(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-6"
-            />
+        {selectedEventRow && (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="rounded-lg border border-gray-200 p-3">
+              <p className="text-xs font-semibold uppercase text-gray-500">Event Status</p>
+              <p className="mt-1 text-sm font-bold text-gray-900">{selectedEventRow.status || "-"}</p>
+            </div>
+            <div className="rounded-lg border border-gray-200 p-3">
+              <p className="text-xs font-semibold uppercase text-gray-500">Registered</p>
+              <p className="mt-1 text-sm font-bold text-gray-900">{students.length}</p>
+            </div>
+            <div className="rounded-lg border border-gray-200 p-3">
+              <p className="text-xs font-semibold uppercase text-gray-500">Unpaid</p>
+              <p className="mt-1 text-sm font-bold text-red-700">{unpaidCount}</p>
+            </div>
+            <div className="rounded-lg border border-gray-200 p-3">
+              <p className="text-xs font-semibold uppercase text-gray-500">Pending</p>
+              <p className="mt-1 text-sm font-bold text-amber-700">{pendingCount}</p>
+            </div>
+            <div className="rounded-lg border border-gray-200 p-3">
+              <p className="text-xs font-semibold uppercase text-gray-500">Approved</p>
+              <p className="mt-1 text-sm font-bold text-green-700">{approvedCount}</p>
+            </div>
           </div>
         )}
       </div>
 
       {selectedEvent && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          {loading && <p className="text-gray-600">Loading students...</p>}
+        <div className="rounded-lg bg-white p-6 shadow-md">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <input
+              type="text"
+              placeholder="Search by name or email..."
+              value={searchStudent}
+              onChange={(event) => setSearchStudent(event.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500 md:max-w-md"
+            />
+            <button
+              onClick={issueAllCertificates}
+              disabled={issuingAll || missingCount === 0}
+              className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white shadow hover:bg-green-700 disabled:opacity-50"
+            >
+              {issuingAll ? "Generating..." : `Generate Paid Missing (${missingCount})`}
+            </button>
+          </div>
 
-          {!loading && students.length === 0 && selectedEvent && (
-            <p className="text-gray-600">No students registered for this event</p>
+          {loadingStudents && <p className="mt-6 text-gray-600">Loading students...</p>}
+
+          {!loadingStudents && students.length === 0 && (
+            <p className="mt-6 text-gray-600">No students registered for this event.</p>
           )}
 
-          {!loading && students.length > 0 && filteredStudents.length === 0 && (
-            <p className="text-gray-600">No students match your search</p>
-          )}
-
-          {students.length > 0 && (
-            <div className="mb-4 flex justify-end">
-              <button
-                onClick={issueAllCertificates}
-                disabled={issuingAll}
-                className="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white font-semibold rounded-lg shadow hover:bg-green-700 disabled:opacity-50"
-              >
-                {issuingAll ? "Issuing..." : "Issue Certificates for All"}
-              </button>
-            </div>
+          {!loadingStudents && students.length > 0 && filteredStudents.length === 0 && (
+            <p className="mt-6 text-gray-600">No students match your search.</p>
           )}
 
           {filteredStudents.length > 0 && (
-            <div className="overflow-x-auto">
+            <div className="mt-6 overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Action
-                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Student</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Payment</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Certificate</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Action</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-200 bg-white">
                   {filteredStudents.map((student) => (
                     <tr key={student.user_id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {student.name}
+                      <td className="px-6 py-4">
+                        <p className="text-sm font-medium text-gray-900">{student.name}</p>
+                        <p className="text-sm text-gray-500">{student.email}</p>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {student.email}
+                      <td className="px-6 py-4 text-sm text-gray-700">{student.payment_status || "unpaid"}</td>
+                      <td className="px-6 py-4">
+                        {student.certificate_id ? (
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">{student.certificate_no}</p>
+                            <p className="text-sm text-gray-500">{student.certificate_status || "pending"}</p>
+                          </div>
+                        ) : (
+                          <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
+                            Not generated
+                          </span>
+                        )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <button
-                          onClick={() => issueCertificate(student.user_id)}
-                          className="inline-flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow hover:bg-indigo-700 transition"
-                        >
-                          Issue Certificate
-                        </button>
+                      <td className="px-6 py-4 text-sm">
+                        {student.certificate_id ? (
+                          student.certificate_status === "approved" ? (
+                            <a
+                              href={`/certificate/${student.certificate_id}`}
+                              className="font-semibold text-indigo-600 hover:text-indigo-500"
+                            >
+                              View
+                            </a>
+                          ) : (
+                            <span className="font-semibold text-amber-700">Waiting approval</span>
+                          )
+                        ) : student.payment_status !== "paid" ? (
+                          <span className="font-semibold text-red-700">Payment required</span>
+                        ) : (
+                          <button
+                            onClick={() => issueCertificate(student.user_id)}
+                            disabled={issuingUserId === student.user_id}
+                            className="rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white shadow hover:bg-indigo-700 disabled:opacity-50"
+                          >
+                            {issuingUserId === student.user_id ? "Generating..." : "Generate"}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}

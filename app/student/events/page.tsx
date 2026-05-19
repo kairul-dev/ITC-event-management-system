@@ -229,7 +229,7 @@ export default function StudentEventsPage() {
     } else {
       const message = isFreeEvent
         ? "✓ Registered successfully! No payment needed."
-        : "Registration started. Please proceed to payment.";
+        : "Registration started. Please pay by card from My Registrations.";
       setToast({ message, type: "success" });
       loadEvents();
     }

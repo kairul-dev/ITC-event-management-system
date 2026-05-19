@@ -158,7 +158,7 @@ export default function PublicEventDetailsPage() {
     setMessage({
       text: isFreeEvent
         ? "Registration confirmed. Your student details were used automatically."
-        : "Registration confirmed. Please complete the payment step from your student portal.",
+        : "Registration confirmed. Please complete card payment from your student portal.",
       type: "success",
     });
   };

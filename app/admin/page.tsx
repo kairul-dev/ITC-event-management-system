@@ -506,7 +506,7 @@ export default function AdminPage() {
           <div className="grid grid-cols-2 gap-4">
             {[
               ["Create New Event", "/admin/event?mode=events#event-details", "text-indigo-600", <path key="a" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v14m7-7H5M7 3v4m10-4v4M5 7h14v14H5V7Z" />],
-              ["Upload Participants", "/admin/payments", "text-emerald-600", <path key="b" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1m18-7h-6m3-3v6M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" />],
+              ["Card Payments", "/admin/payments", "text-emerald-600", <path key="b" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1m18-7h-6m3-3v6M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" />],
               ["Create Paperwork", "/admin/event?mode=paperwork", "text-amber-500", <path key="c" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm7 0v5h5M9 13h6M9 17h6" />],
               ["View Reports", "/admin/report", "text-blue-600", <path key="d" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 20V9m5 11V4m5 16v-7m5 7V7M3 20h18" />],
               ["Manage Users", "/admin/users", "text-pink-500", <path key="e" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0" />],

@@ -27,49 +27,37 @@ export default function PresidentCertificatesPage() {
   const loadCertificates = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("certificates")
-        .select("*")
-        .eq("status", "pending")
-        .order("issued_at", { ascending: false });
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      if (error) {
-        console.error("Error loading certificates:", error);
-        alert("Error loading certificates: " + error.message);
+      if (!session?.access_token) {
+        alert("Please log in again to view certificates.");
+        setCertificates([]);
         setLoading(false);
         return;
       }
 
-      // Load event and user data separately to avoid RLS issues
-      if (data && data.length > 0) {
-        const eventIds = [...new Set(data.map((c) => c.event_id))];
-        const userIds = [...new Set(data.map((c) => c.user_id))];
+      // Use API endpoint to get pending certificates (uses admin client to bypass RLS)
+      const response = await fetch("/api/certificates/pending", {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
 
-        // Get events
-        const { data: eventsData } = await supabase
-          .from("events")
-          .select("id, title")
-          .in("id", eventIds);
-
-        // Get users
-        const { data: usersData } = await supabase
-          .from("users")
-          .select("id, name, email")
-          .in("id", userIds);
-
-        // Combine data
-        const enriched = data.map((cert) => ({
-          ...cert,
-          events: eventsData?.find((e) => e.id === cert.event_id),
-          users: usersData?.find((u) => u.id === cert.user_id),
-        }));
-
-        setCertificates(enriched);
-      } else {
-        setCertificates([]);
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error loading certificates:", errorData);
+        alert("Error loading certificates: " + (errorData.error || "Unknown error"));
+        setLoading(false);
+        return;
       }
+
+      const data = await response.json();
+      setCertificates(data);
     } catch (error) {
       console.error("Error:", error);
+      alert("Error loading certificates: " + String(error));
     } finally {
       setLoading(false);
     }
@@ -82,45 +70,51 @@ export default function PresidentCertificatesPage() {
   const approveCertificate = async (id: string) => {
     setProcessingId(id);
     try {
-      // Find the certificate to get the event_id
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        alert("Please log in again to approve certificates.");
+        setProcessingId(null);
+        return;
+      }
+
+      // Use API endpoint to approve certificate (uses admin client)
+      const response = await fetch("/api/certificates/update-status", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          certificateId: id,
+          action: "approve",
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error approving certificate:", errorData);
+        alert("Error approving certificate: " + (errorData.error || "Unknown error"));
+        setProcessingId(null);
+        return;
+      }
+
+      const result = await response.json();
+
+      // Get the certificate to access student email for sending notification
       const cert = certificates.find((c) => c.id === id);
       if (!cert) {
-        alert("Certificate not found");
         setProcessingId(null);
+        setCertificates((prev) => prev.filter((c) => c.id !== id));
+        alert("Certificate approved successfully!");
         return;
       }
-
-      console.log("Approving certificate:", id, "Event ID:", cert.event_id);
-
-      // Update certificate status to approved
-      const { error: certError } = await supabase
-        .from("certificates")
-        .update({ status: "approved" })
-        .eq("id", id);
-
-      if (certError) {
-        alert("Error approving certificate: " + certError.message);
-        setProcessingId(null);
-        return;
-      }
-
-      console.log("Certificate approved successfully");
-
-      // Update event status to completed
-      const { error: eventError, data: eventData } = await supabase
-        .from("events")
-        .update({ status: "completed" })
-        .eq("id", cert.event_id);
 
       let finalMessage = "Certificate approved and event marked as completed!";
 
-      if (eventError) {
-        console.error("Error updating event status:", eventError);
-        finalMessage = "Certificate approved, but event update failed: " + eventError.message;
-      } else {
-        console.log("Event updated to completed successfully:", eventData);
-      }
-
+      // Send email notification
       const emailResponse = await fetch("/api/certificates/send", {
         method: "POST",
         headers: {
@@ -158,13 +152,33 @@ export default function PresidentCertificatesPage() {
   const rejectCertificate = async (id: string) => {
     setProcessingId(id);
     try {
-      const { error } = await supabase
-        .from("certificates")
-        .update({ status: "rejected" })
-        .eq("id", id);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      if (error) {
-        alert("Error: " + error.message);
+      if (!session?.access_token) {
+        alert("Please log in again to reject certificates.");
+        setProcessingId(null);
+        return;
+      }
+
+      // Use API endpoint to reject certificate (uses admin client)
+      const response = await fetch("/api/certificates/update-status", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          certificateId: id,
+          action: "reject",
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error rejecting certificate:", errorData);
+        alert("Error rejecting certificate: " + (errorData.error || "Unknown error"));
         setProcessingId(null);
         return;
       }
@@ -172,8 +186,10 @@ export default function PresidentCertificatesPage() {
       // Remove the certificate from the list after rejection
       setCertificates((prev) => prev.filter((c) => c.id !== id));
       setProcessingId(null);
+      alert("Certificate rejected successfully");
     } catch (error) {
       console.error("Error rejecting certificate:", error);
+      alert("Error: " + (error instanceof Error ? error.message : String(error)));
       setProcessingId(null);
     }
   };

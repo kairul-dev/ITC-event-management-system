@@ -102,14 +102,32 @@ export default function PresidentEventsPage() {
 
       setProcessingId(id);
       try {
-        const { error } = await supabase.rpc("review_event_paperwork", {
-          p_event_id: id,
-          p_next_status: status,
-          p_rejection_reason: reason,
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session?.access_token) {
+          alert("Please log in again to review paperwork.");
+          setProcessingId(null);
+          return;
+        }
+
+        const response = await fetch("/api/events/review-paperwork", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            eventId: id,
+            nextStatus: status,
+            rejectionReason: reason,
+          }),
         });
 
-        if (error) {
-          alert("Error: " + error.message);
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          alert("Error: " + (payload.error || "Unable to reject paperwork."));
           setProcessingId(null);
           return;
         }
@@ -126,14 +144,32 @@ export default function PresidentEventsPage() {
 
     setProcessingId(id);
     try {
-      const { error } = await supabase.rpc("review_event_paperwork", {
-        p_event_id: id,
-        p_next_status: status,
-        p_rejection_reason: null,
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        alert("Please log in again to review paperwork.");
+        setProcessingId(null);
+        return;
+      }
+
+      const response = await fetch("/api/events/review-paperwork", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          eventId: id,
+          nextStatus: status,
+          rejectionReason: null,
+        }),
       });
 
-      if (error) {
-        alert("Error: " + error.message);
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        alert("Error: " + (payload.error || "Unable to approve paperwork."));
         setProcessingId(null);
         return;
       }

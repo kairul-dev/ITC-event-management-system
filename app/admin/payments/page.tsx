@@ -10,7 +10,6 @@ type PaymentRow = {
   registered_at: string;
   payment_status: "unpaid" | "pending" | "paid" | "rejected";
   payment_reference?: string | null;
-  payment_proof_url?: string | null;
   payment_note?: string | null;
   payment_submitted_at?: string | null;
   payment_verified_at?: string | null;
@@ -30,7 +29,6 @@ export default function AdminPaymentsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "unpaid" | "pending" | "paid" | "rejected">("all");
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const loadRows = async () => {
     setLoading(true);
@@ -44,7 +42,6 @@ export default function AdminPaymentsPage() {
         registered_at,
         payment_status,
         payment_reference,
-        payment_proof_url,
         payment_note,
         payment_submitted_at,
         payment_verified_at,
@@ -67,37 +64,6 @@ export default function AdminPaymentsPage() {
   useEffect(() => {
     loadRows();
   }, []);
-
-  const updatePayment = async (row: PaymentRow, nextStatus: "paid" | "rejected") => {
-    setUpdatingId(row.id);
-
-    const payload: any = {
-      payment_status: nextStatus,
-      payment_verified_at: new Date().toISOString(),
-      payment_note:
-        nextStatus === "rejected"
-          ? "Rejected by admin. Please re-submit valid payment proof."
-          : "Payment verified by admin.",
-    };
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (user) {
-      payload.payment_verified_by = user.id;
-    }
-
-    const { error } = await supabase.from("event_registrations").update(payload).eq("id", row.id);
-
-    if (error) {
-      alert("Failed to update payment: " + error.message);
-    } else {
-      await loadRows();
-    }
-
-    setUpdatingId(null);
-  };
 
   const filteredRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -135,8 +101,10 @@ export default function AdminPaymentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Payment Verification</h1>
-        <p className="text-sm text-gray-500">Review student payment submissions and approve or reject them.</p>
+        <h1 className="text-2xl font-bold text-gray-900">Card Payment Records</h1>
+        <p className="text-sm text-gray-500">
+          Track Stripe Checkout payments for student event registrations.
+        </p>
       </div>
 
       <div className="bg-white rounded-lg shadow-md p-6 space-y-4">
@@ -179,10 +147,9 @@ export default function AdminPaymentsPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proof</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Card Reference</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Verified At</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -197,41 +164,14 @@ export default function AdminPaymentsPage() {
                     <td className="px-4 py-4 text-sm text-gray-700">RM {Number(row.events?.fee_amount || 0).toFixed(2)}</td>
                     <td className="px-4 py-4 text-sm text-gray-700">{row.payment_reference || "-"}</td>
                     <td className="px-4 py-4 text-sm text-gray-700">
-                      {row.payment_proof_url ? (
-                        <a
-                          href={row.payment_proof_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-indigo-600 hover:underline"
-                        >
-                          View Proof
-                        </a>
-                      ) : (
-                        "-"
-                      )}
+                      {row.payment_verified_at
+                        ? new Date(row.payment_verified_at).toLocaleString()
+                        : "-"}
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-700">
                       <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusBadgeClass(row.payment_status || "unpaid")}`}>
                         {row.payment_status || "unpaid"}
                       </span>
-                    </td>
-                    <td className="px-4 py-4 text-sm">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => updatePayment(row, "paid")}
-                          disabled={updatingId === row.id}
-                          className="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => updatePayment(row, "rejected")}
-                          disabled={updatingId === row.id}
-                          className="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-                        >
-                          Reject
-                        </button>
-                      </div>
                     </td>
                   </tr>
                 ))}

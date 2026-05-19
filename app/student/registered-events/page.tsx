@@ -10,7 +10,6 @@ type RegisteredEvent = {
   registered_at: string;
   payment_status?: "unpaid" | "pending" | "paid" | "rejected";
   payment_reference?: string | null;
-  payment_proof_url?: string | null;
   payment_note?: string | null;
   events: {
     id: string;
@@ -31,11 +30,8 @@ function RegisteredEventsContent() {
   const searchParams = useSearchParams();
   const [events, setEvents] = useState<RegisteredEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [savingPaymentId, setSavingPaymentId] = useState<string | null>(null);
   const [startingCheckoutId, setStartingCheckoutId] = useState<string | null>(null);
   const [checkoutMessage, setCheckoutMessage] = useState<string | null>(null);
-  const [paymentRefs, setPaymentRefs] = useState<Record<string, string>>({});
-  const [paymentProofs, setPaymentProofs] = useState<Record<string, string>>({});
 
   async function loadRegisteredEvents() {
     setLoading(true);
@@ -56,7 +52,6 @@ function RegisteredEventsContent() {
         registered_at,
         payment_status,
         payment_reference,
-        payment_proof_url,
         payment_note,
         events (
           id,
@@ -92,12 +87,57 @@ function RegisteredEventsContent() {
     loadRegisteredEvents();
   }, []);
 
+  const confirmStripePayment = async (sessionId: string) => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    const accessToken = session?.access_token;
+    if (!accessToken) {
+      throw new Error("Please log in again and retry payment confirmation.");
+    }
+
+    const response = await fetch("/api/payments/confirm-checkout-session", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ sessionId }),
+    });
+
+    const payload = (await response.json()) as { error?: string };
+
+    if (!response.ok) {
+      throw new Error(payload.error || "Unable to confirm Stripe payment.");
+    }
+  };
+
   useEffect(() => {
     const paymentState = searchParams.get("payment");
+    const sessionId = searchParams.get("session_id");
 
     if (paymentState === "success") {
-      setCheckoutMessage("Payment completed. We are finalizing your payment status.");
-      loadRegisteredEvents();
+      const finalizePayment = async () => {
+        setCheckoutMessage("Payment completed. Finalizing your payment status.");
+
+        try {
+          if (sessionId) {
+            await confirmStripePayment(sessionId);
+          }
+
+          await loadRegisteredEvents();
+          setCheckoutMessage("Payment completed and confirmed.");
+        } catch (error) {
+          console.error("Stripe payment confirmation failed:", error);
+          setCheckoutMessage(
+            error instanceof Error ? error.message : "Unable to confirm payment right now."
+          );
+          await loadRegisteredEvents();
+        }
+      };
+
+      void finalizePayment();
       return;
     }
 
@@ -108,39 +148,6 @@ function RegisteredEventsContent() {
 
     setCheckoutMessage(null);
   }, [searchParams]);
-
-  const submitPayment = async (registrationId: string) => {
-    const paymentReference = (paymentRefs[registrationId] || "").trim();
-    const paymentProofUrl = (paymentProofs[registrationId] || "").trim();
-
-    if (!paymentReference) {
-      alert("Please enter a payment reference.");
-      return;
-    }
-
-    setSavingPaymentId(registrationId);
-
-    const { error } = await supabase
-      .from("event_registrations")
-      .update({
-        payment_reference: paymentReference,
-        payment_proof_url: paymentProofUrl || null,
-        payment_status: "pending",
-        payment_submitted_at: new Date().toISOString(),
-        payment_note: null,
-      })
-      .eq("id", registrationId);
-
-    setSavingPaymentId(null);
-
-    if (error) {
-      alert("Failed to submit payment: " + error.message);
-      return;
-    }
-
-    alert("Payment submitted. Awaiting admin verification.");
-    await loadRegisteredEvents();
-  };
 
   const startStripeCheckout = async (registrationId: string) => {
     setStartingCheckoutId(registrationId);
@@ -325,49 +332,19 @@ function RegisteredEventsContent() {
 
                       {!isPaid && (
                         <>
-                          <input
-                            type="text"
-                            placeholder="Payment reference (e.g. TXN12345)"
-                            value={paymentRefs[event.id] ?? event.payment_reference ?? ""}
-                            onChange={(e) =>
-                              setPaymentRefs((prev) => ({ ...prev, [event.id]: e.target.value }))
-                            }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
-
-                          <input
-                            type="url"
-                            placeholder="Proof URL (optional)"
-                            value={paymentProofs[event.id] ?? event.payment_proof_url ?? ""}
-                            onChange={(e) =>
-                              setPaymentProofs((prev) => ({ ...prev, [event.id]: e.target.value }))
-                            }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
-
                           <button
                             onClick={() => startStripeCheckout(event.id)}
                             disabled={startingCheckoutId === event.id}
-                            className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+                            className="inline-flex w-fit items-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700 disabled:opacity-50"
                           >
                             {startingCheckoutId === event.id
                               ? "Redirecting..."
-                              : "Pay Now"}
+                              : "Pay by Card"}
                           </button>
 
                           <p className="text-xs text-gray-500">
-                            Test card: 4242 4242 4242 4242, any future date, any CVC.
+                            Card payment is handled securely through Stripe Checkout.
                           </p>
-
-                          <button
-                            onClick={() => submitPayment(event.id)}
-                            disabled={savingPaymentId === event.id}
-                            className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                          >
-                            {savingPaymentId === event.id
-                              ? "Submitting..."
-                              : "Submit Payment Manually"}
-                          </button>
                         </>
                       )}
 

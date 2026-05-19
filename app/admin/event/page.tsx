@@ -43,6 +43,7 @@ const STATUSES = {
   rejected: "Rejected",
   published: "Published",
   closed: "Closed",
+  completed: "completed",
 } as const;
 
 const toDateTimeInputValue = (value?: string) => {
@@ -343,6 +344,11 @@ function AdminEventContent() {
   };
 
   const updateEventVisibility = async (event: Event, visible: boolean) => {
+    if (visible && event.status !== STATUSES.approved) {
+      alert("Only approved events can be shown on the main page.");
+      return;
+    }
+
     const confirmed = confirm(
       visible
         ? `Show "${event.title}" on the main page and student event list?`
@@ -423,12 +429,13 @@ function AdminEventContent() {
     if (status === STATUSES.published || status === STATUSES.approved) return "ds-badge-approved";
     if (status === STATUSES.rejected) return "ds-badge-rejected";
     if (status === STATUSES.pendingClubAdvisor) return "ds-badge bg-indigo-100 text-indigo-800";
-    if (status === STATUSES.closed) return "ds-badge-completed";
+    if (status === STATUSES.closed || status === STATUSES.completed) return "ds-badge-completed";
     if (status === STATUSES.draft) return "ds-badge bg-slate-100 text-slate-700";
     return "ds-badge-pending";
   };
 
-  const statusLabel = (status: string) => status;
+  const statusLabel = (status: string) =>
+    status === STATUSES.completed ? "Completed" : status;
 
   return (
     <div className="space-y-6">
@@ -646,6 +653,7 @@ function AdminEventContent() {
               <option value={STATUSES.rejected}>Rejected</option>
               <option value={STATUSES.published}>Published</option>
               <option value={STATUSES.closed}>Closed</option>
+              <option value={STATUSES.completed}>Completed</option>
             </select>
           </div>
         </div>
@@ -752,6 +760,7 @@ function AdminEventContent() {
                   <option value={STATUSES.rejected}>Rejected</option>
                   <option value={STATUSES.published}>Published</option>
                   <option value={STATUSES.closed}>Closed</option>
+                  <option value={STATUSES.completed}>Completed</option>
                 </select>
               </div>
               <div className="lg:col-span-2">
@@ -892,7 +901,7 @@ function AdminEventContent() {
                         >
                           Report
                         </Link>
-                        {event.status !== STATUSES.published && (
+                        {event.status === STATUSES.approved && (
                           <button
                             onClick={() => updateEventVisibility(event, true)}
                             disabled={publishingEventId === event.id}
@@ -901,6 +910,13 @@ function AdminEventContent() {
                             {publishingEventId === event.id ? "Updating..." : "Show on Main Page"}
                           </button>
                         )}
+                        {event.status !== STATUSES.approved &&
+                          event.status !== STATUSES.published &&
+                          event.status !== STATUSES.rejected && (
+                            <span className="px-2 py-1 text-xs font-semibold text-slate-500">
+                              Publish after approval
+                            </span>
+                          )}
                         {event.status === STATUSES.published && (
                           <button
                             onClick={() => updateEventVisibility(event, false)}

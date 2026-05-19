@@ -28,6 +28,11 @@ type EventStats = {
   is_registered: boolean;
 };
 
+type RegistrationWithEvent = {
+  id: string;
+  events?: Event | Event[] | null;
+};
+
 export default function EventDetailsPage() {
   const { id } = useParams();
   const [event, setEvent] = useState<Event | null>(null);
@@ -52,37 +57,48 @@ export default function EventDetailsPage() {
       } = await supabase.auth.getUser();
       setUser(authUser);
 
+      let registration: RegistrationWithEvent | null = null;
+      if (authUser) {
+        const { data: registrationData } = await supabase
+          .from("event_registrations")
+          .select("id, events (*)")
+          .eq("event_id", id as string)
+          .eq("user_id", authUser.id)
+          .maybeSingle();
+
+        registration = registrationData as RegistrationWithEvent | null;
+      }
+
+      const registeredEvent = Array.isArray(registration?.events)
+        ? registration.events[0]
+        : registration?.events;
+
       const { data, error } = await supabase
         .from("events")
         .select("*")
         .eq("id", id)
-        .eq("status", "Published")
-        .single();
+        .maybeSingle();
 
-      if (error) {
+      if (error && !registeredEvent) {
         console.error("Error fetching event:", error);
         setEvent(null);
       } else {
-        setEvent(data);
+        const eventData = (data || registeredEvent) as Event | null;
+        const isRegistered = Boolean(registration);
+
+        if (!eventData || (eventData.status !== "Published" && !isRegistered)) {
+          setEvent(null);
+          setStats({ registered_count: 0, is_registered: isRegistered });
+          return;
+        }
+
+        setEvent(eventData);
 
         // Get registration count
         const { count } = await supabase
           .from("event_registrations")
           .select("*", { count: "exact", head: true })
           .eq("event_id", id as string);
-
-        // Check if user is already registered
-        let isRegistered = false;
-        if (authUser) {
-          const { data: registration } = await supabase
-            .from("event_registrations")
-            .select("id")
-            .eq("event_id", id as string)
-            .eq("user_id", authUser.id)
-            .single();
-
-          isRegistered = !!registration;
-        }
 
         setStats({
           registered_count: count || 0,
@@ -142,7 +158,7 @@ export default function EventDetailsPage() {
       } else {
         const message = isFreeEvent
           ? "✓ Registered successfully! No payment needed."
-          : "Registration started. Please proceed to payment.";
+          : "Registration started. Please pay by card from My Registrations.";
         setToast({ message, type: "success" });
         await loadEventDetails();
       }
@@ -404,7 +420,7 @@ export default function EventDetailsPage() {
                     <p className="text-xs text-gray-500 text-center mt-3">
                       {(!event.fee_amount || event.fee_amount === 0)
                         ? "This is a free event. No payment needed."
-                        : "By registering, you agree to pay the event fee to complete your registration."}
+                        : "After registering, complete the event fee by card from My Registrations."}
                     </p>
                   </>
                 )}
