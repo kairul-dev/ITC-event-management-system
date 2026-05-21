@@ -136,33 +136,61 @@ body {
       margin: 12mm;
     }
 
+    html,
+    body {
+      height: auto !important;
+      min-height: 0 !important;
+      overflow: visible !important;
+      max-width: none !important;
+    }
+
     .no-print {
       display: none !important;
     }
 
+    body * {
+      overflow: visible !important;
+    }
+
     .dashboard-shell-content {
+      height: auto !important;
       margin: 0 !important;
+      max-width: none !important;
+      min-height: 0 !important;
+      overflow: visible !important;
       padding-left: 0 !important;
+      transform: none !important;
       width: 100% !important;
     }
 
     .dashboard-shell-main {
+      height: auto !important;
       margin: 0 !important;
+      max-width: none !important;
+      min-height: 0 !important;
+      overflow: visible !important;
       padding: 0 !important;
       width: 100% !important;
     }
 
     .print-report-root {
       background: #ffffff !important;
+      height: auto !important;
       margin: 0 auto !important;
       max-width: 180mm !important;
+      min-height: 0 !important;
+      overflow: visible !important;
       width: 100% !important;
     }
 
     .print-area {
       box-shadow: none !important;
       border: none !important;
+      height: auto !important;
       margin: 0 auto !important;
+      max-height: none !important;
+      min-height: 0 !important;
+      overflow: visible !important;
       padding: 0 !important;
       width: 100% !important;
     }
@@ -173,6 +201,13 @@ body {
 
     .print-area table {
       width: 100% !important;
+    }
+
+    .print-area tr,
+    .print-area .rounded-2xl,
+    .print-area .rounded-xl {
+      break-inside: avoid;
+      page-break-inside: avoid;
     }
 
     body {
