@@ -45,18 +45,42 @@ export async function requireApiRole(
   }
 
   const supabaseAdmin = getSupabaseAdminClient();
-  const { data: roleRows, error: roleError } = await supabaseAdmin
+  const { data: roleRowsById, error: roleByIdError } = await supabaseAdmin
     .from("users")
     .select("role")
     .eq("id", user.id)
     .limit(1);
 
-  const role =
-    Array.isArray(roleRows) && roleRows.length > 0 ? roleRows[0]?.role : null;
+  const roleById =
+    Array.isArray(roleRowsById) && roleRowsById.length > 0
+      ? roleRowsById[0]?.role
+      : null;
 
-  if (roleError || !role || !allowedRoles.includes(role)) {
+  let role = roleById;
+
+  if (!role && user.email) {
+    const { data: roleRowsByEmail } = await supabaseAdmin
+      .from("users")
+      .select("role")
+      .eq("email", user.email)
+      .limit(1);
+
+    role =
+      Array.isArray(roleRowsByEmail) && roleRowsByEmail.length > 0
+        ? roleRowsByEmail[0]?.role
+        : null;
+  }
+
+  const normalizedRole =
+    typeof role === "string" ? role.trim().toLowerCase() : null;
+
+  if (
+    roleByIdError ||
+    !normalizedRole ||
+    !allowedRoles.includes(normalizedRole)
+  ) {
     return { ok: false, status: 403, error: "You do not have permission to perform this action." };
   }
 
-  return { ok: true, userId: user.id, role };
+  return { ok: true, userId: user.id, role: normalizedRole };
 }
