@@ -1,10 +1,11 @@
 import { stripPaperworkFileMarker } from "./paperworkFile";
+import { stripEventPosterMarker } from "./eventPoster";
 
 const SECTION_HEADING_PATTERN =
   /(?:^|\n)\s*(?:\d{1,2}\.0|LAMPIRAN\s+\d*)\s+[^\n]+/gi;
 
 const normalizeWhitespace = (value: string) =>
-  stripPaperworkFileMarker(value)
+  stripEventPosterMarker(stripPaperworkFileMarker(value))
     .replace(/\r\n/g, "\n")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")

@@ -28,6 +28,7 @@ type EventRow = {
   location?: string | null;
   purpose?: string | null;
   objective?: string | null;
+  poster_url?: string | null;
 };
 
 const eventVisuals = [
@@ -110,7 +111,7 @@ const formatShowcaseEvent = (event: EventRow, index: number): ShowcaseEvent => {
       event.purpose ||
       event.objective ||
       "View the full details, check the venue and schedule, then register your seat through the student portal.",
-    image: visual.image,
+    image: event.poster_url || visual.image,
     color: visual.color,
     outline: visual.outline,
   };

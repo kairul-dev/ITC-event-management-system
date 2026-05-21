@@ -18,6 +18,7 @@ type EventRow = {
   location?: string | null;
   purpose?: string | null;
   objective?: string | null;
+  poster_url?: string | null;
   registered_count?: number;
 };
 
@@ -202,6 +203,13 @@ export default function PublicEventDetailsPage() {
               Information Technology Club Event
             </p>
             <h1 className="mt-3 text-4xl font-black tracking-tight">{event.title}</h1>
+            {event.poster_url && (
+              <img
+                src={event.poster_url}
+                alt={`${event.title} poster`}
+                className="mt-6 max-h-[520px] w-full rounded-lg border border-white/15 object-cover shadow-2xl"
+              />
+            )}
           </div>
 
           <div className="grid gap-8 p-6 lg:grid-cols-[1fr_280px] lg:p-8">

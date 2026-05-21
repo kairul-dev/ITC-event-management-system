@@ -14,6 +14,7 @@ type EventRow = {
   location?: string | null;
   purpose?: string | null;
   objective?: string | null;
+  poster_url?: string | null;
   registered_count?: number;
 };
 
@@ -272,7 +273,7 @@ export default function PublicEventsPage() {
                     <article key={event.id} className="group overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.10)] transition hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(15,23,42,0.16)]">
                       <div className="relative h-48 overflow-hidden">
                         <img
-                          src={visual.image}
+                          src={event.poster_url || visual.image}
                           alt=""
                           className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                         />

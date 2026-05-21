@@ -1,4 +1,5 @@
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
+import { getEventPoster, stripEventPosterMarker } from "@/lib/eventPoster";
 
 type EventRow = {
   id: string;
@@ -11,6 +12,7 @@ type EventRow = {
   location?: string | null;
   purpose?: string | null;
   objective?: string | null;
+  poster_url?: string | null;
 };
 
 async function withRegistrationCount(event: EventRow) {
@@ -20,7 +22,14 @@ async function withRegistrationCount(event: EventRow) {
     .select("*", { count: "exact", head: true })
     .eq("event_id", event.id);
 
-  return { ...event, registered_count: count || 0 };
+  const poster = getEventPoster(event.objective);
+
+  return {
+    ...event,
+    objective: stripEventPosterMarker(event.objective),
+    poster_url: poster?.publicUrl || null,
+    registered_count: count || 0,
+  };
 }
 
 export async function GET(request: Request) {

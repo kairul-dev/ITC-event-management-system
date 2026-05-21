@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { appendEventPosterMarker, getEventPoster, stripEventPosterMarker, UploadedEventPoster } from "@/lib/eventPoster";
 import { appendPaperworkFileMarker, formatFileSize, UploadedPaperworkFile } from "@/lib/paperworkFile";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -84,6 +85,8 @@ function AdminEventContent() {
   const [budget, setBudget] = useState("");
   const [feeAmount, setFeeAmount] = useState("0");
   const [maxStudents, setMaxStudents] = useState("");
+  const [posterFile, setPosterFile] = useState<File | null>(null);
+  const [posterFileInputKey, setPosterFileInputKey] = useState(0);
   const [paperworkFile, setPaperworkFile] = useState<File | null>(null);
   const [paperworkFileInputKey, setPaperworkFileInputKey] = useState(0);
 
@@ -93,6 +96,9 @@ function AdminEventContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [editingEvent, setEditingEvent] = useState<EditableEvent | null>(null);
+  const [editingPosterFile, setEditingPosterFile] = useState<File | null>(null);
+  const [editingPosterFileInputKey, setEditingPosterFileInputKey] = useState(0);
+  const [editingPosterRemoved, setEditingPosterRemoved] = useState(false);
   const [updatingEvent, setUpdatingEvent] = useState(false);
   const [publishingEventId, setPublishingEventId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -222,6 +228,37 @@ function AdminEventContent() {
     return payload.file as UploadedPaperworkFile;
   };
 
+  const uploadPosterFile = async (file: File): Promise<UploadedEventPoster | null> => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      alert("Please log in again before uploading the event poster.");
+      return null;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch("/api/events/poster/upload", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: formData,
+    });
+
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      alert(payload.error || "Unable to upload event poster.");
+      return null;
+    }
+
+    return payload.poster as UploadedEventPoster;
+  };
+
   const addEvent = async (nextStatus: string) => {
     if (
       !title ||
@@ -239,6 +276,13 @@ function AdminEventContent() {
     }
 
     setSubmitting(true);
+    const uploadedPoster = posterFile ? await uploadPosterFile(posterFile) : null;
+
+    if (posterFile && !uploadedPoster) {
+      setSubmitting(false);
+      return;
+    }
+
     const uploadedFile = await uploadPaperworkFile(paperworkFile);
 
     if (!uploadedFile) {
@@ -250,7 +294,12 @@ function AdminEventContent() {
       title: title.trim(),
       location: location.trim(),
       purpose: purpose.trim(),
-      objective: appendPaperworkFileMarker(objective.trim(), uploadedFile),
+      objective: appendPaperworkFileMarker(
+        uploadedPoster
+          ? appendEventPosterMarker(objective.trim(), uploadedPoster)
+          : objective.trim(),
+        uploadedFile,
+      ),
       start_date: startDate,
       end_date: endDate,
       budget: parseFloat(budget),
@@ -299,6 +348,8 @@ function AdminEventContent() {
     setBudget("");
     setFeeAmount("0");
     setMaxStudents("");
+    setPosterFile(null);
+    setPosterFileInputKey((value) => value + 1);
     setPaperworkFile(null);
     setPaperworkFileInputKey((value) => value + 1);
 
@@ -346,15 +397,23 @@ function AdminEventContent() {
   }, [events, searchQuery, statusFilter]);
 
   const publicEventCount = events.filter((event) => event.status === STATUSES.published).length;
+  const editingOriginalEvent = editingEvent
+    ? events.find((event) => event.id === editingEvent.id)
+    : null;
+  const editingCurrentPoster =
+    editingPosterRemoved ? null : getEventPoster(editingOriginalEvent?.objective);
 
   const startEditingEvent = (event: Event) => {
     setShowPreview(false);
+    setEditingPosterFile(null);
+    setEditingPosterFileInputKey((value) => value + 1);
+    setEditingPosterRemoved(false);
     setEditingEvent({
       id: event.id,
       title: event.title || "",
       location: event.location || "",
       purpose: event.purpose || "",
-      objective: event.objective || "",
+      objective: stripEventPosterMarker(event.objective),
       start_date: toDateTimeInputValue(event.start_date),
       end_date: toDateTimeInputValue(event.end_date),
       budget: String(event.budget ?? 0),
@@ -379,13 +438,27 @@ function AdminEventContent() {
     }
 
     setUpdatingEvent(true);
+    const existingEvent = events.find((event) => event.id === editingEvent.id);
+    const existingPoster = getEventPoster(existingEvent?.objective);
+    const uploadedPoster = editingPosterFile ? await uploadPosterFile(editingPosterFile) : null;
+
+    if (editingPosterFile && !uploadedPoster) {
+      setUpdatingEvent(false);
+      return;
+    }
+
+    const nextPoster = uploadedPoster || (editingPosterRemoved ? null : existingPoster);
+    const nextObjective = nextPoster
+      ? appendEventPosterMarker(editingEvent.objective.trim(), nextPoster)
+      : stripEventPosterMarker(editingEvent.objective.trim());
+
     const { error } = await supabase
       .from("events")
       .update({
         title: editingEvent.title.trim(),
         location: editingEvent.location.trim(),
         purpose: editingEvent.purpose.trim(),
-        objective: editingEvent.objective.trim(),
+        objective: nextObjective,
         start_date: editingEvent.start_date,
         end_date: editingEvent.end_date,
         budget: parseFloat(editingEvent.budget || "0"),
@@ -404,6 +477,9 @@ function AdminEventContent() {
     }
 
     setEditingEvent(null);
+    setEditingPosterFile(null);
+    setEditingPosterFileInputKey((value) => value + 1);
+    setEditingPosterRemoved(false);
     setShowPreview(false);
     await loadEvents();
   };
@@ -552,6 +628,24 @@ function AdminEventContent() {
           <div>
             <label className="ds-label">Student Fee (RM) *</label>
             <input type="number" min="0" step="0.01" value={feeAmount} onChange={(e) => setFeeAmount(e.target.value)} className="ds-input" />
+          </div>
+          <div className="lg:col-span-2 rounded-2xl border border-dashed border-emerald-300 bg-emerald-50/60 p-5">
+            <label className="ds-label">Event Poster Image</label>
+            <input
+              key={posterFileInputKey}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={(event) => setPosterFile(event.target.files?.[0] || null)}
+              className="block w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-emerald-600 file:px-4 file:py-2 file:text-sm file:font-bold file:text-white hover:file:bg-emerald-700"
+            />
+            <p className="mt-3 text-sm font-medium text-emerald-800">
+              Optional public poster shown on the main page, event list, and event detail page.
+            </p>
+            {posterFile && (
+              <p className="mt-3 rounded-xl bg-white px-4 py-3 text-sm font-bold text-slate-800">
+                Selected: {posterFile.name} ({formatFileSize(posterFile.size)})
+              </p>
+            )}
           </div>
           <div className="lg:col-span-2 rounded-2xl border border-dashed border-violet-300 bg-violet-50/60 p-5">
             <label className="ds-label">Completed Paperwork File *</label>
@@ -781,6 +875,9 @@ function AdminEventContent() {
                 type="button"
                 onClick={() => {
                   setEditingEvent(null);
+                  setEditingPosterFile(null);
+                  setEditingPosterFileInputKey((value) => value + 1);
+                  setEditingPosterRemoved(false);
                   setShowPreview(false);
                 }}
                 className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
@@ -891,6 +988,55 @@ function AdminEventContent() {
                   className="ds-textarea"
                 />
               </div>
+              <div className="lg:col-span-2 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4">
+                <label className="ds-label">Event Poster Image</label>
+                {editingCurrentPoster && (
+                  <div className="mb-4 grid gap-4 md:grid-cols-[180px_1fr]">
+                    <img
+                      src={editingCurrentPoster.publicUrl}
+                      alt={`${editingEvent.title || "Event"} poster`}
+                      className="h-44 w-full rounded-lg border border-emerald-200 object-cover"
+                    />
+                    <div className="text-sm text-emerald-900">
+                      <p className="font-bold">{editingCurrentPoster.name}</p>
+                      <p className="mt-1 font-medium">
+                        {formatFileSize(editingCurrentPoster.size)}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingPosterRemoved(true);
+                          setEditingPosterFile(null);
+                          setEditingPosterFileInputKey((value) => value + 1);
+                        }}
+                        className="mt-4 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-50"
+                      >
+                        Remove Poster
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <input
+                  key={editingPosterFileInputKey}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={(event) => {
+                    setEditingPosterFile(event.target.files?.[0] || null);
+                    setEditingPosterRemoved(false);
+                  }}
+                  className="block w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-emerald-600 file:px-4 file:py-2 file:text-sm file:font-bold file:text-white hover:file:bg-emerald-700"
+                />
+                {editingPosterFile && (
+                  <p className="mt-3 rounded-xl bg-white px-4 py-3 text-sm font-bold text-slate-800">
+                    New poster: {editingPosterFile.name} ({formatFileSize(editingPosterFile.size)})
+                  </p>
+                )}
+                {!editingCurrentPoster && !editingPosterFile && (
+                  <p className="mt-3 text-sm font-medium text-emerald-800">
+                    Add a poster to replace the default event image on public pages.
+                  </p>
+                )}
+              </div>
             </div>
 
             {showPreview && (
@@ -900,6 +1046,13 @@ function AdminEventContent() {
                 </p>
                 <div className="mt-3 overflow-hidden rounded-lg border border-slate-200">
                   <div className="bg-gradient-to-br from-slate-950 via-violet-950 to-violet-700 p-5 text-white">
+                    {editingCurrentPoster && (
+                      <img
+                        src={editingCurrentPoster.publicUrl}
+                        alt={`${editingEvent.title || "Event"} poster`}
+                        className="mb-4 max-h-72 w-full rounded-lg object-cover"
+                      />
+                    )}
                     <p className="text-xs font-bold uppercase text-violet-200">
                       {editingEvent.start_date
                         ? new Date(editingEvent.start_date).toLocaleDateString("en-US", {
