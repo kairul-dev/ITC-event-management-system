@@ -4,6 +4,7 @@ export interface CertificateData {
   certificateNo: string;
   issuedDate: string;
   issuerName?: string;
+  blockchainHash?: string;
 }
 
 export function CertificateTemplate({ data }: { data: CertificateData }) {
@@ -88,6 +89,13 @@ export function CertificateTemplate({ data }: { data: CertificateData }) {
           <div className="mt-8 pt-6">
             <p className="text-sm text-amber-700 italic">Authorized by</p>
           </div>
+
+          {data.blockchainHash && (
+            <div className="mt-5 rounded-lg border border-amber-200 bg-white/60 px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700">Blockchain Verification Hash</p>
+              <p className="mt-1 break-all font-mono text-[10px] leading-4 text-amber-950">{data.blockchainHash}</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

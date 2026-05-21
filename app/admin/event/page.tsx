@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { appendPaperworkFileMarker, formatFileSize, UploadedPaperworkFile } from "@/lib/paperworkFile";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
@@ -83,6 +84,8 @@ function AdminEventContent() {
   const [budget, setBudget] = useState("");
   const [feeAmount, setFeeAmount] = useState("0");
   const [maxStudents, setMaxStudents] = useState("");
+  const [paperworkFile, setPaperworkFile] = useState<File | null>(null);
+  const [paperworkFileInputKey, setPaperworkFileInputKey] = useState(0);
 
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(false);
@@ -116,9 +119,38 @@ function AdminEventContent() {
     return () => window.clearTimeout(timer);
   }, [loadEvents]);
 
+  const formatPaperworkDate = (value: string) => {
+    if (!value) return "-";
+    return new Date(value).toLocaleDateString("ms-MY", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  const buildPaperworkHeader = () =>
+    [
+      "UNIVERSITI TUN HUSSEIN ONN MALAYSIA",
+      "",
+      "KERTAS KERJA",
+      title.trim().toUpperCase(),
+      "",
+      "PEJABAT HAL EHWAL PELAJAR",
+      "UNIVERSITI TUN HUSSEIN ONN MALAYSIA",
+    ].join("\n");
+
   const buildPurposePayload = () => {
     const blocks: string[] = [];
-    blocks.push(`1.0 TUJUAN\n${purpose.trim()}`);
+    blocks.push(buildPaperworkHeader());
+    blocks.push(
+      [
+        "1.0 TUJUAN",
+        `Tujuan kertas kerja ini adalah untuk memohon pertimbangan dan kelulusan Pengarah Pejabat Hal Ehwal Pelajar mengenai cadangan ${title.trim()}.`,
+        purpose.trim(),
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
     blocks.push(
       `2.0 LATAR BELAKANG\n2.1 Pengenalan: ${backgroundIntro.trim()}\n2.2 Sejarah permohonan lepas: ${pastApplicationHistory.trim()}\n2.3 Rekod pencapaian lepas: ${pastAchievementRecord.trim()}`,
     );
@@ -126,9 +158,9 @@ function AdminEventContent() {
       `3.0 NAMA AKTIVITI DAN PENGANJUR\n3.1 Nama Aktiviti: ${title.trim()}\n3.2 Nama Penganjur: ${organizedBy.trim()}`,
     );
     blocks.push(
-      `4.0 BUTIRAN AKTIVITI\n4.1 Tarikh: ${startDate} hingga ${endDate}\n4.2 Hari: ${activityDay.trim()}\n4.3 Lokasi: ${location.trim()}\n4.4 Masa: ${activityTime.trim()}`,
+      `4.0 BUTIRAN AKTIVITI\n4.1 Tarikh: ${formatPaperworkDate(startDate)} hingga ${formatPaperworkDate(endDate)}\n4.2 Hari: ${activityDay.trim()}\n4.3 Lokasi: ${location.trim()}\n4.4 Masa: ${activityTime.trim()}`,
     );
-    blocks.push(`5.0 OBJEKTIF AKTIVITI\n${objective.trim()}`);
+    blocks.push(`5.0 OBJEKTIF AKTIVITI\nObjektif aktiviti adalah seperti berikut:\n${objective.trim()}`);
     blocks.push(`6.0 PERNYATAAN MASALAH\n${problemStatement.trim()}`);
     blocks.push(
       `7.0 SENARAI PESERTA DAN PENGIRING\nBilangan Peserta: ${maxStudents}\nButiran Peserta/Pengiring:\n${participantEscortList.trim()}`,
@@ -141,53 +173,84 @@ function AdminEventContent() {
 
   const buildObjectivePayload = () => {
     const blocks: string[] = [];
-    blocks.push(`9.0 PENGLIBATAN INDUSTRI / PERSATUAN / AGENSI LUAR\n${externalInvolvement.trim()}`);
-    blocks.push(`10.0 KEBERHASILAN AKTIVITI / IMPAK\n${impactDetails.trim()}`);
+    blocks.push(
+      `9.0 PENGLIBATAN INDUSTRI/ PERSATUAN/ AGENSI/ BADAN ORGANISASI LUAR SEBAGAI MENTOR/ PENASIHAT\n${externalInvolvement.trim() || "-"}`,
+    );
+    blocks.push(
+      `10.0 KEBERHASILAN AKTIVITI / IMPAK\n10.1 Kepada Pelajar / Peserta:\n${impactDetails.trim() || "-"}\n10.2 Kepada Kelab / Universiti / Komuniti:\n-\n10.3 Kepada Kelestarian:\n${sustainabilityDetails.trim()}`,
+    );
     blocks.push(`11.0 ATUR CARA AKTIVITI\n${tentativeProgram.trim()}`);
     blocks.push(`12.0 JAWATANKUASA AKTIVITI\n${committeeDetails.trim()}`);
     blocks.push(`13.0 ANGGARAN BELANJAWAN\nJumlah Keseluruhan (RM): ${budget}\nPerincian:\n${budgetBreakdown.trim()}`);
     blocks.push(`14.0 LAIN-LAIN\n${otherNeeds.trim()}`);
     blocks.push(`15.0 IMPLIKASI SEKIRANYA TIDAK DILULUSKAN\n${ifNotApprovedImpact.trim()}`);
     blocks.push(`16.0 KEPUTUSAN\n${decisionRequest.trim()}`);
-    blocks.push(`LAMPIRAN 2 (AKTIVITI KELESTARIAN)\n${sustainabilityDetails.trim()}`);
+    blocks.push(
+      `LAMPIRAN 2\nCADANGAN AKTIVITI KELESTARIAN\n${sustainabilityDetails.trim()}`,
+    );
     return blocks.join("\n\n");
+  };
+
+  const uploadPaperworkFile = async (file: File): Promise<UploadedPaperworkFile | null> => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      alert("Please log in again before uploading paperwork.");
+      return null;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch("/api/paperwork/upload", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: formData,
+    });
+
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      alert(payload.error || "Unable to upload paperwork file.");
+      return null;
+    }
+
+    return payload.file as UploadedPaperworkFile;
   };
 
   const addEvent = async (nextStatus: string) => {
     if (
       !title ||
-      !organizedBy ||
       !purpose ||
-      !backgroundIntro ||
-      !objective ||
-      !problemStatement ||
-      !participantEscortList ||
-      !strategicAlignment ||
-      !tentativeProgram ||
-      !committeeDetails ||
-      !budgetBreakdown ||
-      !ifNotApprovedImpact ||
-      !decisionRequest ||
-      !sustainabilityDetails ||
       !location ||
-      !activityDay ||
-      !activityTime ||
       !startDate ||
       !endDate ||
       !budget ||
       !feeAmount ||
-      !maxStudents
+      !maxStudents ||
+      !paperworkFile
     ) {
-      alert("Please fill in all required paperwork fields.");
+      alert("Please fill in the event details and upload the completed paperwork file.");
       return;
     }
 
     setSubmitting(true);
+    const uploadedFile = await uploadPaperworkFile(paperworkFile);
+
+    if (!uploadedFile) {
+      setSubmitting(false);
+      return;
+    }
+
     const eventPayload = {
-      title,
-      location,
-      purpose: buildPurposePayload(),
-      objective: buildObjectivePayload(),
+      title: title.trim(),
+      location: location.trim(),
+      purpose: purpose.trim(),
+      objective: appendPaperworkFileMarker(objective.trim(), uploadedFile),
       start_date: startDate,
       end_date: endDate,
       budget: parseFloat(budget),
@@ -236,6 +299,8 @@ function AdminEventContent() {
     setBudget("");
     setFeeAmount("0");
     setMaxStudents("");
+    setPaperworkFile(null);
+    setPaperworkFileInputKey((value) => value + 1);
 
     await loadEvents();
     setSubmitting(false);
@@ -375,51 +440,25 @@ function AdminEventContent() {
   const requiredChecks = useMemo(
     () => [
       title,
-      organizedBy,
       purpose,
-      backgroundIntro,
-      objective,
-      problemStatement,
-      participantEscortList,
-      strategicAlignment,
-      tentativeProgram,
-      committeeDetails,
-      budgetBreakdown,
-      ifNotApprovedImpact,
-      decisionRequest,
-      sustainabilityDetails,
       location,
-      activityDay,
-      activityTime,
       startDate,
       endDate,
       budget,
       feeAmount,
       maxStudents,
+      paperworkFile ? paperworkFile.name : "",
     ],
     [
       title,
-      organizedBy,
       purpose,
-      backgroundIntro,
-      objective,
-      problemStatement,
-      participantEscortList,
-      strategicAlignment,
-      tentativeProgram,
-      committeeDetails,
-      budgetBreakdown,
-      ifNotApprovedImpact,
-      decisionRequest,
-      sustainabilityDetails,
       location,
-      activityDay,
-      activityTime,
       startDate,
       endDate,
       budget,
       feeAmount,
       maxStudents,
+      paperworkFile,
     ],
   );
   const completedRequired = requiredChecks.filter((value) => value.trim().length > 0).length;
@@ -446,14 +485,14 @@ function AdminEventContent() {
         <p className="text-sm text-slate-600">
           {isEventListMode
             ? "Update existing event details shown across the public event pages."
-            : "Isi borang kertas kerja rasmi berdasarkan format UTHM."}
+            : "Upload the completed paperwork file and send it through the approval flow."}
         </p>
       </div>
 
       {!isEventListMode && (
       <div className="ds-card p-6 md:p-8 space-y-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <h2 className="text-2xl font-semibold text-slate-900">Borang Kertas Kerja Aktiviti</h2>
+          <h2 className="text-2xl font-semibold text-slate-900">Submit Completed Paperwork</h2>
           <div className="w-full md:w-96">
             <div className="flex items-center justify-between text-xs text-slate-600 mb-1">
               <span>Kelengkapan borang</span>
@@ -465,6 +504,76 @@ function AdminEventContent() {
           </div>
         </div>
 
+        <div className="grid gap-5 lg:grid-cols-2">
+          <div className="lg:col-span-2">
+            <label className="ds-label">Event Title *</label>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} className="ds-input" />
+          </div>
+          <div className="lg:col-span-2">
+            <label className="ds-label">Public Event Summary *</label>
+            <textarea
+              value={purpose}
+              onChange={(e) => setPurpose(e.target.value)}
+              rows={3}
+              placeholder="Short description shown to students after the event is approved and published."
+              className="ds-textarea"
+            />
+          </div>
+          <div className="lg:col-span-2">
+            <label className="ds-label">Public Objective</label>
+            <textarea
+              value={objective}
+              onChange={(e) => setObjective(e.target.value)}
+              rows={3}
+              placeholder="Optional objective shown on the event detail page."
+              className="ds-textarea"
+            />
+          </div>
+          <div>
+            <label className="ds-label">Location *</label>
+            <input value={location} onChange={(e) => setLocation(e.target.value)} className="ds-input" />
+          </div>
+          <div>
+            <label className="ds-label">Capacity *</label>
+            <input type="number" min="1" value={maxStudents} onChange={(e) => setMaxStudents(e.target.value)} className="ds-input" />
+          </div>
+          <div>
+            <label className="ds-label">Start Date & Time *</label>
+            <input type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="ds-input" />
+          </div>
+          <div>
+            <label className="ds-label">End Date & Time *</label>
+            <input type="datetime-local" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="ds-input" />
+          </div>
+          <div>
+            <label className="ds-label">Total Budget (RM) *</label>
+            <input type="number" min="0" step="0.01" value={budget} onChange={(e) => setBudget(e.target.value)} className="ds-input" />
+          </div>
+          <div>
+            <label className="ds-label">Student Fee (RM) *</label>
+            <input type="number" min="0" step="0.01" value={feeAmount} onChange={(e) => setFeeAmount(e.target.value)} className="ds-input" />
+          </div>
+          <div className="lg:col-span-2 rounded-2xl border border-dashed border-violet-300 bg-violet-50/60 p-5">
+            <label className="ds-label">Completed Paperwork File *</label>
+            <input
+              key={paperworkFileInputKey}
+              type="file"
+              accept=".doc,.docx,.pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf"
+              onChange={(event) => setPaperworkFile(event.target.files?.[0] || null)}
+              className="block w-full rounded-xl border border-violet-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-violet-600 file:px-4 file:py-2 file:text-sm file:font-bold file:text-white hover:file:bg-violet-700"
+            />
+            <p className="mt-3 text-sm font-medium text-violet-800">
+              Upload the completed UTHM paperwork in Word or PDF format. High Council and Club Advisor will open this exact file for review.
+            </p>
+            {paperworkFile && (
+              <p className="mt-3 rounded-xl bg-white px-4 py-3 text-sm font-bold text-slate-800">
+                Selected: {paperworkFile.name} ({formatFileSize(paperworkFile.size)})
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="hidden">
         <div>
           <label className="ds-label">3.1 Nama Aktiviti *</label>
           <input value={title} onChange={(e) => setTitle(e.target.value)} className="ds-input" />
@@ -603,6 +712,7 @@ function AdminEventContent() {
         <div>
           <label className="ds-label">Lampiran 2: Aktiviti Kelestarian *</label>
           <textarea value={sustainabilityDetails} onChange={(e) => setSustainabilityDetails(e.target.value)} rows={3} className="ds-textarea" />
+        </div>
         </div>
 
         <div className="flex flex-col justify-end gap-3 sm:flex-row">

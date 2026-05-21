@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendEventReminderToAllStudents } from "@/lib/emailNotifications";
+import { requireApiRole } from "@/lib/apiAuth";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -12,9 +13,18 @@ if (!supabaseUrl || !supabaseServiceRoleKey) {
 }
 
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
+const allowedNotificationTypes = new Set(["new_event", "closing_soon", "spots_filling"]);
 
 export async function POST(request: NextRequest) {
   try {
+    const roleCheck = await requireApiRole(request, ["admin"]);
+    if (!roleCheck.ok) {
+      return NextResponse.json(
+        { error: roleCheck.error },
+        { status: roleCheck.status },
+      );
+    }
+
     const body = await request.json();
     const { eventId, notificationType } = body;
 
@@ -22,6 +32,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Missing required parameters" },
         { status: 400 }
+      );
+    }
+
+    if (!allowedNotificationTypes.has(notificationType)) {
+      return NextResponse.json(
+        { error: "Invalid notification type" },
+        { status: 400 },
       );
     }
 
@@ -85,7 +102,7 @@ export async function POST(request: NextRequest) {
         month: "long",
         day: "numeric",
       }),
-      notificationType as "new_event" | "closing_soon" | "spots_filling",
+      notificationType,
       studentData
     );
 

@@ -18,6 +18,7 @@ type EventRow = {
   location?: string | null;
   purpose?: string | null;
   objective?: string | null;
+  registered_count?: number;
 };
 
 type StudentProfile = {
@@ -48,22 +49,16 @@ export default function PublicEventDetailsPage() {
       } = await supabase.auth.getUser();
       setUser(authUser);
 
-      const { data, error } = await supabase
-        .from("events")
-        .select("*")
-        .eq("id", params.id)
-        .eq("status", "Published")
-        .single();
+      const response = await fetch(`/api/events/public?id=${encodeURIComponent(params.id)}`);
 
-      if (!error && data) {
+      if (response.ok) {
+        const data = (await response.json()) as EventRow | null;
+        if (!data) {
+          setLoading(false);
+          return;
+        }
         setEvent(data as EventRow);
-
-        const { count } = await supabase
-          .from("event_registrations")
-          .select("*", { count: "exact", head: true })
-          .eq("event_id", params.id);
-
-        setRegisteredCount(count || 0);
+        setRegisteredCount(data.registered_count || 0);
 
         if (authUser) {
           const { data: profileData } = await supabase

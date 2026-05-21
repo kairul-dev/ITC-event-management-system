@@ -50,6 +50,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local Codex artifacts
+.agents/
+skills-lock.json
+codex-workflow-certificate.png
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

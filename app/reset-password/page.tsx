@@ -5,12 +5,16 @@ import { supabase } from "../../lib/supabase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 function parseParamsFromUrl(url: string) {
   try {
     const u = new URL(url);
     const params = Object.fromEntries(u.searchParams.entries());
     return params;
-  } catch (e) {
+  } catch {
     return {};
   }
 }
@@ -73,9 +77,9 @@ export default function ResetPasswordPage() {
 
         setError("No reset token found in URL. Please request a password reset.");
         setAuthorized(false);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(err);
-        setError(err?.message || "Unable to initialize reset flow");
+        setError(getErrorMessage(err, "Unable to initialize reset flow"));
       } finally {
         setLoading(false);
       }
@@ -91,7 +95,7 @@ export default function ResetPasswordPage() {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.updateUser({ password });
+      const { error } = await supabase.auth.updateUser({ password });
       if (error) {
         console.error(error);
         setError(error.message || "Unable to update password.");
@@ -100,9 +104,9 @@ export default function ResetPasswordPage() {
 
       // Successful password update - redirect to login
       router.push("/login");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Unable to update password.");
+      setError(getErrorMessage(err, "Unable to update password."));
     } finally {
       setLoading(false);
     }

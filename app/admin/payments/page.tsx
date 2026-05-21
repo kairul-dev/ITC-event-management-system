@@ -30,9 +30,8 @@ export default function AdminPaymentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "unpaid" | "pending" | "paid" | "rejected">("all");
 
-  const loadRows = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
+  useEffect(() => {
+    void supabase
       .from("event_registrations")
       .select(
         `
@@ -49,20 +48,17 @@ export default function AdminPaymentsPage() {
         events (title, fee_amount)
       `
       )
-      .order("registered_at", { ascending: false });
-
-    if (error) {
-      console.error("Error loading payment rows:", error);
-      alert("Error loading payments: " + error.message);
-      setRows([]);
-    } else {
-      setRows((data || []) as PaymentRow[]);
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    loadRows();
+      .order("registered_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Error loading payment rows:", error);
+          alert("Error loading payments: " + error.message);
+          setRows([]);
+        } else {
+          setRows((data || []) as PaymentRow[]);
+        }
+        setLoading(false);
+      });
   }, []);
 
   const filteredRows = useMemo(() => {

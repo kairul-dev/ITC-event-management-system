@@ -5,6 +5,10 @@ import { supabase } from "../../lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 function RegisterContent() {
   const [name, setName] = useState("");
   const [matrixNumber, setMatrixNumber] = useState("");
@@ -77,9 +81,9 @@ function RegisterContent() {
           ? `/login?role=student&next=${encodeURIComponent(safeNextPath)}`
           : "/login"
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Registration failed");
+      setError(getErrorMessage(err, "Registration failed"));
     } finally {
       setLoading(false);
     }

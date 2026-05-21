@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 import * as XLSX from "xlsx";
+import { stripPaperworkFileMarker } from "@/lib/paperworkFile";
 
 type EventRow = {
   id: string;
@@ -60,11 +61,6 @@ const toDateValue = (value: string) => {
 
 const formatMoney = (value: number) => `RM ${value.toFixed(2)}`;
 
-type ParsedSection = {
-  title: string;
-  body: string;
-};
-
 type Html2PdfFactory = () => {
   set: (options: Record<string, unknown>) => {
     from: (element: HTMLElement) => {
@@ -73,22 +69,46 @@ type Html2PdfFactory = () => {
   };
 };
 
-const parseNumberedSections = (...sources: Array<string | null | undefined>) => {
-  const text = sources.filter(Boolean).join("\n\n").trim();
-  if (!text) return [] as ParsedSection[];
-
-  const normalized = text.replace(/\r\n/g, "\n");
-  const matches = [...normalized.matchAll(/(^|\n)(\d+\.\d?(?:\.\d+)?)\s+([^\n]+)\n([\s\S]*?)(?=\n\d+\.\d?(?:\.\d+)?\s+[^\n]+\n|$)/g)];
-
-  return matches.map((match) => ({
-    title: `${match[2]} ${match[3].trim()}`,
-    body: match[4].trim(),
-  }));
-};
-
 const formatMultiline = (value?: string | null) => {
   if (!value) return "-";
-  return value.trim();
+  return stripPaperworkFileMarker(value).trim();
+};
+
+const formatDateTime = (value?: string | null) => {
+  if (!value) return "-";
+  return new Date(value).toLocaleString("en-MY", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const applyCleanSheetLayout = (
+  sheet: XLSX.WorkSheet,
+  columnWidths: number[],
+  autoFilterRange?: string,
+) => {
+  sheet["!cols"] = columnWidths.map((wch) => ({ wch }));
+  if (autoFilterRange) {
+    sheet["!autofilter"] = { ref: autoFilterRange };
+  }
+
+  for (const address of Object.keys(sheet)) {
+    if (address.startsWith("!")) continue;
+    const cell = sheet[address] as XLSX.CellObject & {
+      s?: { alignment?: { wrapText?: boolean; vertical?: string } };
+    };
+    cell.s = {
+      ...(cell.s || {}),
+      alignment: {
+        ...(cell.s?.alignment || {}),
+        wrapText: true,
+        vertical: "top",
+      },
+    };
+  }
 };
 
 export default function AdminEventReportPage() {
@@ -268,25 +288,99 @@ export default function AdminEventReportPage() {
         { metric: "Estimated Revenue", value: totals.revenue.toFixed(2) },
       ]);
 
-      const reportRows = filteredEvents.map((event) => ({
-        Title: event.title,
-        Location: event.location || "-",
-        Status: event.status,
-        "Start Date": event.start_date,
-        "End Date": event.end_date,
-        Fee: Number(event.fee_amount || 0).toFixed(2),
-        Registrations: event.registrations,
-        Paid: event.paidCount,
-        Pending: event.pendingCount,
-        Unpaid: event.unpaidCount,
-        Rejected: event.rejectedCount,
-        Revenue: event.revenue.toFixed(2),
-      }));
+      const eventReportHeader = [
+        "Title",
+        "Location",
+        "Status",
+        "Start Date",
+        "End Date",
+        "Fee (RM)",
+        "Registered",
+        "Paid",
+        "Pending",
+        "Unpaid",
+        "Rejected",
+        "Revenue (RM)",
+      ];
+      const eventReportRows = filteredEvents.map((event) => [
+        event.title,
+        event.location || "-",
+        event.status,
+        event.start_date,
+        event.end_date,
+        Number(event.fee_amount || 0).toFixed(2),
+        event.registrations,
+        event.paidCount,
+        event.pendingCount,
+        event.unpaidCount,
+        event.rejectedCount,
+        event.revenue.toFixed(2),
+      ]);
+      const eventTitleById = new Map(events.map((event) => [event.id, event.title]));
+      const registrationRows = registrations
+        .filter((registration) =>
+          selectedEventId === "all" ? true : registration.event_id === selectedEventId
+        )
+        .map((registration, index) => [
+          index + 1,
+          eventTitleById.get(registration.event_id) || registration.event_id,
+          registration.student?.name || "-",
+          registration.student?.matrix_number || "-",
+          registration.student?.email || "-",
+          registration.payment_status || "unpaid",
+          registration.payment_reference || "-",
+        ]);
+      const registrationHeader = [
+        "No",
+        "Event",
+        "Name",
+        "Matrix Number",
+        "Email",
+        "Payment Status",
+        "Payment Reference",
+      ];
 
-      const reportSheet = XLSX.utils.json_to_sheet(reportRows);
+      const reportSheetRows = [
+        ["Event Report"],
+        [],
+        eventReportHeader,
+        ...eventReportRows,
+        [],
+        ["Registered Students"],
+        ...(registrationRows.length > 0 ? [registrationHeader, ...registrationRows] : [["No registered students found for the selected report scope."]]),
+      ];
+
+      const reportSheet = XLSX.utils.aoa_to_sheet(reportSheetRows);
+      const registrationsSheet = XLSX.utils.aoa_to_sheet([
+        registrationHeader,
+        ...registrationRows,
+      ]);
+      reportSheet["!merges"] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },
+        { s: { r: eventReportRows.length + 4, c: 0 }, e: { r: eventReportRows.length + 4, c: 6 } },
+      ];
+      reportSheet["!rows"] = reportSheetRows.map((_, index) => ({
+        hpt: index === 0 || index === eventReportRows.length + 4 ? 24 : 36,
+      }));
+      registrationsSheet["!rows"] = [
+        { hpt: 28 },
+        ...registrationRows.map(() => ({ hpt: 36 })),
+      ];
+      applyCleanSheetLayout(summarySheet, [24, 18], "A1:B8");
+      applyCleanSheetLayout(
+        reportSheet,
+        [34, 24, 24, 18, 18, 12, 14, 10, 12, 12, 12, 14],
+        `A3:L${Math.max(eventReportRows.length + 3, 3)}`,
+      );
+      applyCleanSheetLayout(
+        registrationsSheet,
+        [8, 34, 24, 18, 32, 18, 34],
+        `A1:G${Math.max(registrationRows.length + 1, 1)}`,
+      );
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
       XLSX.utils.book_append_sheet(workbook, reportSheet, "Event Report");
+      XLSX.utils.book_append_sheet(workbook, registrationsSheet, "Registered Students");
       XLSX.writeFile(workbook, `event-report-${new Date().toISOString().slice(0, 10)}.xlsx`);
     } finally {
       setExportingExcel(false);
@@ -328,11 +422,6 @@ export default function AdminEventReportPage() {
     selectedEventId === "all"
       ? null
       : events.find((event) => event.id === selectedEventId) || null;
-
-  const selectedEventSections = useMemo(
-    () => parseNumberedSections(selectedEvent?.purpose, selectedEvent?.objective),
-    [selectedEvent?.purpose, selectedEvent?.objective]
-  );
 
   const selectedEventStudents = useMemo(
     () =>
@@ -519,101 +608,80 @@ export default function AdminEventReportPage() {
           </div>
         )}
 
-        {selectedEventId !== "all" && (
+        {selectedEventId !== "all" && selectedEvent && (
           <div className="pt-4 border-t border-gray-200 space-y-4">
-            <div className="rounded-2xl border border-slate-300 p-8 space-y-8 bg-white print:shadow-none">
-              <div className="text-center border-b border-slate-300 pb-6">
-                <p className="text-sm font-semibold tracking-[0.25em] text-slate-500 uppercase">
-                  Kertas Kerja Permohonan Aktiviti
+            <div className="rounded-2xl border border-slate-300 bg-white p-8 space-y-7 print:rounded-none print:border-slate-400 print:shadow-none">
+              <div className="border-b border-slate-300 pb-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+                  ITC Event Management System
                 </p>
-                <h3 className="mt-3 text-3xl font-bold text-slate-900">
-                  {selectedEvent?.title || "Untitled Event"}
-                </h3>
-                <p className="mt-2 text-sm text-slate-600">
-                  Dokumen untuk cetakan selepas kelulusan presiden
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Status</p>
-                  <p className="mt-1 text-base font-semibold text-slate-900">
-                    {selectedEvent?.status || "-"}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Tarikh Aktiviti</p>
-                  <p className="mt-1 text-base font-semibold text-slate-900">
-                    {selectedEvent
-                      ? `${new Date(selectedEvent.start_date).toLocaleDateString()} - ${new Date(selectedEvent.end_date).toLocaleDateString()}`
-                      : "-"}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Lokasi</p>
-                  <p className="mt-1 text-base text-slate-900">{selectedEvent?.location || "-"}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Bilangan Peserta</p>
-                  <p className="mt-1 text-base text-slate-900">{selectedEvent?.max_students || "-"}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Yuran Penyertaan</p>
-                  <p className="mt-1 text-base text-slate-900">
-                    {formatMoney(Number(selectedEvent?.fee_amount || 0))}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Jumlah Belanjawan</p>
-                  <p className="mt-1 text-base text-slate-900">
-                    {formatMoney(Number(selectedEvent?.budget || 0))}
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                {selectedEventSections.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
-                    No formatted event sections are available for this record.
+                <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <h3 className="text-3xl font-bold text-slate-950">
+                      Event Report
+                    </h3>
+                    <p className="mt-1 text-xl font-semibold text-slate-800">
+                      {selectedEvent.title}
+                    </p>
                   </div>
-                ) : (
-                  selectedEventSections.map((section) => (
-                    <section key={section.title} className="space-y-2">
-                      <h4 className="text-base font-bold uppercase tracking-wide text-slate-900">
-                        {section.title}
-                      </h4>
-                      <div className="whitespace-pre-line text-sm leading-7 text-slate-700">
-                        {formatMultiline(section.body)}
-                      </div>
-                    </section>
-                  ))
-                )}
+                  <div className="text-sm text-slate-600 md:text-right">
+                    <p>Generated: {formatDateTime(new Date().toISOString())}</p>
+                    <p>Status: {selectedEvent.status}</p>
+                  </div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10 pt-8 border-t border-slate-300">
+              <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+                {[
+                  ["Students Joined", selectedEvent.registrations],
+                  ["Capacity", selectedEvent.max_students || 0],
+                  ["Paid", selectedEvent.paidCount],
+                  ["Pending Payment", selectedEvent.pendingCount],
+                  ["Unpaid", selectedEvent.unpaidCount],
+                  ["Rejected Payment", selectedEvent.rejectedCount],
+                  ["Fee", formatMoney(Number(selectedEvent.fee_amount || 0))],
+                  ["Revenue", formatMoney(selectedEvent.revenue)],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+                    <p className="mt-1 text-lg font-bold text-slate-950">{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
                 <div>
-                  <p className="text-sm font-semibold text-slate-900">Disediakan oleh</p>
-                  <div className="mt-16 border-b border-slate-400" />
-                  <p className="mt-2 text-sm text-slate-600">Pentadbir / Penganjur Aktiviti</p>
-                  <p className="text-sm text-slate-500">
-                    Tarikh cetakan: {new Date().toLocaleDateString()}
-                  </p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Start Date</p>
+                  <p className="mt-1 font-semibold text-slate-900">{formatDateTime(selectedEvent.start_date)}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-slate-900">Kelulusan Presiden</p>
-                  <div className="mt-16 border-b border-slate-400" />
-                  <p className="mt-2 text-sm text-slate-600">Status: {selectedEvent?.status || "-"}</p>
-                  <p className="text-sm text-slate-500">
-                    Tarikh kelulusan: {selectedEvent?.approved_at ? new Date(selectedEvent.approved_at).toLocaleDateString() : "-"}
-                  </p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">End Date</p>
+                  <p className="mt-1 font-semibold text-slate-900">{formatDateTime(selectedEvent.end_date)}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Location</p>
+                  <p className="mt-1 font-semibold text-slate-900">{selectedEvent.location || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Budget</p>
+                  <p className="mt-1 font-semibold text-slate-900">{formatMoney(Number(selectedEvent.budget || 0))}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Created</p>
+                  <p className="mt-1 font-semibold text-slate-900">{formatDateTime(selectedEvent.created_at)}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Approved</p>
+                  <p className="mt-1 font-semibold text-slate-900">{formatDateTime(selectedEvent.approved_at)}</p>
                 </div>
               </div>
+
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Registered Students</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Registered Students ({selectedEventStudents.length})</h3>
               <p className="text-sm text-gray-500">
-                Students who registered for {selectedEvent?.title || "this event"}.
+                Students who registered for {selectedEvent.title}.
               </p>
             </div>
 

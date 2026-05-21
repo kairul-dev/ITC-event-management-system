@@ -35,6 +35,16 @@ type CertificateRow = {
   status?: string | null;
 };
 
+type UserRow = {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+};
+
+function generateCertificateNo() {
+  return `CERT-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+}
+
 export default function AdminCertificatesPage() {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [selectedEvent, setSelectedEvent] = useState("");
@@ -44,6 +54,30 @@ export default function AdminCertificatesPage() {
   const [issuingAll, setIssuingAll] = useState(false);
   const [issuingUserId, setIssuingUserId] = useState<string | null>(null);
   const [searchStudent, setSearchStudent] = useState("");
+
+  const anchorCertificateOnSepolia = async (certificateId: string) => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      return { anchored: false, reason: "Please log in again to anchor the certificate on Sepolia." };
+    }
+
+    const response = await fetch("/api/certificates/anchor-sepolia", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ certificateId }),
+    });
+
+    return response.json().catch(() => ({
+      anchored: false,
+      reason: "Unable to read Sepolia anchor response.",
+    }));
+  };
 
   const loadEvents = async () => {
     setLoadingEvents(true);
@@ -65,15 +99,15 @@ export default function AdminCertificatesPage() {
     const registrationCounts = new Map<string, number>();
     const certificateCounts = new Map<string, number>();
 
-    (registrations ?? []).forEach((row: any) => {
+    ((registrations ?? []) as Pick<RegistrationRow, "event_id">[]).forEach((row) => {
       registrationCounts.set(row.event_id, (registrationCounts.get(row.event_id) ?? 0) + 1);
     });
 
-    (certificates ?? []).forEach((row: any) => {
+    ((certificates ?? []) as Pick<CertificateRow, "event_id">[]).forEach((row) => {
       certificateCounts.set(row.event_id, (certificateCounts.get(row.event_id) ?? 0) + 1);
     });
 
-    const nextEvents = (eventRows ?? []).map((event: any) => ({
+    const nextEvents = ((eventRows ?? []) as Array<Pick<EventRow, "id" | "title" | "status">>).map((event) => ({
       id: event.id,
       title: event.title,
       status: event.status,
@@ -133,7 +167,7 @@ export default function AdminCertificatesPage() {
       return;
     }
 
-    const usersById = new Map((users ?? []).map((user: any) => [user.id, user]));
+    const usersById = new Map(((users ?? []) as UserRow[]).map((user) => [user.id, user]));
     const certsByUserId = new Map(
       ((certificates ?? []) as CertificateRow[]).map((certificate) => [certificate.user_id, certificate])
     );
@@ -159,11 +193,15 @@ export default function AdminCertificatesPage() {
   };
 
   useEffect(() => {
-    loadEvents();
+    queueMicrotask(() => {
+      void loadEvents();
+    });
   }, []);
 
   useEffect(() => {
-    loadStudents();
+    queueMicrotask(() => {
+      void loadStudents();
+    });
   }, [selectedEvent]);
 
   const issueCertificate = async (userId: string) => {
@@ -175,15 +213,19 @@ export default function AdminCertificatesPage() {
     }
 
     setIssuingUserId(userId);
-    const certificateNo = `CERT-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+    const certificateNo = generateCertificateNo();
 
-    const { error } = await supabase.from("certificates").insert({
-      user_id: userId,
-      event_id: selectedEvent,
-      certificate_no: certificateNo,
-      issued_at: new Date().toISOString(),
-      status: "pending",
-    });
+    const { data: certificate, error } = await supabase
+      .from("certificates")
+      .insert({
+        user_id: userId,
+        event_id: selectedEvent,
+        certificate_no: certificateNo,
+        issued_at: new Date().toISOString(),
+        status: "approved",
+      })
+      .select("id")
+      .single();
 
     setIssuingUserId(null);
 
@@ -192,7 +234,15 @@ export default function AdminCertificatesPage() {
       return;
     }
 
-    alert("Certificate generated and sent to Club Advisor for approval.");
+    await supabase.from("events").update({ status: "completed" }).eq("id", selectedEvent);
+
+    const anchorResult = certificate?.id ? await anchorCertificateOnSepolia(certificate.id) : null;
+
+    alert(
+      anchorResult?.anchored
+        ? `Certificate generated and anchored on Ethereum Sepolia.\nTransaction: ${anchorResult.txHash}`
+        : `Certificate generated. It is now available to the student.\nSepolia anchor: ${anchorResult?.reason || "not available"}`,
+    );
     await Promise.all([loadEvents(), loadStudents()]);
   };
 
@@ -213,12 +263,15 @@ export default function AdminCertificatesPage() {
     const rows = studentsWithoutCert.map((student) => ({
       user_id: student.user_id,
       event_id: selectedEvent,
-      certificate_no: `CERT-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+      certificate_no: generateCertificateNo(),
       issued_at: now,
-      status: "pending",
+      status: "approved",
     }));
 
-    const { error } = await supabase.from("certificates").insert(rows);
+    const { data: createdCertificates, error } = await supabase
+      .from("certificates")
+      .insert(rows)
+      .select("id");
     setIssuingAll(false);
 
     if (error) {
@@ -226,7 +279,19 @@ export default function AdminCertificatesPage() {
       return;
     }
 
-    alert(`Generated ${rows.length} certificate(s).`);
+    await supabase.from("events").update({ status: "completed" }).eq("id", selectedEvent);
+
+    const anchorResults = await Promise.all(
+      (createdCertificates || []).map((certificate) => anchorCertificateOnSepolia(certificate.id)),
+    );
+    const anchoredCount = anchorResults.filter((result) => result?.anchored).length;
+    const skippedReason = anchorResults.find((result) => !result?.anchored)?.reason;
+
+    alert(
+      `Generated ${rows.length} certificate(s). Students can view them now.\n` +
+        `Sepolia anchored: ${anchoredCount}/${rows.length}` +
+        (skippedReason ? `\nNote: ${skippedReason}` : ""),
+    );
     await Promise.all([loadEvents(), loadStudents()]);
   };
 
@@ -241,7 +306,6 @@ export default function AdminCertificatesPage() {
   );
 
   const selectedEventRow = events.find((event) => event.id === selectedEvent);
-  const pendingCount = students.filter((student) => student.certificate_status === "pending").length;
   const approvedCount = students.filter((student) => student.certificate_status === "approved").length;
   const unpaidCount = students.filter((student) => student.payment_status !== "paid").length;
   const missingCount = students.filter(
@@ -255,7 +319,7 @@ export default function AdminCertificatesPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Generate Certificates</h1>
             <p className="mt-1 text-sm text-gray-500">
-              Choose an event with registered students, then generate certificates for Club Advisor approval.
+              Choose an event with paid students, then generate certificates directly for students.
             </p>
           </div>
           <button
@@ -298,8 +362,8 @@ export default function AdminCertificatesPage() {
               <p className="mt-1 text-sm font-bold text-red-700">{unpaidCount}</p>
             </div>
             <div className="rounded-lg border border-gray-200 p-3">
-              <p className="text-xs font-semibold uppercase text-gray-500">Pending</p>
-              <p className="mt-1 text-sm font-bold text-amber-700">{pendingCount}</p>
+              <p className="text-xs font-semibold uppercase text-gray-500">Missing</p>
+              <p className="mt-1 text-sm font-bold text-amber-700">{missingCount}</p>
             </div>
             <div className="rounded-lg border border-gray-200 p-3">
               <p className="text-xs font-semibold uppercase text-gray-500">Approved</p>
@@ -379,7 +443,12 @@ export default function AdminCertificatesPage() {
                               View
                             </a>
                           ) : (
-                            <span className="font-semibold text-amber-700">Waiting approval</span>
+                            <a
+                              href={`/certificate/${student.certificate_id}`}
+                              className="font-semibold text-indigo-600 hover:text-indigo-500"
+                            >
+                              View
+                            </a>
                           )
                         ) : student.payment_status !== "paid" ? (
                           <span className="font-semibold text-red-700">Payment required</span>

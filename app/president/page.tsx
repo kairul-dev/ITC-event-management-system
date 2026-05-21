@@ -1,267 +1,207 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import Link from "next/link";
+
+type PendingEvent = {
+  id: string;
+  title: string;
+  start_date?: string | null;
+  created_at?: string | null;
+  location?: string | null;
+};
+
+function Icon({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <svg className={`h-5 w-5 ${className}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      {children}
+    </svg>
+  );
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return "-";
+  return new Date(value).toLocaleDateString("en-MY", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function SummaryCard({
+  label,
+  value,
+  href,
+  action,
+  tone,
+  icon,
+}: {
+  label: string;
+  value: number;
+  href: string;
+  action: string;
+  tone: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <Link href={href} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+      <div className="flex items-center gap-4">
+        <div className={`flex h-14 w-14 items-center justify-center rounded-lg ${tone}`}>
+          <Icon>{icon}</Icon>
+        </div>
+        <div>
+          <p className="text-3xl font-black text-slate-950">{value}</p>
+          <p className="text-sm font-semibold text-slate-600">{label}</p>
+        </div>
+      </div>
+      <p className="mt-5 text-sm font-bold text-violet-700">{action} <span aria-hidden="true">-&gt;</span></p>
+    </Link>
+  );
+}
 
 export default function PresidentHomePage() {
+  const pathname = usePathname();
+  const basePath = pathname.startsWith("/president") ? "/president" : "/club-advisor";
+  const roleName = pathname.startsWith("/president") ? "President" : "Club Advisor";
   const [stats, setStats] = useState({
     pendingEvents: 0,
-    pendingCertificates: 0,
     approvedEvents: 0,
-    approvedCertificates: 0,
   });
+  const [pendingEvents, setPendingEvents] = useState<PendingEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [recentPendingEvents, setRecentPendingEvents] = useState<any[]>([]);
-  const [recentPendingCerts, setRecentPendingCerts] = useState<any[]>([]);
 
   useEffect(() => {
-    loadDashboardData();
+    const loadDashboardData = async () => {
+      setLoading(true);
+      try {
+        const [pendingEventsCount, approvedEventsCount, pendingEventRows] = await Promise.all([
+          supabase.from("events").select("*", { count: "exact", head: true }).eq("status", "Pending Club Advisor Approval"),
+          supabase.from("events").select("*", { count: "exact", head: true }).eq("status", "Approved"),
+          supabase
+            .from("events")
+            .select("id,title,start_date,created_at,location")
+            .eq("status", "Pending Club Advisor Approval")
+            .order("created_at", { ascending: false })
+            .limit(5),
+        ]);
+
+        setStats({
+          pendingEvents: pendingEventsCount.count || 0,
+          approvedEvents: approvedEventsCount.count || 0,
+        });
+        setPendingEvents((pendingEventRows.data || []) as PendingEvent[]);
+      } catch (error) {
+        console.error("Error loading dashboard:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadDashboardData();
   }, []);
-
-  const loadDashboardData = async () => {
-    setLoading(true);
-    try {
-      // Get events forwarded by high council for final approval
-      const { count: pendingEventsCount } = await supabase
-        .from("events")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "Pending Club Advisor Approval");
-
-      // Get approved events count
-      const { count: approvedEventsCount } = await supabase
-        .from("events")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "Approved");
-
-      // Get pending certificates count
-      const { count: pendingCertsCount } = await supabase
-        .from("certificates")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "pending");
-
-      // Get approved certificates count
-      const { count: approvedCertsCount } = await supabase
-        .from("certificates")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "approved");
-
-      // Get recent high-council-approved events
-      const { data: pendingEvents } = await supabase
-        .from("events")
-        .select("*")
-        .eq("status", "Pending Club Advisor Approval")
-        .order("created_at", { ascending: false })
-        .limit(5);
-
-      // Get recent pending certificates
-      const { data: pendingCerts } = await supabase
-        .from("certificates")
-        .select("*")
-        .eq("status", "pending")
-        .order("issued_at", { ascending: false })
-        .limit(5);
-
-      setStats({
-        pendingEvents: pendingEventsCount || 0,
-        pendingCertificates: pendingCertsCount || 0,
-        approvedEvents: approvedEventsCount || 0,
-        approvedCertificates: approvedCertsCount || 0,
-      });
-      setRecentPendingEvents(pendingEvents || []);
-      setRecentPendingCerts(pendingCerts || []);
-    } catch (error) {
-      console.error("Error loading dashboard:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="grid min-h-96 place-items-center">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-violet-100 border-t-violet-600" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl p-6 text-white">
-        <h1 className="text-3xl font-bold mb-2">Welcome, Club Advisor!</h1>
-        <p className="text-purple-100">Give final paperwork approval after High Council review</p>
-      </div>
+    <div className="w-full space-y-6">
+      <section>
+        <h2 className="text-3xl font-black tracking-tight text-slate-950">Welcome back, {roleName}!</h2>
+        <p className="mt-2 text-base font-medium text-slate-500">Give final approval for event paperwork.</p>
+      </section>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Pending Events Card */}
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-500 text-sm font-medium">Pending Club Advisor Approval</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{stats.pendingEvents}</p>
-            </div>
-            <div className="bg-yellow-100 rounded-full p-3">
-              <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-          <Link href="/club-advisor/events" className="text-yellow-600 text-sm font-medium mt-4 inline-block hover:underline">
-            Review events →
-          </Link>
-        </div>
+      <section className="grid gap-5 md:grid-cols-2">
+        <SummaryCard
+          label="Pending Events"
+          value={stats.pendingEvents}
+          href={`${basePath}/events`}
+          action="Review events"
+          tone="bg-violet-100 text-violet-700"
+          icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 3h10a2 2 0 0 1 2 2v16l-4-2-3 2-3-2-4 2V5a2 2 0 0 1 2-2Z" />}
+        />
+        <SummaryCard
+          label="Approved Events"
+          value={stats.approvedEvents}
+          href={`${basePath}/events`}
+          action="View approved"
+          tone="bg-emerald-100 text-emerald-700"
+          icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M5 12a7 7 0 1 1 14 0 7 7 0 0 1-14 0Z" />}
+        />
+      </section>
 
-        {/* Pending Certificates Card */}
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-orange-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-500 text-sm font-medium">Pending Certificates</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{stats.pendingCertificates}</p>
-            </div>
-            <div className="bg-orange-100 rounded-full p-3">
-              <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
+      <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
+        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-5 flex items-center justify-between">
+            <h3 className="text-xl font-black text-slate-950">Final Approval Queue</h3>
+            <Link href={`${basePath}/events`} className="text-sm font-bold text-violet-700 hover:text-violet-600">View All -&gt;</Link>
           </div>
-          <Link href="/club-advisor/certificates" className="text-orange-600 text-sm font-medium mt-4 inline-block hover:underline">
-            Review certificates →
-          </Link>
-        </div>
+          <div className="overflow-hidden rounded-lg border border-slate-200">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs font-black uppercase text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Event</th>
+                  <th className="px-4 py-3">Event Date</th>
+                  <th className="px-4 py-3">Forwarded</th>
+                  <th className="px-4 py-3">Venue</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 bg-white">
+                {pendingEvents.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center font-medium text-slate-500">
+                      No paperwork is waiting for final approval.
+                    </td>
+                  </tr>
+                ) : (
+                  pendingEvents.map((event) => (
+                    <tr key={event.id}>
+                      <td className="px-4 py-3 font-bold text-slate-900">{event.title}</td>
+                      <td className="px-4 py-3 font-medium text-slate-600">{formatDate(event.start_date)}</td>
+                      <td className="px-4 py-3 font-medium text-slate-600">{formatDate(event.created_at)}</td>
+                      <td className="px-4 py-3 font-medium text-slate-600">{event.location || "Not set"}</td>
+                      <td className="px-4 py-3">
+                        <span className="rounded-md bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">Pending</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Link href={`${basePath}/events`} className="rounded-md border border-violet-300 px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-50">
+                          Review
+                        </Link>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-        {/* Approved Events Card */}
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-500 text-sm font-medium">Approved Events</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{stats.approvedEvents}</p>
+        <aside className="space-y-5">
+          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <h3 className="text-lg font-black text-slate-950">Quick Actions</h3>
+            <div className="mt-4 space-y-2">
+              {[
+                ["Review Paperwork", `${basePath}/events`],
+                ["Update Profile", `${basePath}/profile`],
+              ].map(([label, href]) => (
+                <Link key={href} href={href} className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-bold text-slate-700 hover:bg-violet-50 hover:text-violet-700">
+                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-violet-100 text-violet-700">
+                    <Icon><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5h10M9 12h10M9 19h10M4 5h.01M4 12h.01M4 19h.01" /></Icon>
+                  </span>
+                  {label}
+                </Link>
+              ))}
             </div>
-            <div className="bg-green-100 rounded-full p-3">
-              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        {/* Approved Certificates Card */}
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-500 text-sm font-medium">Approved Certificates</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{stats.approvedCertificates}</p>
-            </div>
-            <div className="bg-blue-100 rounded-full p-3">
-              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Link
-            href="/club-advisor/events"
-            className="flex items-center p-4 border-2 border-gray-200 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition"
-          >
-            <svg className="w-6 h-6 text-purple-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-            </svg>
-            <span className="font-medium text-gray-900">Final Paperwork Approval</span>
-          </Link>
-          <Link
-            href="/club-advisor/certificates"
-            className="flex items-center p-4 border-2 border-gray-200 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition"
-          >
-            <svg className="w-6 h-6 text-purple-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="font-medium text-gray-900">Approve/Reject Certificates</span>
-          </Link>
-        </div>
-      </div>
-
-      {/* Pending Events */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900">Paperwork From High Council</h2>
-          <Link href="/club-advisor/events" className="text-purple-600 text-sm font-medium hover:underline">
-            View all →
-          </Link>
-        </div>
-        {recentPendingEvents.length === 0 ? (
-          <div className="text-center py-8">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="mt-2 text-gray-500">No High Council approved paperwork to review.</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {recentPendingEvents.map((event) => (
-              <div
-                key={event.id}
-                className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-              >
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">{event.title}</h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Event Date: {new Date(event.start_date).toLocaleDateString()}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Created: {new Date(event.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-                <span className="px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                  Pending
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Pending Certificates */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900">Pending Certificates Review</h2>
-          <Link href="/club-advisor/certificates" className="text-purple-600 text-sm font-medium hover:underline">
-            View all →
-          </Link>
-        </div>
-        {recentPendingCerts.length === 0 ? (
-          <div className="text-center py-8">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="mt-2 text-gray-500">No pending certificates to review.</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {recentPendingCerts.map((cert) => (
-              <div
-                key={cert.id}
-                className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-              >
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">{cert.certificate_no}</h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Issued: {new Date(cert.issued_at).toLocaleDateString()}
-                  </p>
-                </div>
-                <span className="px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                  Pending
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+          </section>
+        </aside>
       </div>
     </div>
   );

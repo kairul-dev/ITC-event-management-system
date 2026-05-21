@@ -4,6 +4,10 @@ import { useState } from "react";
 import { supabase } from "../../lib/supabase";
 import Link from "next/link";
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,9 +30,9 @@ export default function ForgotPassword() {
         return;
       }
       setSent(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Unable to send reset email");
+      setError(getErrorMessage(err, "Unable to send reset email"));
     } finally {
       setLoading(false);
     }
@@ -38,7 +42,7 @@ export default function ForgotPassword() {
     <main className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
       <div className="w-full max-w-md bg-white rounded-lg shadow px-6 py-8">
         <h1 className="text-2xl font-semibold text-gray-900 mb-2">Forgot password</h1>
-        <p className="text-sm text-gray-500 mb-6">Enter your email and we'll send a password reset link.</p>
+        <p className="text-sm text-gray-500 mb-6">Enter your email and we&apos;ll send a password reset link.</p>
 
         {error && (
           <div className="mb-4 text-sm text-red-700 bg-red-50 p-3 rounded">{error}</div>
@@ -46,7 +50,7 @@ export default function ForgotPassword() {
 
         {sent ? (
           <div className="text-sm text-green-700 bg-green-50 p-4 rounded">
-            We've sent a password reset link to <strong>{email}</strong>. Check your inbox and follow the instructions to reset your password.
+            We&apos;ve sent a password reset link to <strong>{email}</strong>. Check your inbox and follow the instructions to reset your password.
             <div className="mt-3">
               <Link href="/login" className="text-indigo-600 hover:underline">Return to sign in</Link>
             </div>

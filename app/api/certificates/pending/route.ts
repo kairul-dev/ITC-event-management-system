@@ -1,6 +1,26 @@
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
 import { requireApiRole } from "@/lib/apiAuth";
 
+type CertificateRow = {
+  id: string;
+  certificate_no: string;
+  user_id: string;
+  event_id: string;
+  status: string | null;
+  issued_at: string | null;
+};
+
+type EventRow = {
+  id: string;
+  title: string | null;
+};
+
+type UserRow = {
+  id: string;
+  name: string | null;
+  email: string | null;
+};
+
 export async function GET(request: Request) {
   try {
     const roleCheck = await requireApiRole(request, ["admin", "club_advisor"]);
@@ -25,8 +45,9 @@ export async function GET(request: Request) {
 
     // Get event and user data
     if (data && data.length > 0) {
-      const eventIds = [...new Set(data.map((c: any) => c.event_id))];
-      const userIds = [...new Set(data.map((c: any) => c.user_id))];
+      const certificates = data as CertificateRow[];
+      const eventIds = [...new Set(certificates.map((certificate) => certificate.event_id))];
+      const userIds = [...new Set(certificates.map((certificate) => certificate.user_id))];
 
       const { data: eventsData } = await supabaseAdmin
         .from("events")
@@ -39,10 +60,12 @@ export async function GET(request: Request) {
         .in("id", userIds);
 
       // Enrich certificates with event and user data
-      const enriched = data.map((cert: any) => ({
+      const events = (eventsData ?? []) as EventRow[];
+      const users = (usersData ?? []) as UserRow[];
+      const enriched = certificates.map((cert) => ({
         ...cert,
-        events: eventsData?.find((e: any) => e.id === cert.event_id),
-        users: usersData?.find((u: any) => u.id === cert.user_id),
+        events: events.find((event) => event.id === cert.event_id),
+        users: users.find((user) => user.id === cert.user_id),
       }));
 
       return Response.json(enriched);

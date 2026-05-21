@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 
 type ShowcaseEvent = {
   id?: string;
@@ -172,15 +171,11 @@ export default function ShowcasePage() {
 
   useEffect(() => {
     const loadEvents = async () => {
-      const { data, error } = await supabase
-        .from("events")
-        .select("id,title,start_date,end_date,fee_amount,max_students,location,purpose,objective")
-        .eq("status", "Published")
-        .order("start_date", { ascending: true })
-        .limit(12);
+      const response = await fetch("/api/events/public?limit=12");
 
-      if (!error && data) {
-        setEvents((data as EventRow[]).map(formatShowcaseEvent));
+      if (response.ok) {
+        const data = (await response.json()) as EventRow[];
+        setEvents(data.map(formatShowcaseEvent));
       }
     };
 
@@ -223,6 +218,9 @@ export default function ShowcasePage() {
                 className="transition hover:text-white"
               >
                 My Events
+              </Link>
+              <Link href="/verify-certificate" className="transition hover:text-white">
+                Verify Certificate
               </Link>
               <a href="#contact" className="transition hover:text-white">
                 Contact
@@ -273,6 +271,21 @@ export default function ShowcasePage() {
                 Search
               </button>
             </form>
+
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/events"
+                className="inline-flex items-center justify-center rounded-md bg-violet-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-violet-500"
+              >
+                Browse Events
+              </Link>
+              <Link
+                href="/verify-certificate"
+                className="inline-flex items-center justify-center rounded-md border border-white/35 bg-white/10 px-6 py-3 text-sm font-bold text-white backdrop-blur transition hover:bg-white/20"
+              >
+                Verify Certificate
+              </Link>
+            </div>
           </div>
 
           <div className="grid content-center gap-4 sm:grid-cols-3 lg:grid-cols-1">
@@ -293,6 +306,39 @@ export default function ShowcasePage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-5 py-10 sm:px-8 lg:px-10">
+        <div className="-mt-16 grid gap-5 rounded-lg border border-slate-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.16)] md:grid-cols-[1fr_1.4fr] md:items-center md:p-6">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-violet-600">
+              Certificate Authenticity
+            </p>
+            <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-950">
+              Check a certificate on Sepolia
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Enter the certificate number to compare the system record with the hash saved on the Ethereum Sepolia smart contract.
+            </p>
+          </div>
+
+          <form action="/verify-certificate" className="flex flex-col gap-3 sm:flex-row">
+            <label className="min-w-0 flex-1">
+              <span className="sr-only">Certificate number</span>
+              <input
+                name="certificateNo"
+                placeholder="Example: CERT-1779247771947-2YGI90"
+                className="h-12 w-full rounded-md border border-slate-300 px-4 font-mono text-sm outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
+              />
+            </label>
+            <button
+              type="submit"
+              className="h-12 rounded-md bg-violet-600 px-6 text-sm font-bold text-white transition hover:bg-violet-500"
+            >
+              Verify Now
+            </button>
+          </form>
         </div>
       </section>
 
@@ -454,6 +500,9 @@ export default function ShowcasePage() {
             </Link>
             <Link href="/events" className="hover:text-violet-700">
               Events
+            </Link>
+            <Link href="/verify-certificate" className="hover:text-violet-700">
+              Verify Certificate
             </Link>
             <Link href="/register" className="hover:text-violet-700">
               Register

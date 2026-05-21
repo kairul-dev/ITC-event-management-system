@@ -50,20 +50,26 @@ export default function RoleDashboardShell({
   const [notificationItems, setNotificationItems] = useState<NotificationItem[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
+  const [displayName, setDisplayName] = useState(roleLabel);
+  const [avatarUrl, setAvatarUrl] = useState("");
   const notificationsRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const sidebarWidth = "16rem";
   const profileHref =
     navItems.find((item) => item.label.toLowerCase() === "profile")?.href ??
     navItems.find((item) => item.section?.toLowerCase() === "account")?.href ??
     navItems[0]?.href ??
     "/";
-  const roleInitial = roleLabel.trim().charAt(0).toUpperCase() || "U";
+  const roleInitial = displayName.trim().charAt(0).toUpperCase() || roleLabel.trim().charAt(0).toUpperCase() || "U";
   const totalNotificationCount = notificationItems.reduce(
     (total, item) => total + item.count,
     0
   );
   const unreadCount = notificationsRead ? 0 : totalNotificationCount;
   const isAdminShell = roleLabel.toLowerCase() === "admin";
+  const sidebarVisible = isDesktop ? !desktopSidebarCollapsed : sidebarOpen;
 
   const getNotificationHref = (item: NotificationItem) => {
     if (item.type === "certificate") {
@@ -88,6 +94,20 @@ export default function RoleDashboardShell({
 
     return () => window.clearTimeout(timer);
   }, [pathname]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1024px)");
+    const syncLayout = () => {
+      setIsDesktop(media.matches);
+      if (media.matches) {
+        setSidebarOpen(false);
+      }
+    };
+
+    syncLayout();
+    media.addEventListener("change", syncLayout);
+    return () => media.removeEventListener("change", syncLayout);
+  }, []);
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
@@ -149,6 +169,43 @@ export default function RoleDashboardShell({
     loadNotifications();
   }, [pathname]);
 
+  useEffect(() => {
+    const loadProfile = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const { data } = await supabase
+        .from("users")
+        .select("name, email")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      setDisplayName(data?.name || user.email || roleLabel);
+      setAvatarUrl(
+        typeof user.user_metadata?.avatar_url === "string"
+          ? user.user_metadata.avatar_url
+          : ""
+      );
+    };
+
+    void loadProfile();
+  }, [roleLabel]);
+
+  useEffect(() => {
+    const handleProfileImageUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<{ avatarUrl?: string }>).detail;
+      if (detail?.avatarUrl !== undefined) {
+        setAvatarUrl(detail.avatarUrl);
+      }
+    };
+
+    window.addEventListener("profile-avatar-updated", handleProfileImageUpdate);
+    return () => window.removeEventListener("profile-avatar-updated", handleProfileImageUpdate);
+  }, []);
+
   const isActive = (href: string) => {
     const [path, queryAndHash] = href.split("?");
     if (pathname !== path) return false;
@@ -164,45 +221,58 @@ export default function RoleDashboardShell({
   };
 
   return (
-    <div className="min-h-screen bg-[#f6f8fc] text-slate-950 antialiased">
-      {sidebarOpen && (
+    <div className="min-h-screen bg-slate-50 text-slate-950 antialiased">
+      {!isDesktop && sidebarOpen && (
         <button
           aria-label="Close sidebar"
-          className="fixed inset-0 z-20 bg-slate-950/45 lg:hidden no-print"
+          className="fixed inset-0 z-20 bg-slate-950/55 backdrop-blur-[1px] lg:hidden no-print"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-30 flex w-64 flex-col bg-[#071b3a] text-white shadow-2xl transition-transform duration-200 lg:translate-x-0 no-print ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className="fixed inset-y-0 left-0 z-30 flex w-[72vw] min-w-56 max-w-64 flex-col border-r border-slate-200 bg-white text-slate-950 shadow-2xl shadow-slate-950/20 transition-transform duration-200 no-print sm:w-72 lg:w-64 lg:shadow-sm"
+        style={{
+          width: isDesktop ? sidebarWidth : undefined,
+          transform: sidebarVisible ? "translateX(0)" : "translateX(-100%)",
+        }}
       >
-        <div className="flex items-center gap-3 px-6 py-5">
-          <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-amber-300/60 bg-gradient-to-br from-blue-700 to-slate-950 text-sm font-bold text-amber-300">
+        <div className="flex items-center gap-3 px-4 py-4 sm:px-6 sm:py-6">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-700 text-sm font-black text-white shadow-md shadow-violet-200 sm:h-12 sm:w-12">
             ITC
           </div>
-          <div className="leading-tight">
-            <p className="text-lg font-extrabold tracking-tight">ITC EVENT</p>
-            <p className="text-xs font-semibold uppercase text-slate-200">Management System</p>
+          <div className="min-w-0 flex-1 leading-tight">
+            <p className="text-xl font-black tracking-tight sm:text-2xl">ITC</p>
+            <p className="text-[10px] font-extrabold uppercase tracking-wide text-slate-500">Event Management System</p>
           </div>
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(false)}
+            className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 lg:hidden"
+            aria-label="Close menu"
+            title="Close menu"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18 18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-4 pb-5 pt-3 text-sm">
+        <nav className="flex-1 overflow-y-auto px-3 pb-4 pt-2 text-sm sm:px-4 sm:pb-5 sm:pt-4">
           {navItems.map((item, index) => (
             <div key={`${item.href}-${item.label}`}>
               {item.section && (
-                <p className={`${index === 1 ? "mt-2" : "mt-6"} mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-slate-300`}>
+                <p className={`${index === 1 ? "mt-3" : "mt-5 sm:mt-7"} mb-2 px-3 text-[11px] font-extrabold uppercase tracking-wide text-slate-400 sm:mb-3 sm:text-xs`}>
                   {item.section}
                 </p>
               )}
               <Link
                 href={item.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 font-semibold transition ${
+                className={`mb-1.5 flex items-center gap-3 rounded-lg px-3 py-2.5 font-bold transition sm:mb-2 sm:px-4 sm:py-3 ${
                   isActive(item.href)
-                    ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-950/30"
-                    : "text-slate-100 hover:bg-white/10"
+                    ? "bg-violet-100 text-violet-700 shadow-sm"
+                    : "text-slate-700 hover:bg-slate-100 hover:text-violet-700"
                 }`}
               >
                 <Icon>{item.icon}</Icon>
@@ -212,10 +282,20 @@ export default function RoleDashboardShell({
           ))}
         </nav>
 
-        <div className="border-t border-white/10 px-4 py-5">
+        <div className="px-3 pb-4 sm:px-4 sm:pb-5">
+          <div className="mb-4 hidden rounded-xl bg-violet-50 p-4 text-center sm:block">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-white text-violet-700 shadow-sm">
+              <Icon>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3M5 11h14M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z" />
+              </Icon>
+            </div>
+            <p className="text-sm font-semibold leading-5 text-slate-700">
+              Join events, track approvals, and manage certificates with ITC.
+            </p>
+          </div>
           <button
             onClick={onLogout}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-red-300 transition hover:bg-red-500/10"
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-red-500 transition hover:bg-red-50"
             title="Logout"
           >
             <Icon>
@@ -226,15 +306,25 @@ export default function RoleDashboardShell({
         </div>
       </aside>
 
-      <div className="lg:pl-64">
-        <header className="sticky top-0 z-10 flex h-[68px] items-center justify-between border-b border-slate-200 bg-white/95 px-5 shadow-sm backdrop-blur no-print lg:px-7">
-          <div className="flex items-center gap-5">
+      <div
+        className="dashboard-shell-content min-w-0 transition-[padding] duration-200 print:!pl-0"
+        style={{ paddingLeft: isDesktop && !desktopSidebarCollapsed ? sidebarWidth : 0 }}
+      >
+        <header className="sticky top-0 z-10 flex min-h-16 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 py-2 shadow-sm shadow-slate-200/50 no-print sm:px-5 lg:h-[76px] lg:px-8 lg:py-0">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-4 lg:gap-5">
             <button
-              onClick={() => setSidebarOpen((open) => !open)}
+              onClick={() => {
+                if (isDesktop) {
+                  setDesktopSidebarCollapsed((collapsed) => !collapsed);
+                  return;
+                }
+
+                setSidebarOpen((open) => !open);
+              }}
               className="rounded-lg p-2 text-slate-600 transition hover:bg-slate-100"
-              title={sidebarOpen ? "Close sidebar" : "Open sidebar"}
-              aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
-              aria-expanded={sidebarOpen}
+              title={sidebarVisible ? "Close sidebar" : "Open sidebar"}
+              aria-label={sidebarVisible ? "Close sidebar" : "Open sidebar"}
+              aria-expanded={sidebarVisible}
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -242,19 +332,20 @@ export default function RoleDashboardShell({
             </button>
             <button
               onClick={() => router.back()}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 sm:px-3"
               title="Go back"
               aria-label="Go back to previous page"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19 8 12l7-7" />
               </svg>
-              <span className="hidden sm:inline">Back</span>
             </button>
-            <h1 className="text-lg font-bold text-slate-950">{title}</h1>
+            <h1 className="min-w-0 max-w-[9.5rem] truncate text-lg font-black leading-tight text-slate-950 sm:max-w-none sm:text-xl">
+              {title}
+            </h1>
           </div>
 
-          <div className="flex items-center gap-5">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-3 lg:gap-5">
             <div ref={notificationsRef} className="relative">
               <button
                 type="button"
@@ -280,7 +371,7 @@ export default function RoleDashboardShell({
               {notificationsOpen && (
                 <div
                   role="menu"
-                  className="absolute right-0 mt-2 w-80 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl shadow-slate-950/10"
+                  className="fixed inset-x-3 top-[4.75rem] z-40 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl shadow-slate-950/10 sm:absolute sm:inset-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-80"
                 >
                   <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
                     <div>
@@ -315,8 +406,8 @@ export default function RoleDashboardShell({
                         </p>
                         <p className="mt-1 text-xs leading-5 text-slate-500">
                           {isAdminShell
-                            ? "Rejected paperwork, rejected certificates, and workflow issues will appear here."
-                            : "Paperwork and certificates that need your action will appear here."}
+                            ? "Rejected paperwork and workflow issues will appear here."
+                            : "Paperwork that needs your action will appear here."}
                         </p>
                       </div>
                     ) : (
@@ -355,12 +446,20 @@ export default function RoleDashboardShell({
                 aria-expanded={userMenuOpen}
                 title="Account menu"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-amber-100 to-blue-100 text-sm font-extrabold text-slate-800">
-                  {roleInitial}
-                </div>
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={`${displayName} profile`}
+                    className="h-10 w-10 rounded-full border-4 border-slate-100 object-cover shadow-sm sm:h-12 sm:w-12"
+                  />
+                ) : (
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border-4 border-slate-100 bg-violet-100 text-sm font-extrabold text-violet-700 shadow-sm sm:h-12 sm:w-12">
+                    {roleInitial}
+                  </div>
+                )}
                 <div className="hidden leading-tight sm:block">
-                  <p className="text-sm font-bold text-slate-950">{roleLabel}</p>
-                  <p className="text-xs font-medium text-slate-500">ITC Club</p>
+                  <p className="text-base font-bold leading-5 text-slate-950">{displayName}</p>
+                  <p className="text-sm font-medium leading-5 text-slate-500">ITC {roleLabel}</p>
                 </div>
                 <svg className={`h-4 w-4 text-slate-500 transition ${userMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m6 9 6 6 6-6" />
@@ -373,8 +472,8 @@ export default function RoleDashboardShell({
                   className="absolute right-0 mt-2 w-56 rounded-lg border border-slate-200 bg-white py-2 shadow-xl shadow-slate-950/10"
                 >
                   <div className="border-b border-slate-100 px-4 py-3">
-                    <p className="text-sm font-bold text-slate-950">{roleLabel}</p>
-                    <p className="text-xs font-medium text-slate-500">ITC Club</p>
+                    <p className="text-sm font-bold text-slate-950">{displayName}</p>
+                    <p className="text-xs font-medium text-slate-500">ITC {roleLabel}</p>
                   </div>
                   <Link
                     href={profileHref}
@@ -407,7 +506,7 @@ export default function RoleDashboardShell({
           </div>
         </header>
 
-        <main className="px-4 py-6 print:bg-white sm:px-6 lg:px-7">{children}</main>
+        <main className="dashboard-shell-main min-w-0 px-4 py-5 print:!px-0 print:!py-0 print:bg-white sm:px-6 sm:py-7 lg:px-8">{children}</main>
       </div>
     </div>
   );

@@ -73,7 +73,7 @@ const buildCertificatePdf = (payload: SendCertificateBody) => {
     doc.fillColor("#92400e").fontSize(10).font("Helvetica-Bold").text("Verification", rightX, metaY + 54);
     doc.fillColor("#111827").fontSize(12).font("Helvetica").text("Official digital copy attached", rightX, metaY + 70);
 
-    doc.fillColor("#6b7280").fontSize(10).font("Helvetica-Oblique").text("This certificate is emailed after official approval.", 0, height - 78, {
+    doc.fillColor("#6b7280").fontSize(10).font("Helvetica-Oblique").text("This certificate is issued by the event administrator.", 0, height - 78, {
       align: "center",
     });
 
@@ -132,7 +132,7 @@ export async function POST(request: Request) {
         <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.6;">
           <h2 style="margin: 0 0 12px;">Your certificate is ready</h2>
           <p>Dear ${studentName},</p>
-          <p>Your certificate for <strong>${eventTitle}</strong> has been approved and is attached to this email as a PDF.</p>
+          <p>Your certificate for <strong>${eventTitle}</strong> has been issued and is attached to this email as a PDF.</p>
           <p><strong>Certificate No:</strong> ${certificateNo}<br/>
           <strong>Date Issued:</strong> ${issuedDate}</p>
           <p>If you need help, please contact the administrator.</p>

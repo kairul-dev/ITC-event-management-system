@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendEventReminderToAllStudents } from "@/lib/emailNotifications";
+import { requireApiRole } from "@/lib/apiAuth";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -13,6 +14,14 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
 export async function POST(request: NextRequest) {
   try {
+    const roleCheck = await requireApiRole(request, ["admin"]);
+    if (!roleCheck.ok) {
+      return NextResponse.json(
+        { error: roleCheck.error },
+        { status: roleCheck.status },
+      );
+    }
+
     const body = await request.json();
     const { eventId } = body;
 

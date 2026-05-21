@@ -25,6 +25,8 @@
 html,
 body {
   height: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 @layer base {
@@ -33,6 +35,8 @@ body {
     background: radial-gradient(circle at 10% 5%, #ffffff 0%, #f7f5f0 52%, #f1f5f9 100%);
     color: var(--color-text);
     font-family: var(--font-body), sans-serif;
+    max-width: 100vw;
+    overflow-x: hidden;
   }
 
   h1,
@@ -47,6 +51,28 @@ body {
 }
 
 @layer components {
+  .dashboard-shell-content,
+  .dashboard-shell-main {
+    max-width: 100vw;
+    overflow-x: clip;
+  }
+
+  @media (max-width: 640px) {
+    .dashboard-shell-main {
+      padding-left: 0.875rem !important;
+      padding-right: 0.875rem !important;
+    }
+
+    .mobile-card-scroll {
+      margin-left: -0.25rem;
+      margin-right: -0.25rem;
+      overflow-x: auto;
+      padding-left: 0.25rem;
+      padding-right: 0.25rem;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+
   .ds-card {
     @apply bg-white border border-slate-200 rounded-xl;
     box-shadow: var(--shadow-md);
@@ -106,18 +132,47 @@ body {
   }
 
   @media print {
+    @page {
+      margin: 12mm;
+    }
+
     .no-print {
       display: none !important;
     }
 
+    .dashboard-shell-content {
+      margin: 0 !important;
+      padding-left: 0 !important;
+      width: 100% !important;
+    }
+
+    .dashboard-shell-main {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+    }
+
     .print-report-root {
       background: #ffffff !important;
+      margin: 0 auto !important;
+      max-width: 180mm !important;
+      width: 100% !important;
     }
 
     .print-area {
       box-shadow: none !important;
       border: none !important;
+      margin: 0 auto !important;
       padding: 0 !important;
+      width: 100% !important;
+    }
+
+    .print-area .overflow-x-auto {
+      overflow: visible !important;
+    }
+
+    .print-area table {
+      width: 100% !important;
     }
 
     body {

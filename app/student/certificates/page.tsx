@@ -14,6 +14,18 @@ type Certificate = {
   } | null;
 };
 
+type CertificateRow = {
+  id: string;
+  certificate_no: string;
+  issued_at: string;
+  event_id: string;
+};
+
+type EventRow = {
+  id: string;
+  title: string;
+};
+
 export default function StudentCertificatesPage() {
   const router = useRouter();
   const [certificates, setCertificates] = useState<Certificate[]>([]);
@@ -52,7 +64,8 @@ export default function StudentCertificatesPage() {
       }
 
       // Fetch events separately to avoid RLS issues
-      const eventIds = [...new Set((data || []).map((c: any) => c.event_id))];
+      const certificateRows = (data || []) as CertificateRow[];
+      const eventIds = [...new Set(certificateRows.map((certificate) => certificate.event_id))];
       const { data: eventsData, error: eventsError } = await supabase
         .from("events")
         .select("id, title")
@@ -62,9 +75,9 @@ export default function StudentCertificatesPage() {
         console.error("Error loading events:", eventsError.message);
       }
 
-      const eventsMap = new Map((eventsData || []).map((e: any) => [e.id, e]));
+      const eventsMap = new Map(((eventsData || []) as EventRow[]).map((event) => [event.id, event]));
 
-      const normalized: Certificate[] = (data || []).map((row: any) => {
+      const normalized: Certificate[] = certificateRows.map((row) => {
         const eventData = eventsMap.get(row.event_id);
         return {
           id: row.id,

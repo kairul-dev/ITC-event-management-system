@@ -43,6 +43,13 @@ const navItems: RoleNavItem[] = [
     ),
   },
   {
+    href: "/admin/certificates",
+    label: "Certificates",
+    icon: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 21h8M9 17l-2 4m8-4 2 4M7 4h10v4a5 5 0 0 1-10 0V4Zm-3 2h3v2a3 3 0 0 1-3-3V6Zm13 0h3v2a3 3 0 0 0 3-3V6Z" />
+    ),
+  },
+  {
     section: "System",
     href: "/admin/users",
     label: "Users",

@@ -148,7 +148,7 @@ export default function NotificationPreferencesComponent() {
           <div>
             <p className="font-medium text-gray-900">Event Reminders</p>
             <p className="text-sm text-gray-600">
-              Receive reminders for events you're registered for
+              Receive reminders for events you&apos;re registered for
             </p>
           </div>
           <label className="flex items-center cursor-pointer">

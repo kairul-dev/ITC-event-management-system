@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 import { getObjectiveText, getPurposeText } from "@/lib/eventDisplay";
 
 type EventRow = {
@@ -110,25 +109,11 @@ export default function PublicEventsPage() {
 
   useEffect(() => {
     const loadEvents = async () => {
-      const { data, error } = await supabase
-        .from("events")
-        .select("id,title,start_date,end_date,max_students,fee_amount,location,purpose,objective")
-        .eq("status", "Published")
-        .order("start_date", { ascending: true });
+      const response = await fetch("/api/events/public");
 
-      if (!error) {
-        const rows = (data || []) as EventRow[];
-        const rowsWithCounts = await Promise.all(
-          rows.map(async (event) => {
-            const { count } = await supabase
-              .from("event_registrations")
-              .select("*", { count: "exact", head: true })
-              .eq("event_id", event.id);
-
-            return { ...event, registered_count: count || 0 };
-          }),
-        );
-        setEvents(rowsWithCounts);
+      if (response.ok) {
+        const rows = (await response.json()) as EventRow[];
+        setEvents(rows);
       }
 
       setLoading(false);

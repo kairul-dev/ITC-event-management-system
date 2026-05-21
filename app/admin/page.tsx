@@ -41,7 +41,7 @@ function IconBox({
   className: string;
 }) {
   return (
-    <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-lg text-white shadow-sm ${className}`}>
+    <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-lg ${className}`}>
       <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         {children}
       </svg>
@@ -51,7 +51,7 @@ function IconBox({
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <section className={`rounded-lg border border-slate-200 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.07)] ${className}`}>
+    <section className={`min-w-0 rounded-lg border border-slate-200 bg-white shadow-sm ${className}`}>
       {children}
     </section>
   );
@@ -263,7 +263,7 @@ export default function AdminPage() {
       value: stats.totalPaperwork,
       href: "/admin/event?mode=paperwork",
       cta: "View all events",
-      accent: "bg-gradient-to-br from-violet-500 to-indigo-600",
+      accent: "bg-violet-100 text-violet-700",
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 3v4m8-4v4M4 9h16M6 5h12a2 2 0 0 1 2 2v12H4V7a2 2 0 0 1 2-2Z" />,
     },
     {
@@ -271,7 +271,7 @@ export default function AdminPage() {
       value: stats.pendingHighCouncil,
       href: "/admin/approval-status",
       cta: "Track approval",
-      accent: "bg-gradient-to-br from-emerald-400 to-green-600",
+      accent: "bg-emerald-100 text-emerald-700",
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-5M7 3v4m10-4v4M5 6h14v15H5V6Z" />,
     },
     {
@@ -279,7 +279,7 @@ export default function AdminPage() {
       value: stats.totalRegistrations,
       href: "/admin/payments",
       cta: "View participants",
-      accent: "bg-gradient-to-br from-sky-500 to-blue-600",
+      accent: "bg-sky-100 text-sky-700",
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1m11-12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Zm7 12v-1a4 4 0 0 0-3-3.8M17 4.2a4 4 0 0 1 0 7.6" />,
     },
     {
@@ -287,7 +287,7 @@ export default function AdminPage() {
       value: stats.pendingClubAdvisor,
       href: "/admin/approval-status",
       cta: "Review now",
-      accent: "bg-gradient-to-br from-amber-400 to-yellow-500",
+      accent: "bg-amber-100 text-amber-700",
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 7v5l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />,
     },
     {
@@ -295,7 +295,7 @@ export default function AdminPage() {
       value: stats.approvedPaperwork,
       href: "/admin/event?mode=events#event-details",
       cta: "Publish event",
-      accent: "bg-gradient-to-br from-pink-500 to-fuchsia-500",
+      accent: "bg-pink-100 text-pink-700",
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm7 0v5h5M9 13h6M9 17h4" />,
     },
     {
@@ -303,7 +303,7 @@ export default function AdminPage() {
       value: stats.publishedEvents,
       href: "/admin/event?mode=events#event-details",
       cta: "Manage events",
-      accent: "bg-gradient-to-br from-cyan-500 to-blue-600",
+      accent: "bg-blue-100 text-blue-700",
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />,
     },
   ];
@@ -317,10 +317,10 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="space-y-4 font-sans">
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
-          <h2 className="text-2xl font-extrabold tracking-tight text-slate-950">Welcome back, Admin!</h2>
+    <div className="w-full min-w-0 space-y-5 font-sans sm:space-y-6">
+      <div className="flex min-w-0 flex-col justify-between gap-4 md:flex-row md:items-center">
+        <div className="min-w-0">
+          <h2 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Welcome back, Admin!</h2>
           <p className="mt-1 text-sm font-medium text-slate-500">Here&apos;s what&apos;s happening with ITC events today.</p>
         </div>
         <div className="flex w-fit items-center gap-3 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm">
@@ -331,14 +331,14 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
+      <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-4">
         {statCards.map((card) => (
-          <Card key={card.label} className="p-5">
+          <Card key={card.label} className="p-4 transition hover:-translate-y-0.5 hover:shadow-md sm:p-5">
             <div className="flex items-center gap-4">
               <IconBox className={card.accent}>{card.icon}</IconBox>
-              <div>
-                <p className="text-2xl font-extrabold text-slate-950">{card.value}</p>
-                <p className="text-sm font-semibold text-slate-950">{card.label}</p>
+              <div className="min-w-0">
+                <p className="text-2xl font-black text-slate-950 sm:text-3xl">{card.value}</p>
+                <p className="text-sm font-semibold text-slate-600">{card.label}</p>
               </div>
             </div>
             <Link href={card.href} className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-blue-700 hover:text-blue-800">
@@ -349,17 +349,17 @@ export default function AdminPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.55fr_0.78fr_1.07fr]">
-        <Card className="p-5">
-          <div className="mb-3 flex items-center justify-between">
+      <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,0.78fr)_minmax(0,1.07fr)]">
+        <Card className="p-4 sm:p-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
             <h3 className="text-lg font-extrabold text-slate-950">Events Overview</h3>
             <button className="rounded-md border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">This Month</button>
           </div>
-          <div className="mb-2 flex justify-center gap-8 text-xs font-semibold text-slate-600">
+          <div className="mb-2 flex flex-wrap justify-center gap-4 text-xs font-semibold text-slate-600 sm:gap-8">
             <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-sm bg-indigo-600" />Registrations</span>
             <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />Events</span>
           </div>
-          <div className="h-64 w-full overflow-hidden">
+          <div className="h-60 w-full overflow-hidden sm:h-64">
             <svg viewBox="0 0 420 210" className="h-full w-full" preserveAspectRatio="none">
               {[20, 55, 90, 125, 160].map((y) => (
                 <line key={y} x1="20" x2="400" y1={y} y2={y} stroke="#e5e7eb" strokeDasharray="3 3" />
@@ -388,7 +388,7 @@ export default function AdminPage() {
           </div>
         </Card>
 
-        <Card className="p-5">
+        <Card className="p-4 sm:p-5">
           <h3 className="mb-5 text-lg font-extrabold text-slate-950">Paperwork Approval Flow</h3>
           <div className="space-y-5">
             {[
@@ -413,7 +413,7 @@ export default function AdminPage() {
           </Link>
         </Card>
 
-        <Card className="p-5">
+        <Card className="p-4 sm:p-5">
           <div className="mb-5 flex items-center justify-between">
             <h3 className="text-lg font-extrabold text-slate-950">Upcoming Events</h3>
             <Link href="/admin/event?mode=events#event-details" className="text-sm font-bold text-blue-700">View All</Link>
@@ -425,7 +425,7 @@ export default function AdminPage() {
           ) : (
           <div className="space-y-4">
             {displayEvents.slice(0, 3).map((event, index) => (
-              <div key={event.id} className="flex gap-4">
+              <div key={event.id} className="flex min-w-0 gap-3 sm:gap-4">
                 <MiniThumb index={index} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-base font-extrabold text-slate-950">{event.title}</p>
@@ -440,13 +440,13 @@ export default function AdminPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[2.08fr_0.95fr]">
-        <Card className="p-5">
-          <div className="mb-3 flex items-center justify-between">
+      <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2.08fr)_minmax(0,0.95fr)]">
+        <Card className="p-4 sm:p-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
             <h3 className="text-lg font-extrabold text-slate-950">Recent Events</h3>
-            <Link href="/admin/event?mode=events#event-details" className="text-sm font-bold text-blue-700">View All Events</Link>
+            <Link href="/admin/event?mode=events#event-details" className="shrink-0 text-xs font-bold text-blue-700 sm:text-sm">View All Events</Link>
           </div>
-          <div className="overflow-x-auto rounded-md border border-slate-200">
+          <div className="mobile-card-scroll rounded-md border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-xs font-bold text-slate-700">
                 <tr>
@@ -501,7 +501,7 @@ export default function AdminPage() {
           </Link>
         </Card>
 
-        <Card className="p-5">
+        <Card className="p-4 sm:p-5">
           <h3 className="mb-5 text-lg font-extrabold text-slate-950">Quick Actions</h3>
           <div className="grid grid-cols-2 gap-4">
             {[

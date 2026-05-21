@@ -84,7 +84,9 @@ function RegisteredEventsContent() {
   }
 
   useEffect(() => {
-    loadRegisteredEvents();
+    queueMicrotask(() => {
+      void loadRegisteredEvents();
+    });
   }, []);
 
   const confirmStripePayment = async (sessionId: string) => {
@@ -142,11 +144,15 @@ function RegisteredEventsContent() {
     }
 
     if (paymentState === "cancel") {
-      setCheckoutMessage("Payment was cancelled. You can try again anytime.");
+      queueMicrotask(() => {
+        setCheckoutMessage("Payment was cancelled. You can try again anytime.");
+      });
       return;
     }
 
-    setCheckoutMessage(null);
+    queueMicrotask(() => {
+      setCheckoutMessage(null);
+    });
   }, [searchParams]);
 
   const startStripeCheckout = async (registrationId: string) => {

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { CertificateTemplate } from "@/lib/CertificateTemplate";
+import { createCertificateBlockchainHash, formatBlockchainHash } from "@/lib/certificateBlockchain";
 
 type CertificateDetail = {
   id: string;
@@ -12,6 +13,13 @@ type CertificateDetail = {
   event_title: string;
   issued_at: string;
   status: string;
+  blockchain_hash: string;
+};
+
+type Html2PdfWorker = {
+  set(options: unknown): Html2PdfWorker;
+  from(element: HTMLElement): Html2PdfWorker;
+  save(): Promise<void>;
 };
 
 export default function CertificatePage() {
@@ -70,6 +78,14 @@ export default function CertificatePage() {
         if (userError) console.error("Error loading user:", userError.message);
         if (eventError) console.error("Error loading event:", eventError.message);
 
+        const blockchainHash = await createCertificateBlockchainHash({
+          certificateId: data.id,
+          certificateNo: data.certificate_no,
+          studentName: userData?.name || "Student",
+          eventTitle: eventData?.title || "Event",
+          issuedAt: data.issued_at,
+        });
+
         setCertificate({
           id: data.id,
           certificate_no: data.certificate_no,
@@ -77,6 +93,7 @@ export default function CertificatePage() {
           event_title: eventData?.title || "Event",
           issued_at: data.issued_at,
           status: data.status || "issued",
+          blockchain_hash: blockchainHash,
         });
         setLoading(false);
       } catch (err) {
@@ -113,7 +130,7 @@ export default function CertificatePage() {
         jsPDF: { orientation: "landscape", unit: "mm", format: "a4" },
       };
 
-      await (html2pdf() as any).set(opt).from(element).save();
+      await (html2pdf() as Html2PdfWorker).set(opt).from(element).save();
     } catch (err) {
       console.error("Error downloading certificate:", err);
       alert("Error downloading certificate. Please try again.");
@@ -135,7 +152,7 @@ export default function CertificatePage() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Certificate Not Found</h1>
-          <p className="text-gray-600 mb-4">The certificate you're looking for does not exist.</p>
+          <p className="text-gray-600 mb-4">The certificate you&apos;re looking for does not exist.</p>
           <button
             onClick={() => router.back()}
             className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
@@ -162,6 +179,10 @@ export default function CertificatePage() {
             </p>
             <p className="text-gray-600">
               <span className="font-medium">Certificate No:</span> {certificate.certificate_no}
+            </p>
+            <p className="mt-2 max-w-3xl break-all font-mono text-xs text-gray-600">
+              <span className="font-sans font-medium">Blockchain Hash:</span>{" "}
+              {formatBlockchainHash(certificate.blockchain_hash)}
             </p>
             <div className="mt-3">
               <span
@@ -200,6 +221,12 @@ export default function CertificatePage() {
             >
               Back
             </button>
+            <a
+              href={`/verify-certificate?certificateNo=${encodeURIComponent(certificate.certificate_no)}`}
+              className="px-6 py-3 text-center bg-white text-indigo-700 font-semibold rounded-lg border border-indigo-200 hover:bg-indigo-50 transition"
+            >
+              Verify Hash
+            </a>
           </div>
         </div>
       </div>
@@ -218,6 +245,7 @@ export default function CertificatePage() {
                 day: "numeric",
               }),
               issuerName: "ITC",
+              blockchainHash: formatBlockchainHash(certificate.blockchain_hash),
             }}
           />
         </div>
@@ -227,7 +255,7 @@ export default function CertificatePage() {
       <div className="max-w-6xl mx-auto mt-8">
         <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
           <p className="text-sm text-blue-800">
-            <span className="font-semibold">Note:</span> This is an official certificate issued by the organization. The PDF version contains a verification code for authenticity verification.
+            <span className="font-semibold">Note:</span> This certificate uses a free SHA-256 blockchain-style verification hash. If the certificate number, student, event, issue date, or ID changes, the hash will no longer match.
           </p>
         </div>
       </div>
