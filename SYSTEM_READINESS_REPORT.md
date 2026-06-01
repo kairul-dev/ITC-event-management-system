@@ -22,6 +22,24 @@ Results:
 - No `supabase db push` was run.
 - No database migration was required.
 
+## Migration History Status
+
+- Repository migration files are preserved in `supabase/migrations/` for schema provenance and recovery.
+- The linked Supabase migration ledger currently records only `20260411`, `20260601`, and `20260601124500`.
+- The live database already contains later schema work, RLS policies, and helper routines that are not fully represented in the recorded ledger.
+
+## Repository Recovery Status
+
+- The repository is the best available historical source for this project’s schema evolution.
+- Migration files should remain committed so the project can be rebuilt or audited later even if the remote ledger stays incomplete.
+- No schema repair or migration replay was performed for this documentation update.
+
+## Database Rebuild Notes
+
+- Do not use `supabase db push`, `supabase migration repair`, or `supabase db reset` for this submission state.
+- Rebuilds should start from the committed migration files and a fresh schema comparison against the live project.
+- If recovery is needed later, reconcile the remote migration ledger before attempting any history rewrite.
+
 ## Bugs Fixed For Demo Readiness
 
 1. Committee matrix login readiness:
