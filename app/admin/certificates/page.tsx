@@ -55,30 +55,6 @@ export default function AdminCertificatesPage() {
   const [issuingUserId, setIssuingUserId] = useState<string | null>(null);
   const [searchStudent, setSearchStudent] = useState("");
 
-  const anchorCertificateOnSepolia = async (certificateId: string) => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session?.access_token) {
-      return { anchored: false, reason: "Please log in again to anchor the certificate on Sepolia." };
-    }
-
-    const response = await fetch("/api/certificates/anchor-sepolia", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ certificateId }),
-    });
-
-    return response.json().catch(() => ({
-      anchored: false,
-      reason: "Unable to read Sepolia anchor response.",
-    }));
-  };
-
   const loadEvents = async () => {
     setLoadingEvents(true);
 
@@ -215,14 +191,15 @@ export default function AdminCertificatesPage() {
     setIssuingUserId(userId);
     const certificateNo = generateCertificateNo();
 
-    const { data: certificate, error } = await supabase
+    const { error } = await supabase
       .from("certificates")
       .insert({
         user_id: userId,
+        student_id: userId,
         event_id: selectedEvent,
         certificate_no: certificateNo,
         issued_at: new Date().toISOString(),
-        status: "approved",
+        status: "pending_approval",
       })
       .select("id")
       .single();
@@ -234,15 +211,7 @@ export default function AdminCertificatesPage() {
       return;
     }
 
-    await supabase.from("events").update({ status: "completed" }).eq("id", selectedEvent);
-
-    const anchorResult = certificate?.id ? await anchorCertificateOnSepolia(certificate.id) : null;
-
-    alert(
-      anchorResult?.anchored
-        ? `Certificate generated and anchored on Ethereum Sepolia.\nTransaction: ${anchorResult.txHash}`
-        : `Certificate generated. It is now available to the student.\nSepolia anchor: ${anchorResult?.reason || "not available"}`,
-    );
+    alert("Certificate draft generated and submitted for approval.");
     await Promise.all([loadEvents(), loadStudents()]);
   };
 
@@ -262,13 +231,14 @@ export default function AdminCertificatesPage() {
     const now = new Date().toISOString();
     const rows = studentsWithoutCert.map((student) => ({
       user_id: student.user_id,
+      student_id: student.user_id,
       event_id: selectedEvent,
       certificate_no: generateCertificateNo(),
       issued_at: now,
-      status: "approved",
+      status: "pending_approval",
     }));
 
-    const { data: createdCertificates, error } = await supabase
+    const { error } = await supabase
       .from("certificates")
       .insert(rows)
       .select("id");
@@ -279,19 +249,7 @@ export default function AdminCertificatesPage() {
       return;
     }
 
-    await supabase.from("events").update({ status: "completed" }).eq("id", selectedEvent);
-
-    const anchorResults = await Promise.all(
-      (createdCertificates || []).map((certificate) => anchorCertificateOnSepolia(certificate.id)),
-    );
-    const anchoredCount = anchorResults.filter((result) => result?.anchored).length;
-    const skippedReason = anchorResults.find((result) => !result?.anchored)?.reason;
-
-    alert(
-      `Generated ${rows.length} certificate(s). Students can view them now.\n` +
-        `Sepolia anchored: ${anchoredCount}/${rows.length}` +
-        (skippedReason ? `\nNote: ${skippedReason}` : ""),
-    );
+    alert(`Generated ${rows.length} certificate draft(s) and submitted them for approval.`);
     await Promise.all([loadEvents(), loadStudents()]);
   };
 
@@ -306,7 +264,7 @@ export default function AdminCertificatesPage() {
   );
 
   const selectedEventRow = events.find((event) => event.id === selectedEvent);
-  const approvedCount = students.filter((student) => student.certificate_status === "approved").length;
+  const approvedCount = students.filter((student) => student.certificate_status === "issued").length;
   const unpaidCount = students.filter((student) => student.payment_status !== "paid").length;
   const missingCount = students.filter(
     (student) => student.payment_status === "paid" && !student.certificate_id
@@ -319,7 +277,7 @@ export default function AdminCertificatesPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Generate Certificates</h1>
             <p className="mt-1 text-sm text-gray-500">
-              Choose an event with paid students, then generate certificates directly for students.
+              Choose an event with paid students, then generate certificate drafts for approval.
             </p>
           </div>
           <button
@@ -366,7 +324,7 @@ export default function AdminCertificatesPage() {
               <p className="mt-1 text-sm font-bold text-amber-700">{missingCount}</p>
             </div>
             <div className="rounded-lg border border-gray-200 p-3">
-              <p className="text-xs font-semibold uppercase text-gray-500">Approved</p>
+              <p className="text-xs font-semibold uppercase text-gray-500">Issued</p>
               <p className="mt-1 text-sm font-bold text-green-700">{approvedCount}</p>
             </div>
           </div>
@@ -435,7 +393,7 @@ export default function AdminCertificatesPage() {
                       </td>
                       <td className="px-6 py-4 text-sm">
                         {student.certificate_id ? (
-                          student.certificate_status === "approved" ? (
+                          student.certificate_status === "issued" ? (
                             <a
                               href={`/certificate/${student.certificate_id}`}
                               className="font-semibold text-indigo-600 hover:text-indigo-500"

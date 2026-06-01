@@ -18,6 +18,11 @@ const navItems: RoleNavItem[] = [
     icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm7 0v5h5M9 13h6M9 17h6" />,
   },
   {
+    href: "/high-council/program-calendar",
+    label: "Program Calendar",
+    icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 3v4m8-4v4M4 9h16M5 5h14a1 1 0 0 1 1 1v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a1 1 0 0 1 1-1Zm3 8h3m3 0h3M8 17h3" />,
+  },
+  {
     section: "Account",
     href: "/high-council/profile",
     label: "Profile",

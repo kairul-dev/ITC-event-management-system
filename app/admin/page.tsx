@@ -173,14 +173,10 @@ export default function AdminPage() {
         .from("events")
         .select("*", { count: "exact", head: true })
         .eq("status", "Draft");
-      const { count: pendingHighCouncilCount } = await supabase
+      const { count: pendingApprovalCount } = await supabase
         .from("events")
         .select("*", { count: "exact", head: true })
-        .eq("status", "Pending High Council Approval");
-      const { count: pendingClubAdvisorCount } = await supabase
-        .from("events")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "Pending Club Advisor Approval");
+        .eq("status", "Pending Approval");
       const { count: approvedCount } = await supabase
         .from("events")
         .select("*", { count: "exact", head: true })
@@ -190,6 +186,10 @@ export default function AdminPage() {
         .select("*", { count: "exact", head: true })
         .eq("status", "Published");
       const { count: registrationCount } = await supabase.from("event_registrations").select("*", { count: "exact", head: true });
+      const { count: lockedAccountCount } = await supabase
+        .from("users")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "locked");
       const { data: events } = await supabase
         .from("events")
         .select("id,title,start_date,created_at,status,location,max_students,rejection_reason")
@@ -202,9 +202,9 @@ export default function AdminPage() {
         .lt("created_at", nextMonthStart.toISOString());
       const { data: registrations } = await supabase
         .from("event_registrations")
-        .select("event_id,created_at")
-        .gte("created_at", monthStart.toISOString())
-        .lt("created_at", nextMonthStart.toISOString());
+        .select("event_id,registered_at")
+        .gte("registered_at", monthStart.toISOString())
+        .lt("registered_at", nextMonthStart.toISOString());
       const { data: recentRegistrations } = await supabase
         .from("event_registrations")
         .select("event_id");
@@ -223,7 +223,7 @@ export default function AdminPage() {
       const eventCounts = countByDay(monthEvents || [], (event) => event.created_at, monthStart, daysInMonth);
       const registrationCounts = countByDay(
         registrations || [],
-        (registration) => registration.created_at,
+        (registration) => registration.registered_at,
         monthStart,
         daysInMonth,
       );
@@ -235,8 +235,8 @@ export default function AdminPage() {
       setStats({
         totalPaperwork: eventCount || 0,
         draftPaperwork: draftCount || 0,
-        pendingHighCouncil: pendingHighCouncilCount || 0,
-        pendingClubAdvisor: pendingClubAdvisorCount || 0,
+        pendingHighCouncil: pendingApprovalCount || 0,
+        pendingClubAdvisor: lockedAccountCount || 0,
         approvedPaperwork: approvedCount || 0,
         publishedEvents: publishedCount || 0,
         totalRegistrations: registrationCount || 0,
@@ -261,15 +261,15 @@ export default function AdminPage() {
     {
       label: "Total Paperwork",
       value: stats.totalPaperwork,
-      href: "/admin/event?mode=paperwork",
+      href: "/admin/users",
       cta: "View all events",
       accent: "bg-violet-100 text-violet-700",
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 3v4m8-4v4M4 9h16M6 5h12a2 2 0 0 1 2 2v12H4V7a2 2 0 0 1 2-2Z" />,
     },
     {
-      label: "Pending High Council",
+      label: "Pending Approval",
       value: stats.pendingHighCouncil,
-      href: "/admin/approval-status",
+      href: "/admin/report",
       cta: "Track approval",
       accent: "bg-emerald-100 text-emerald-700",
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-5M7 3v4m10-4v4M5 6h14v15H5V6Z" />,
@@ -283,9 +283,9 @@ export default function AdminPage() {
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1m11-12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Zm7 12v-1a4 4 0 0 0-3-3.8M17 4.2a4 4 0 0 1 0 7.6" />,
     },
     {
-      label: "Pending Club Advisor",
+      label: "Locked Accounts",
       value: stats.pendingClubAdvisor,
-      href: "/admin/approval-status",
+      href: "/admin/report",
       cta: "Review now",
       accent: "bg-amber-100 text-amber-700",
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 7v5l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />,
@@ -293,7 +293,7 @@ export default function AdminPage() {
     {
       label: "Approved Paperwork",
       value: stats.approvedPaperwork,
-      href: "/admin/event?mode=events#event-details",
+      href: "/admin/report",
       cta: "Publish event",
       accent: "bg-pink-100 text-pink-700",
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm7 0v5h5M9 13h6M9 17h4" />,
@@ -301,7 +301,7 @@ export default function AdminPage() {
     {
       label: "Published Events",
       value: stats.publishedEvents,
-      href: "/admin/event?mode=events#event-details",
+      href: "/admin/report",
       cta: "Manage events",
       accent: "bg-blue-100 text-blue-700",
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />,
@@ -408,7 +408,7 @@ export default function AdminPage() {
               </div>
             ))}
           </div>
-          <Link href="/admin/approval-status" className="mt-5 flex w-full items-center justify-center gap-2 rounded-md border border-slate-200 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50">
+          <Link href="/admin/report" className="mt-5 flex w-full items-center justify-center gap-2 rounded-md border border-slate-200 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50">
             View All Paperwork <span aria-hidden="true">-&gt;</span>
           </Link>
         </Card>
@@ -416,7 +416,7 @@ export default function AdminPage() {
         <Card className="p-4 sm:p-5">
           <div className="mb-5 flex items-center justify-between">
             <h3 className="text-lg font-extrabold text-slate-950">Upcoming Events</h3>
-            <Link href="/admin/event?mode=events#event-details" className="text-sm font-bold text-blue-700">View All</Link>
+            <Link href="/admin/report" className="text-sm font-bold text-blue-700">View Reports</Link>
           </div>
           {displayEvents.length === 0 ? (
             <p className="rounded-md border border-dashed border-slate-200 p-5 text-center text-sm font-semibold text-slate-500">
@@ -444,7 +444,7 @@ export default function AdminPage() {
         <Card className="p-4 sm:p-5">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h3 className="text-lg font-extrabold text-slate-950">Recent Events</h3>
-            <Link href="/admin/event?mode=events#event-details" className="shrink-0 text-xs font-bold text-blue-700 sm:text-sm">View All Events</Link>
+            <Link href="/admin/report" className="shrink-0 text-xs font-bold text-blue-700 sm:text-sm">View Reports</Link>
           </div>
           <div className="mobile-card-scroll rounded-md border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
@@ -479,12 +479,12 @@ export default function AdminPage() {
                     </td>
                     <td className="whitespace-nowrap px-4 py-2">
                       <div className="flex gap-2">
-                        <Link href="/admin/event?mode=events#event-details" className="rounded-md border border-slate-200 p-2 text-slate-600 hover:bg-slate-100" title="View event">
+                        <Link href="/admin/report" className="rounded-md border border-slate-200 p-2 text-slate-600 hover:bg-slate-100" title="View report">
                           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Zm10 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
                           </svg>
                         </Link>
-                        <Link href="/admin/event?mode=events#event-details" className="rounded-md border border-slate-200 p-2 text-slate-600 hover:bg-slate-100" title="Edit event">
+                        <Link href="/admin/report" className="rounded-md border border-slate-200 p-2 text-slate-600 hover:bg-slate-100" title="View report">
                           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m15 5 4 4M4 20l4.5-1L20 7.5 16.5 4 5 15.5 4 20Z" />
                           </svg>
@@ -496,7 +496,7 @@ export default function AdminPage() {
               </tbody>
             </table>
           </div>
-          <Link href="/admin/event?mode=events#event-details" className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-slate-200 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50">
+          <Link href="/admin/report" className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-slate-200 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50">
             View All Events <span aria-hidden="true">-&gt;</span>
           </Link>
         </Card>
@@ -505,14 +505,14 @@ export default function AdminPage() {
           <h3 className="mb-5 text-lg font-extrabold text-slate-950">Quick Actions</h3>
           <div className="grid grid-cols-2 gap-4">
             {[
-              ["Create New Event", "/admin/event?mode=events#event-details", "text-indigo-600", <path key="a" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v14m7-7H5M7 3v4m10-4v4M5 7h14v14H5V7Z" />],
+              ["Manage Users", "/admin/users", "text-indigo-600", <path key="a" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v14m7-7H5M7 3v4m10-4v4M5 7h14v14H5V7Z" />],
               ["Card Payments", "/admin/payments", "text-emerald-600", <path key="b" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1m18-7h-6m3-3v6M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" />],
-              ["Create Paperwork", "/admin/event?mode=paperwork", "text-amber-500", <path key="c" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm7 0v5h5M9 13h6M9 17h6" />],
+              ["System Reports", "/admin/report", "text-amber-500", <path key="c" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm7 0v5h5M9 13h6M9 17h6" />],
               ["View Reports", "/admin/report", "text-blue-600", <path key="d" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 20V9m5 11V4m5 16v-7m5 7V7M3 20h18" />],
-              ["Manage Users", "/admin/users", "text-pink-500", <path key="e" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0" />],
+              ["Account Settings", "/admin/profile", "text-pink-500", <path key="e" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0" />],
               ["System Settings", "/admin/profile", "text-slate-500", <path key="f" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Zm8.5 4a7.9 7.9 0 0 0-.1-1l2-1.5-2-3.5-2.4 1a8 8 0 0 0-1.7-1L16 3h-4l-.4 3a8 8 0 0 0-1.7 1l-2.4-1-2 3.5 2 1.5a7.9 7.9 0 0 0 0 2l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 1.7 1l.4 3h4l.4-3a8 8 0 0 0 1.7-1l2.4 1 2-3.5-2-1.5c.1-.3.1-.7.1-1Z" />],
             ].map(([label, href, color, icon]) => (
-              <Link key={label as string} href={href as string} className="flex min-h-28 flex-col items-center justify-center rounded-lg border border-slate-200 bg-white p-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+              <Link key={`${label as string}-${href as string}`} href={href as string} className="flex min-h-28 flex-col items-center justify-center rounded-lg border border-slate-200 bg-white p-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
                 <svg className={`mb-2 h-9 w-9 ${color as string}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   {icon as React.ReactNode}
                 </svg>

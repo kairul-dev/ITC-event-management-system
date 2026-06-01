@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-Comprehensive testing has been performed on the ITC System across multiple user roles and features. **Core functionality is working**, with successful authentication and dashboard navigation for **Student and Club Advisor roles**. Admin, High Council, President, and Facility Manager roles require proper test user setup in the database.
+Comprehensive testing has been performed on the ITC System across multiple user roles and features. **Core functionality is working**, with successful authentication and dashboard navigation for **Student and Club Advisor roles**. Admin, High Council, High Council, and Facility Manager roles require proper test user setup in the database.
 
 ---
 
@@ -106,15 +106,15 @@ My Certificates: 1 (issued for "batik run" event on 4/22/2026)
 
 ---
 
-### ⚠️ **NOT TESTED - President Role**
+### ⚠️ **NOT TESTED - High Council Role**
 
 **Login Page:** Shows Club Advisor login form
 **Status:** ⏸️ REQUIRES INVESTIGATION
 
-**Observation:** President role appears to share login mechanism with Club Advisor role. Need to determine if:
-1. President is an alias for Club Advisor
-2. President uses Club Advisor login with different role assignment
-3. Separate President role exists but not exposed in UI
+**Observation:** High Council Role appears to share login mechanism with Club Advisor role. Need to determine if:
+1. High Council is an alias for Club Advisor
+2. High Council uses Club Advisor login with different role assignment
+3. Separate High Council Role exists but not exposed in UI
 
 ---
 
@@ -175,11 +175,11 @@ My Certificates: 1 (issued for "batik run" event on 4/22/2026)
 **Impact:** Cannot verify High Council event paperwork workflow  
 **Solution:** Create high_council test user
 
-### 3. President Role Ambiguity
+### 3. High Council Role Confirmation
 **Severity:** LOW  
-**Description:** President login redirects to Club Advisor form  
-**Impact:** Unclear if President is separate role or alias  
-**Solution:** Check app/president-login/page.tsx and role logic
+**Description:** High Council login redirects to Club Advisor form
+**Impact:** Unclear if High Council is separate role or alias
+**Solution:** Check app/High Council-login/page.tsx and role logic
 
 ### 4. Facility Manager Not in Role Selector
 **Severity:** LOW  
@@ -290,7 +290,7 @@ VALUES (
 - [x] Club Advisor login works
 - [ ] Admin login (needs user)
 - [ ] High Council login (needs user)
-- [ ] President login (needs clarification)
+- [ ] High Council login (needs clarification)
 - [ ] Facility Manager login (needs exposure)
 
 ### Student Features
@@ -345,7 +345,7 @@ VALUES (
 
 ### Priority 1 (Critical)
 1. **Create Admin test user** - Enables testing of event management, certificate workflows
-2. **Fix President role** - Clarify if it's a separate role or alias
+2. **Fix High Council Role** - Clarify if it's a separate role or alias
 
 ### Priority 2 (High)
 1. Create High Council test user
@@ -377,7 +377,7 @@ VALUES (
 
 ## Conclusion
 
-The system's core authentication and dashboard infrastructure is **functioning correctly** for Student and Club Advisor roles. The system is **ready for testing all workflows** once test users are created for Admin, High Council, and clarification on President/Facility Manager roles is provided.
+The system's core authentication and dashboard infrastructure is **functioning correctly** for Student and Club Advisor roles. The system is **ready for testing all workflows** once test users are created for Admin, High Council, and clarification on High Council/Facility Manager roles is provided.
 
 **Overall Status:** ✅ **PARTIALLY VERIFIED**
 - Core: Working

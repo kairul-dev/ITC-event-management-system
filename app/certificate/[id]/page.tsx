@@ -16,6 +16,12 @@ type CertificateDetail = {
   blockchain_hash: string;
 };
 
+type LockedCertificate = {
+  eventId: string;
+  eventTitle: string;
+  certificateNo: string;
+};
+
 type Html2PdfWorker = {
   set(options: unknown): Html2PdfWorker;
   from(element: HTMLElement): Html2PdfWorker;
@@ -26,6 +32,7 @@ export default function CertificatePage() {
   const params = useParams();
   const router = useRouter();
   const [certificate, setCertificate] = useState<CertificateDetail | null>(null);
+  const [lockedCertificate, setLockedCertificate] = useState<LockedCertificate | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
 
@@ -46,7 +53,7 @@ export default function CertificatePage() {
           .select("id, certificate_no, issued_at, status, user_id, event_id")
           .eq("id", params.id)
           .eq("user_id", user.id)
-          .eq("status", "approved")
+          .eq("status", "issued")
           .single();
 
         if (error) {
@@ -56,7 +63,7 @@ export default function CertificatePage() {
         }
 
         if (!data) {
-          console.error("Certificate not found or not approved");
+          console.error("Certificate not found or not issued");
           setLoading(false);
           return;
         }
@@ -78,6 +85,27 @@ export default function CertificatePage() {
         if (userError) console.error("Error loading user:", userError.message);
         if (eventError) console.error("Error loading event:", eventError.message);
 
+        const { data: feedbackData, error: feedbackError } = await supabase
+          .from("event_feedback")
+          .select("id")
+          .eq("event_id", data.event_id)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (feedbackError) {
+          console.error("Error loading feedback:", feedbackError.message);
+        }
+
+        if (!feedbackData) {
+          setLockedCertificate({
+            eventId: data.event_id,
+            eventTitle: eventData?.title || "Event",
+            certificateNo: data.certificate_no,
+          });
+          setLoading(false);
+          return;
+        }
+
         const blockchainHash = await createCertificateBlockchainHash({
           certificateId: data.id,
           certificateNo: data.certificate_no,
@@ -95,6 +123,7 @@ export default function CertificatePage() {
           status: data.status || "issued",
           blockchain_hash: blockchainHash,
         });
+        setLockedCertificate(null);
         setLoading(false);
       } catch (err) {
         console.error("Error:", err);
@@ -148,6 +177,37 @@ export default function CertificatePage() {
   }
 
   if (!certificate) {
+    if (lockedCertificate) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
+          <div className="max-w-lg rounded-lg bg-white p-8 text-center shadow-md">
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800">
+              Pending Feedback
+            </span>
+            <h1 className="mt-4 text-2xl font-bold text-gray-900">Certificate Locked</h1>
+            <p className="mt-2 text-gray-600">
+              Submit feedback for {lockedCertificate.eventTitle} to view and download certificate{" "}
+              {lockedCertificate.certificateNo}.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+              <button
+                onClick={() => router.push(`/feedback/${lockedCertificate.eventId}`)}
+                className="rounded-lg bg-amber-600 px-5 py-2 text-sm font-semibold text-white hover:bg-amber-700"
+              >
+                Submit Feedback
+              </button>
+              <button
+                onClick={() => router.back()}
+                className="rounded-lg bg-gray-200 px-5 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-300"
+              >
+                Go Back
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -187,14 +247,14 @@ export default function CertificatePage() {
             <div className="mt-3">
               <span
                 className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                  certificate.status === "approved"
+                  certificate.status === "issued"
                     ? "bg-green-100 text-green-800"
                     : certificate.status === "pending"
                       ? "bg-yellow-100 text-yellow-800"
                       : "bg-gray-100 text-gray-800"
                 }`}
               >
-                Status: {certificate.status === "approved" ? "Completed" : certificate.status?.charAt(0).toUpperCase() + certificate.status?.slice(1)}
+                Status: {certificate.status === "issued" ? "Issued" : certificate.status?.charAt(0).toUpperCase() + certificate.status?.slice(1)}
               </span>
             </div>
           </div>

@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { formatFileSize, getPaperworkFile, stripPaperworkFileMarker, UploadedPaperworkFile } from "@/lib/paperworkFile";
-import { usePathname } from "next/navigation";
 
 type Event = {
   id: string;
@@ -280,25 +280,38 @@ function WordPaperworkPreview({
   );
 }
 
-export default function PresidentEventsPage() {
+export default function EventApprovalPage() {
   const pathname = usePathname();
-  const isHighCouncil = pathname.startsWith("/high-council");
-  const reviewConfig = {
-    queueStatus: isHighCouncil ? "Pending High Council Approval" : "Pending Club Advisor Approval",
-    approveStatus: isHighCouncil ? "Pending Club Advisor Approval" : "Approved",
-    title: isHighCouncil ? "High Council Paperwork Review" : "Club Advisor Paperwork Review",
-    description: isHighCouncil
-      ? "Review admin paperwork before forwarding it to the club advisor."
-      : "Give final paperwork approval after high council review.",
-    countLabel: isHighCouncil ? "Pending High Council Approval" : "Pending Club Advisor Approval",
-    emptyTitle: isHighCouncil ? "No Paperwork Awaiting High Council" : "No Paperwork Awaiting Club Advisor",
-    emptyDescription: isHighCouncil
-      ? "All submitted paperwork has been reviewed by the high council."
-      : "No high council approved paperwork is waiting for final approval.",
-    queueBadge: isHighCouncil ? "High Council Review" : "Club Advisor Review",
-    approveLabel: isHighCouncil ? "Send to Club Advisor" : "Approve Paperwork",
-    rejectLabel: "Reject Paperwork",
-  };
+  const isClubAdvisor = pathname.startsWith("/club-advisor");
+  const reviewConfig = useMemo(
+    () =>
+      isClubAdvisor
+        ? {
+            queueStatuses: ["Pending Club Advisor Approval"],
+            approveStatus: "Approved",
+            title: "Club Advisor Final Review",
+            description: "Give final approval or rejection for paperwork forwarded by the High Council.",
+            countLabel: "Pending Final Approval",
+            emptyTitle: "No Paperwork Awaiting Final Approval",
+            emptyDescription: "All forwarded Club Committee paperwork has been reviewed.",
+            queueBadge: "Club Advisor Review",
+            approveLabel: "Give Final Approval",
+            rejectLabel: "Reject Paperwork",
+          }
+        : {
+            queueStatuses: ["Pending Approval", "Pending High Council Approval"],
+            approveStatus: "Pending Club Advisor Approval",
+            title: "High Council Event Review",
+            description: "Review Club Committee event submissions before forwarding them to the Club Advisor.",
+            countLabel: "Pending High Council Review",
+            emptyTitle: "No Events Awaiting High Council Review",
+            emptyDescription: "All submitted Club Committee events have been reviewed.",
+            queueBadge: "High Council Review",
+            approveLabel: "Forward to Club Advisor",
+            rejectLabel: "Reject Paperwork",
+          },
+    [isClubAdvisor],
+  );
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -312,7 +325,7 @@ export default function PresidentEventsPage() {
       const { data, error } = await supabase
         .from("events")
         .select("*")
-        .eq("status", reviewConfig.queueStatus)
+        .in("status", reviewConfig.queueStatuses)
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -326,7 +339,7 @@ export default function PresidentEventsPage() {
     } finally {
       setLoading(false);
     }
-  }, [reviewConfig.queueStatus]);
+  }, [reviewConfig.queueStatuses]);
 
   useEffect(() => {
     loadEvents();
@@ -363,7 +376,7 @@ export default function PresidentEventsPage() {
 
   const updateStatus = async (
     id: string,
-    status: "Approved" | "Pending Club Advisor Approval" | "Rejected",
+    status: "Approved" | "Pending Approval" | "Pending Club Advisor Approval" | "Rejected",
     rejectionReason?: string,
   ) => {
     if (status === "Rejected") {

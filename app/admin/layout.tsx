@@ -14,39 +14,11 @@ const navItems: RoleNavItem[] = [
     ),
   },
   {
-    section: "Event Management",
-    href: "/admin/event?mode=paperwork",
-    label: "Paperwork",
-    icon: (
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 3v4m8-4v4M4 9h16M5 5h14a1 1 0 0 1 1 1v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a1 1 0 0 1 1-1Z" />
-    ),
-  },
-  {
-    href: "/admin/approval-status",
-    label: "Approval Status",
-    icon: (
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5m4-1v5l3 2" />
-    ),
-  },
-  {
-    href: "/admin/event?mode=events#event-details",
-    label: "Events",
-    icon: (
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3M5 11h14M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z" />
-    ),
-  },
-  {
+    section: "System Records",
     href: "/admin/payments",
     label: "Card Payments",
     icon: (
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1m8-11a4 4 0 1 1-8 0 4 4 0 0 1 8 0Zm10 11v-1a4 4 0 0 0-3-3.87m-2-9.9a4 4 0 0 1 0 7.75" />
-    ),
-  },
-  {
-    href: "/admin/certificates",
-    label: "Certificates",
-    icon: (
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 21h8M9 17l-2 4m8-4 2 4M7 4h10v4a5 5 0 0 1-10 0V4Zm-3 2h3v2a3 3 0 0 1-3-3V6Zm13 0h3v2a3 3 0 0 0 3-3V6Z" />
     ),
   },
   {
@@ -70,6 +42,20 @@ const navItems: RoleNavItem[] = [
     label: "Reports",
     icon: (
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 20V9m5 11V4m5 16v-7m5 7V7M3 20h18" />
+    ),
+  },
+  {
+    href: "/admin/program-calendar",
+    label: "Program Calendar",
+    icon: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 3v4m8-4v4M4 9h16M5 5h14a1 1 0 0 1 1 1v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a1 1 0 0 1 1-1Zm3 8h3m3 0h3M8 17h3" />
+    ),
+  },
+  {
+    href: "/admin/feedback",
+    label: "Feedback",
+    icon: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h8M8 14h5m-8 7 4-4h8a4 4 0 0 0 4-4V7a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v6a4 4 0 0 0 4 4h1v4Z" />
     ),
   },
   {

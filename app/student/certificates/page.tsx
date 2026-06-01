@@ -8,6 +8,8 @@ type Certificate = {
   id: string;
   certificate_no: string;
   issued_at: string;
+  event_id: string;
+  feedbackSubmitted: boolean;
   event: {
     title: string;
     event_date: string;
@@ -24,6 +26,10 @@ type CertificateRow = {
 type EventRow = {
   id: string;
   title: string;
+};
+
+type FeedbackRow = {
+  event_id: string;
 };
 
 export default function StudentCertificatesPage() {
@@ -47,7 +53,7 @@ export default function StudentCertificatesPage() {
         .from("certificates")
         .select("id, certificate_no, issued_at, event_id, user_id, status")
         .eq("user_id", user.id)
-        .eq("status", "approved")
+        .eq("status", "issued")
         .order("issued_at", { ascending: false });
 
       if (error) {
@@ -71,11 +77,22 @@ export default function StudentCertificatesPage() {
         .select("id, title")
         .in("id", eventIds);
 
+      const { data: feedbackData, error: feedbackError } = await supabase
+        .from("event_feedback")
+        .select("event_id")
+        .eq("user_id", user.id)
+        .in("event_id", eventIds);
+
       if (eventsError) {
         console.error("Error loading events:", eventsError.message);
       }
 
+      if (feedbackError) {
+        console.error("Error loading feedback:", feedbackError.message);
+      }
+
       const eventsMap = new Map(((eventsData || []) as EventRow[]).map((event) => [event.id, event]));
+      const feedbackEventIds = new Set(((feedbackData || []) as FeedbackRow[]).map((row) => row.event_id));
 
       const normalized: Certificate[] = certificateRows.map((row) => {
         const eventData = eventsMap.get(row.event_id);
@@ -83,6 +100,8 @@ export default function StudentCertificatesPage() {
           id: row.id,
           certificate_no: row.certificate_no,
           issued_at: row.issued_at,
+          event_id: row.event_id,
+          feedbackSubmitted: feedbackEventIds.has(row.event_id),
           event: eventData
             ? {
                 title: eventData.title,
@@ -159,6 +178,9 @@ export default function StudentCertificatesPage() {
                     Issued At
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Access
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Action
                   </th>
                 </tr>
@@ -181,11 +203,28 @@ export default function StudentCertificatesPage() {
                       {new Date(c.issued_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <button
-                        onClick={() => router.push(`/certificate/${c.id}`)}
-                        className="px-3 py-1 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition"
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                          c.feedbackSubmitted
+                            ? "bg-green-100 text-green-800"
+                            : "bg-amber-100 text-amber-800"
+                        }`}
                       >
-                        View
+                        {c.feedbackSubmitted ? "Available" : "Pending Feedback"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <button
+                        onClick={() =>
+                          router.push(c.feedbackSubmitted ? `/certificate/${c.id}` : `/feedback/${c.event_id}`)
+                        }
+                        className={`px-3 py-1 text-white text-sm font-medium rounded-lg transition ${
+                          c.feedbackSubmitted
+                            ? "bg-indigo-600 hover:bg-indigo-700"
+                            : "bg-amber-600 hover:bg-amber-700"
+                        }`}
+                      >
+                        {c.feedbackSubmitted ? "View" : "Submit Feedback"}
                       </button>
                     </td>
                   </tr>

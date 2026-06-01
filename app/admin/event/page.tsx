@@ -39,19 +39,40 @@ type EditableEvent = {
 
 const STATUSES = {
   draft: "Draft",
-  pendingHighCouncil: "Pending High Council Approval",
-  pendingClubAdvisor: "Pending Club Advisor Approval",
+  pendingApproval: "Pending Approval",
   approved: "Approved",
   rejected: "Rejected",
   published: "Published",
   closed: "Closed",
-  completed: "completed",
+  completed: "Completed",
 } as const;
 
 const toDateTimeInputValue = (value?: string) => {
   if (!value) return "";
   if (value.includes("T")) return value.slice(0, 16);
   return `${value}T09:00`;
+};
+
+const toComparableDate = (value?: string) => {
+  if (!value) return null;
+  const normalized = value.includes("T") ? value : `${value}T00:00`;
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const dateRangesOverlap = (
+  startA?: string,
+  endA?: string,
+  startB?: string,
+  endB?: string,
+) => {
+  const aStart = toComparableDate(startA);
+  const aEnd = toComparableDate(endA || startA);
+  const bStart = toComparableDate(startB);
+  const bEnd = toComparableDate(endB || startB);
+
+  if (!aStart || !aEnd || !bStart || !bEnd) return false;
+  return aStart <= bEnd && bStart <= aEnd;
 };
 
 function AdminEventContent() {
@@ -306,6 +327,7 @@ function AdminEventContent() {
       fee_amount: parseFloat(feeAmount),
       max_students: parseInt(maxStudents, 10),
       status: nextStatus,
+      created_by: (await supabase.auth.getUser()).data.user?.id ?? null,
       created_at: new Date().toISOString(),
     };
 
@@ -360,7 +382,7 @@ function AdminEventContent() {
   const resubmitEvent = async (eventId: string) => {
     const { error } = await supabase
       .from("events")
-      .update({ status: STATUSES.pendingHighCouncil, rejection_reason: null })
+      .update({ status: STATUSES.pendingApproval, rejection_reason: null })
       .eq("id", eventId);
 
     if (error) {
@@ -396,12 +418,36 @@ function AdminEventContent() {
     });
   }, [events, searchQuery, statusFilter]);
 
+  const newEventConflicts = useMemo(
+    () =>
+      events.filter((event) =>
+        dateRangesOverlap(startDate, endDate || startDate, event.start_date, event.end_date),
+      ),
+    [endDate, events, startDate],
+  );
+
   const publicEventCount = events.filter((event) => event.status === STATUSES.published).length;
   const editingOriginalEvent = editingEvent
     ? events.find((event) => event.id === editingEvent.id)
     : null;
   const editingCurrentPoster =
     editingPosterRemoved ? null : getEventPoster(editingOriginalEvent?.objective);
+  const editingEventConflicts = useMemo(
+    () =>
+      editingEvent
+        ? events.filter(
+            (event) =>
+              event.id !== editingEvent.id &&
+              dateRangesOverlap(
+                editingEvent.start_date,
+                editingEvent.end_date || editingEvent.start_date,
+                event.start_date,
+                event.end_date,
+              ),
+          )
+        : [],
+    [editingEvent, events],
+  );
 
   const startEditingEvent = (event: Event) => {
     setShowPreview(false);
@@ -543,7 +589,7 @@ function AdminEventContent() {
   const statusBadgeClass = (status: string) => {
     if (status === STATUSES.published || status === STATUSES.approved) return "ds-badge-approved";
     if (status === STATUSES.rejected) return "ds-badge-rejected";
-    if (status === STATUSES.pendingClubAdvisor) return "ds-badge bg-indigo-100 text-indigo-800";
+    if (status === STATUSES.pendingApproval) return "ds-badge bg-indigo-100 text-indigo-800";
     if (status === STATUSES.closed || status === STATUSES.completed) return "ds-badge-completed";
     if (status === STATUSES.draft) return "ds-badge bg-slate-100 text-slate-700";
     return "ds-badge-pending";
@@ -657,7 +703,7 @@ function AdminEventContent() {
               className="block w-full rounded-xl border border-violet-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-violet-600 file:px-4 file:py-2 file:text-sm file:font-bold file:text-white hover:file:bg-violet-700"
             />
             <p className="mt-3 text-sm font-medium text-violet-800">
-              Upload the completed UTHM paperwork in Word or PDF format. High Council and Club Advisor will open this exact file for review.
+              Upload the completed UTHM paperwork in Word or PDF format. The High Council will open this exact file for review.
             </p>
             {paperworkFile && (
               <p className="mt-3 rounded-xl bg-white px-4 py-3 text-sm font-bold text-slate-800">
@@ -809,6 +855,23 @@ function AdminEventContent() {
         </div>
         </div>
 
+        {newEventConflicts.length > 0 && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <p className="font-bold">Schedule warning: overlapping event detected.</p>
+            <p className="mt-1">
+              This does not block submission. Please review the overlap before saving.
+            </p>
+            <ul className="mt-2 list-inside list-disc space-y-1">
+              {newEventConflicts.slice(0, 3).map((event) => (
+                <li key={event.id}>
+                  {event.title} ({event.start_date} - {event.end_date})
+                </li>
+              ))}
+              {newEventConflicts.length > 3 && <li>+{newEventConflicts.length - 3} more</li>}
+            </ul>
+          </div>
+        )}
+
         <div className="flex flex-col justify-end gap-3 sm:flex-row">
           <button
             onClick={() => addEvent(STATUSES.draft)}
@@ -818,7 +881,7 @@ function AdminEventContent() {
             {submitting ? "Saving..." : "Save Draft"}
           </button>
           <button
-            onClick={() => addEvent(STATUSES.pendingHighCouncil)}
+            onClick={() => addEvent(STATUSES.pendingApproval)}
             disabled={submitting}
             className="ds-btn-primary"
           >
@@ -851,8 +914,7 @@ function AdminEventContent() {
             >
               <option value="all">All statuses</option>
               <option value={STATUSES.draft}>Draft</option>
-              <option value={STATUSES.pendingHighCouncil}>Pending High Council Approval</option>
-              <option value={STATUSES.pendingClubAdvisor}>Pending Club Advisor Approval</option>
+              <option value={STATUSES.pendingApproval}>Pending Approval</option>
               <option value={STATUSES.approved}>Approved</option>
               <option value={STATUSES.rejected}>Rejected</option>
               <option value={STATUSES.published}>Published</option>
@@ -961,8 +1023,7 @@ function AdminEventContent() {
                   className="ds-input"
                 >
                   <option value={STATUSES.draft}>Draft</option>
-                  <option value={STATUSES.pendingHighCouncil}>Pending High Council Approval</option>
-                  <option value={STATUSES.pendingClubAdvisor}>Pending Club Advisor Approval</option>
+                  <option value={STATUSES.pendingApproval}>Pending Approval</option>
                   <option value={STATUSES.approved}>Approved</option>
                   <option value={STATUSES.rejected}>Rejected</option>
                   <option value={STATUSES.published}>Published</option>
@@ -1038,6 +1099,25 @@ function AdminEventContent() {
                 )}
               </div>
             </div>
+
+            {editingEventConflicts.length > 0 && (
+              <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <p className="font-bold">Schedule warning: overlapping event detected.</p>
+                <p className="mt-1">
+                  This warning does not block saving. Please review the overlap before continuing.
+                </p>
+                <ul className="mt-2 list-inside list-disc space-y-1">
+                  {editingEventConflicts.slice(0, 3).map((event) => (
+                    <li key={event.id}>
+                      {event.title} ({event.start_date} - {event.end_date})
+                    </li>
+                  ))}
+                  {editingEventConflicts.length > 3 && (
+                    <li>+{editingEventConflicts.length - 3} more</li>
+                  )}
+                </ul>
+              </div>
+            )}
 
             {showPreview && (
               <div className="mt-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -1159,7 +1239,7 @@ function AdminEventContent() {
                           Edit
                         </button>
                         <Link
-                          href={`/admin/report?eventId=${event.id}`}
+                          href={`/committee/approval-status?eventId=${event.id}`}
                           className="px-2 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700"
                         >
                           Report

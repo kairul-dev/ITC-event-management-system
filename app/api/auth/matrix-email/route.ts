@@ -6,7 +6,7 @@ type RequestBody = {
   role?: string;
 };
 
-const allowedRoles = new Set(["student", "admin", "high_council"]);
+const allowedRoles = new Set(["student", "admin", "committee", "high_council", "club_advisor"]);
 
 export async function POST(request: Request) {
   try {
@@ -23,22 +23,21 @@ export async function POST(request: Request) {
     }
 
     const supabase = getSupabaseAdminClient();
+    const normalizedMatrixNumber = matrixNumber.toUpperCase();
     const { data, error } = await supabase
       .from("users")
       .select("email, matrix_number")
       .eq("role", role)
+      .ilike("matrix_number", normalizedMatrixNumber)
       .limit(1);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const normalizedMatrixNumber = matrixNumber.toUpperCase();
     const email =
       Array.isArray(data) && data.length > 0
-        ? data.find(
-            (row) => row.matrix_number?.trim().toUpperCase() === normalizedMatrixNumber
-          )?.email ?? null
+        ? data[0]?.email ?? null
         : null;
 
     if (!email) {

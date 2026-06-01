@@ -1,7 +1,7 @@
 import { requireApiRole } from "@/lib/apiAuth";
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
-const approvalRoles = ["admin", "club_advisor", "president", "high_council", "student"];
+const approvalRoles = ["admin", "committee", "high_council", "club_advisor", "student"];
 
 export async function GET(request: Request) {
   try {
@@ -19,32 +19,13 @@ export async function GET(request: Request) {
       type: "paperwork" | "certificate";
     }> = [];
 
-    if (roleCheck.role === "high_council") {
-      const { count, error } = await supabaseAdmin
-        .from("events")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "Pending High Council Approval");
-
-      if (error) {
-        return Response.json({ error: error.message }, { status: 400 });
-      }
-
-      if ((count ?? 0) > 0) {
-        items.push({
-          id: "high-council-paperwork",
-          title: "Paperwork needs review",
-          message: `${count} event paperwork ${count === 1 ? "submission is" : "submissions are"} waiting for High Council approval.`,
-          count: count ?? 0,
-          type: "paperwork",
-        });
-      }
-    }
-
-    if (["club_advisor", "president"].includes(roleCheck.role)) {
+    if (["high_council", "club_advisor"].includes(roleCheck.role)) {
+      const queueStatus = roleCheck.role === "club_advisor" ? "Pending Club Advisor Approval" : "Pending Approval";
+      const roleLabel = roleCheck.role === "club_advisor" ? "Club Advisor final approval" : "High Council review";
       const { count: paperworkCount, error: paperworkError } = await supabaseAdmin
         .from("events")
         .select("id", { count: "exact", head: true })
-        .eq("status", "Pending Club Advisor Approval");
+        .eq("status", queueStatus);
 
       if (paperworkError) {
         return Response.json({ error: paperworkError.message }, { status: 400 });
@@ -52,9 +33,9 @@ export async function GET(request: Request) {
 
       if ((paperworkCount ?? 0) > 0) {
         items.push({
-          id: "club-advisor-paperwork",
+          id: `${roleCheck.role}-paperwork`,
           title: "Paperwork needs approval",
-          message: `${paperworkCount} event paperwork ${paperworkCount === 1 ? "submission is" : "submissions are"} waiting for final approval.`,
+          message: `${paperworkCount} event paperwork ${paperworkCount === 1 ? "submission is" : "submissions are"} waiting for ${roleLabel}.`,
           count: paperworkCount ?? 0,
           type: "paperwork",
         });
@@ -62,20 +43,15 @@ export async function GET(request: Request) {
 
     }
 
-    if (roleCheck.role === "admin") {
+    if (roleCheck.role === "committee") {
       const [
-        { count: highCouncilCount, error: highCouncilError },
-        { count: clubAdvisorCount, error: clubAdvisorError },
+        { count: pendingApprovalCount, error: pendingApprovalError },
         { count: rejectedPaperworkCount, error: rejectedPaperworkError },
       ] = await Promise.all([
         supabaseAdmin
           .from("events")
           .select("id", { count: "exact", head: true })
-          .eq("status", "Pending High Council Approval"),
-        supabaseAdmin
-          .from("events")
-          .select("id", { count: "exact", head: true })
-          .eq("status", "Pending Club Advisor Approval"),
+          .eq("status", "Pending Approval"),
         supabaseAdmin
           .from("events")
           .select("id", { count: "exact", head: true })
@@ -83,22 +59,20 @@ export async function GET(request: Request) {
       ]);
 
       if (
-        highCouncilError ||
-        clubAdvisorError ||
+        pendingApprovalError ||
         rejectedPaperworkError
       ) {
         return Response.json(
           {
             error:
-              highCouncilError?.message ||
-              clubAdvisorError?.message ||
+              pendingApprovalError?.message ||
               rejectedPaperworkError?.message,
           },
           { status: 400 }
         );
       }
 
-      const paperworkCount = (highCouncilCount ?? 0) + (clubAdvisorCount ?? 0);
+      const paperworkCount = pendingApprovalCount ?? 0;
       if (paperworkCount > 0) {
         items.push({
           id: "admin-paperwork",

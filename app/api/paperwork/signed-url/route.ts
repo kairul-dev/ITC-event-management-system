@@ -10,10 +10,9 @@ type SignedUrlRequest = {
 
 function canOpenPaperwork(role: string, status: string) {
   if (role === "admin") return true;
-  if (role === "high_council") return status === "Pending High Council Approval";
-  if (["club_advisor", "president"].includes(role)) {
-    return status === "Pending Club Advisor Approval";
-  }
+  if (role === "committee") return true;
+  if (role === "high_council") return ["Pending Approval", "Pending High Council Approval", "Pending Club Advisor Approval", "Rejected"].includes(status);
+  if (role === "club_advisor") return ["Pending Club Advisor Approval", "Approved", "Rejected"].includes(status);
   return false;
 }
 
@@ -21,9 +20,9 @@ export async function POST(request: Request) {
   try {
     const roleCheck = await requireApiRole(request, [
       "admin",
+      "committee",
       "high_council",
       "club_advisor",
-      "president",
     ]);
 
     if (!roleCheck.ok) {
@@ -47,6 +46,7 @@ export async function POST(request: Request) {
       .in("status", [
         "Pending High Council Approval",
         "Pending Club Advisor Approval",
+        "Pending Approval",
         "Approved",
         "Rejected",
       ]);

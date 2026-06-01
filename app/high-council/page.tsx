@@ -234,7 +234,7 @@ export default function HighCouncilHomePage() {
             <div className="mt-4 space-y-2">
               {[
                 ["Review Paperwork", "/high-council/events"],
-                ["View Certificates", "/high-council/certificates"],
+                ["Program Calendar", "/high-council/program-calendar"],
                 ["Update Profile", "/high-council/profile"],
               ].map(([label, href]) => (
                 <Link key={href} href={href} className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-bold text-slate-700 hover:bg-violet-50 hover:text-violet-700">

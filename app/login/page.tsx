@@ -5,7 +5,7 @@ import { supabase } from "../../lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-type AccessRole = "student" | "club_advisor" | "high_council" | "admin";
+type AccessRole = "student" | "committee" | "high_council" | "club_advisor" | "admin";
 
 function LoginContent() {
   const searchParams = useSearchParams();
@@ -17,25 +17,21 @@ function LoginContent() {
       : null;
   const roleParam = searchParams.get("role");
   const lockedRole: AccessRole | null =
-    roleParam === "president"
-      ? "club_advisor"
-      : roleParam === "admin" ||
-        roleParam === "club_advisor" ||
+    roleParam === "admin" ||
+        roleParam === "committee" ||
         roleParam === "high_council" ||
+        roleParam === "club_advisor" ||
         roleParam === "student"
       ? roleParam
       : null;
   const [selectedRole, setSelectedRole] = useState<AccessRole>("student");
   const accessRole = lockedRole || selectedRole;
   const [matrixNumber, setMatrixNumber] = useState("");
-  const [advisorName, setAdvisorName] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const usesMatrixLogin =
-    accessRole === "student" || accessRole === "admin" || accessRole === "high_council";
-  const usesNameLogin = accessRole === "club_advisor";
+  const usesMatrixLogin = true;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,25 +61,6 @@ function LoginContent() {
       }
 
       loginEmail = result.email;
-    } else if (usesNameLogin) {
-      const response = await fetch("/api/auth/club-advisor-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: advisorName.trim() }),
-      });
-
-      const result = (await response.json()) as {
-        email?: string;
-        error?: string;
-      };
-
-      if (!response.ok || !result.email) {
-        alert(result.error || "Club advisor name not found or invalid.");
-        setLoading(false);
-        return;
-      }
-
-      loginEmail = result.email;
     }
 
     if (!loginEmail) {
@@ -103,9 +80,21 @@ function LoginContent() {
       return;
     }
 
-    const { data: roleRows, error: userError } = await supabase.rpc(
-      "get_current_user_role"
-    );
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      alert("User data not found. Please contact administrator.");
+      setLoading(false);
+      return;
+    }
+
+    const { data: profile, error: userError } = await supabase
+      .from("users")
+      .select("role, status")
+      .eq("id", user.id)
+      .single();
 
     if (userError) {
       alert("Error fetching user data: " + userError.message);
@@ -113,13 +102,18 @@ function LoginContent() {
       return;
     }
 
-    const role =
-      Array.isArray(roleRows) && roleRows.length > 0
-        ? roleRows[0]?.role
-        : null;
+    const role = profile?.role?.trim().toLowerCase();
+    const status = profile?.status?.trim().toLowerCase() || "active";
 
     if (!role) {
       alert("User data not found. Please contact administrator.");
+      setLoading(false);
+      return;
+    }
+
+    if (status === "locked") {
+      await supabase.auth.signOut();
+      alert("This account is locked. Please contact the administrator.");
       setLoading(false);
       return;
     }
@@ -128,10 +122,12 @@ function LoginContent() {
 
     if (role === "admin") {
       router.replace("/admin");
-    } else if (role === "club_advisor" || role === "president") {
-      router.replace("/club-advisor");
+    } else if (role === "committee") {
+      router.replace("/committee");
     } else if (role === "high_council") {
       router.replace("/high-council");
+    } else if (role === "club_advisor") {
+      router.replace("/club-advisor");
     } else {
       router.replace(safeNextPath || "/student");
     }
@@ -148,14 +144,19 @@ function LoginContent() {
       description: "Use matrix number login",
     },
     {
-      role: "club_advisor",
-      label: "Club Advisor",
-      description: "Use name login",
+      role: "committee",
+      label: "Club Committee",
+      description: "Create events and certificate drafts",
     },
     {
       role: "high_council",
       label: "High Council",
-      description: "Use matrix number login",
+      description: "Review event paperwork",
+    },
+    {
+      role: "club_advisor",
+      label: "Club Advisor",
+      description: "Review and approve submissions",
     },
     {
       role: "admin",
@@ -165,7 +166,9 @@ function LoginContent() {
   ];
 
   const headingRole =
-    accessRole === "high_council"
+    accessRole === "committee"
+      ? "Club Committee"
+      : accessRole === "high_council"
       ? "High Council"
       : accessRole === "club_advisor"
       ? "Club Advisor"
@@ -201,8 +204,12 @@ function LoginContent() {
           <p className="mt-4 text-sm leading-7 text-slate-300">
             {accessRole === "student"
               ? "Students use matrix number login. After signing in, registration uses your saved account details."
+              : accessRole === "committee"
+              ? "Club Committee users create events, upload participants, and submit certificate drafts for approval."
+              : accessRole === "high_council"
+              ? "High Council users review submitted event paperwork."
               : accessRole === "club_advisor"
-              ? "Club advisors use name login and open the paperwork approval workspace."
+              ? "Club advisors review submitted events and certificate drafts."
               : "This role uses matrix number login and opens its own management workspace."}
           </p>
 
@@ -215,7 +222,6 @@ function LoginContent() {
                   onClick={() => {
                     setSelectedRole(item.role);
                     setMatrixNumber("");
-                    setAdvisorName("");
                     setPassword("");
                   }}
                   className={`rounded-2xl border px-4 py-3 text-left transition ${
@@ -241,8 +247,12 @@ function LoginContent() {
           <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
             {accessRole === "student"
               ? "Create your student account once, then register future events with one confirmation."
+              : accessRole === "committee"
+              ? "Use your matrix number to open the operational event and certificate workspace."
+              : accessRole === "high_council"
+              ? "Use your matrix number to open the High Council review workspace."
               : accessRole === "club_advisor"
-              ? "Use your registered advisor name with your password."
+              ? "Use your matrix number to open the advisor approval workspace."
               : "Staff access is separated from the student event browsing experience."}
           </div>
         </div>
@@ -261,7 +271,7 @@ function LoginContent() {
               <p className="text-slate-600">
                 {usesMatrixLogin
                   ? "Enter your matrix number and password to continue"
-                  : "Enter your name and password to continue"}
+                  : "Enter your account details to continue"}
               </p>
             </div>
 
@@ -288,29 +298,7 @@ function LoginContent() {
                     />
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  <label htmlFor="advisorName" className="text-sm font-medium text-slate-700 block">
-                    Club Advisor Name
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0" />
-                      </svg>
-                    </div>
-                    <input
-                      id="advisorName"
-                      type="text"
-                      placeholder="e.g., Dr. Advisor Name"
-                      value={advisorName}
-                      onChange={(e) => setAdvisorName(e.target.value)}
-                      required
-                      className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition duration-200 bg-white hover:bg-slate-50"
-                    />
-                  </div>
-                </div>
-              )}
+              ) : null}
 
               <div className="space-y-2">
                 <label htmlFor="password" className="text-sm font-medium text-slate-700 block">

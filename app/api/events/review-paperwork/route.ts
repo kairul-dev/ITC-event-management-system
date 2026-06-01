@@ -15,7 +15,6 @@ export async function POST(request: Request) {
     const roleCheck = await requireApiRole(request, [
       "high_council",
       "club_advisor",
-      "president",
     ]);
 
     if (!roleCheck.ok) {
@@ -59,11 +58,11 @@ export async function POST(request: Request) {
     const currentStatus = event.status;
     const isHighCouncilTransition =
       role === "high_council" &&
-      currentStatus === "Pending High Council Approval" &&
+      ["Pending Approval", "Pending High Council Approval"].includes(currentStatus) &&
       ["Pending Club Advisor Approval", "Rejected"].includes(nextStatus);
     const isClubAdvisorTransition =
-      ["club_advisor", "president"].includes(role) &&
-      currentStatus === "Pending Club Advisor Approval" &&
+      role === "club_advisor" &&
+      ["Pending Club Advisor Approval"].includes(currentStatus) &&
       ["Approved", "Rejected"].includes(nextStatus);
 
     if (!isHighCouncilTransition && !isClubAdvisorTransition) {
@@ -78,6 +77,7 @@ export async function POST(request: Request) {
       .update({
         status: nextStatus,
         rejection_reason: nextStatus === "Rejected" ? rejectionReason : null,
+        approved_by: nextStatus === "Approved" || nextStatus === "Pending Club Advisor Approval" ? roleCheck.userId : null,
         approved_at: new Date().toISOString(),
       })
       .eq("id", eventId)
@@ -87,6 +87,17 @@ export async function POST(request: Request) {
     if (updateError) {
       return Response.json({ error: updateError.message }, { status: 400 });
     }
+
+    await supabaseAdmin.from("approval_history").insert({
+      entity_type: "event",
+      entity_id: eventId,
+      action: nextStatus === "Rejected" ? "rejected" : "approved",
+      actor_id: roleCheck.userId,
+      actor_role: role,
+      from_status: currentStatus,
+      to_status: nextStatus,
+      comments: rejectionReason,
+    });
 
     return Response.json({ success: true, event: updatedEvent });
   } catch (error) {

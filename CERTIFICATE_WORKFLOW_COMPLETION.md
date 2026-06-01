@@ -30,7 +30,7 @@ This endpoint uses the Supabase admin client (with service role key) to bypass R
 ```
 
 ### 2. Updated Club Advisor Approval Functions
-**File**: `/app/president/certificates/page.tsx`
+**File**: `/app/High Council/certificates/page.tsx`
 
 Modified `approveCertificate()` and `rejectCertificate()` functions to call the new API endpoint instead of directly updating the database with the regular Supabase client.
 
@@ -41,8 +41,8 @@ Four policies were applied manually via Supabase SQL Editor:
 
 #### Policy 1: Club Advisors Can Read Certificates
 ```sql
-DROP POLICY IF EXISTS "Club advisors and presidents can read certificates" ON public.certificates;
-CREATE POLICY "Club advisors and presidents can read certificates"
+DROP POLICY IF EXISTS "Club advisors and High Councils can read certificates" ON public.certificates;
+CREATE POLICY "Club advisors and High Councils can read certificates"
 ON public.certificates
 FOR SELECT
 USING (
@@ -55,8 +55,8 @@ USING (
 
 #### Policy 2: Club Advisors Can Update Certificate Status
 ```sql
-DROP POLICY IF EXISTS "Club advisors and presidents can update certificates" ON public.certificates;
-CREATE POLICY "Club advisors and presidents can update certificates"
+DROP POLICY IF EXISTS "Club advisors and High Councils can update certificates" ON public.certificates;
+CREATE POLICY "Club advisors and High Councils can update certificates"
 ON public.certificates
 FOR UPDATE
 USING (
@@ -161,7 +161,7 @@ USING (
 | File | Change | Purpose |
 |------|--------|---------|
 | `/app/api/certificates/update-status/route.ts` | NEW | API endpoint for approving/rejecting certificates using admin client |
-| `/app/president/certificates/page.tsx` | MODIFIED | Updated approveCertificate() and rejectCertificate() to use new API |
+| `/app/High Council/certificates/page.tsx` | MODIFIED | Updated approveCertificate() and rejectCertificate() to use new API |
 | `supabase/migrations/20260519_certificates_rls_policies.sql` | NEW | Migration file with all RLS policies (applied manually to Supabase) |
 
 ## For Next Developers / AI Assistants

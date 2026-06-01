@@ -16,6 +16,7 @@ type PaperworkRow = {
 
 const workflow = [
   "Draft",
+  "Pending Approval",
   "Pending High Council Approval",
   "Pending Club Advisor Approval",
   "Approved",
@@ -100,11 +101,11 @@ export default function ApprovalStatusPage() {
         <div>
           <h1 className="text-2xl font-extrabold text-slate-950">Approval Status</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Track paperwork from admin submission through High Council, Club Advisor, and publishing.
+            Track paperwork from Club Committee submission through High Council review, Club Advisor final approval, and publishing.
           </p>
         </div>
         <Link
-          href="/admin/event?mode=paperwork"
+          href="/committee/event?mode=paperwork"
           className="w-fit rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800"
         >
           Create Paperwork
@@ -112,7 +113,7 @@ export default function ApprovalStatusPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-6">
-        {["Draft", "Pending High Council Approval", "Pending Club Advisor Approval", "Approved", "Published", "Rejected"].map((status) => (
+        {["Draft", "Pending Approval", "Pending High Council Approval", "Pending Club Advisor Approval", "Approved", "Published", "Rejected", "Closed"].map((status) => (
           <section key={status} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{status}</p>
             <p className="mt-2 text-3xl font-extrabold text-slate-950">{counts[status] || 0}</p>
@@ -178,7 +179,7 @@ export default function ApprovalStatusPage() {
                     </td>
                     <td className="px-4 py-3">
                       <Link
-                        href="/admin/event?mode=events#event-details"
+                        href="/committee/event?mode=events#event-details"
                         className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100"
                       >
                         Manage

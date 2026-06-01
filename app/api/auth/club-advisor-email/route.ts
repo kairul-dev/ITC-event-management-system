@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       .from("users")
       .select("email")
       .ilike("name", advisorName)
-      .in("role", ["club_advisor", "president"])
+      .eq("role", "club_advisor")
       .order("created_at", { ascending: true })
       .limit(1);
 

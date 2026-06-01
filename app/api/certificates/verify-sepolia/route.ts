@@ -123,6 +123,7 @@ export async function POST(request: Request) {
       Boolean(onChainCertificate.eventTitle) ||
       Boolean(onChainCertificate.hash) ||
       issueDate > 0;
+    const isIssued = localCertificate?.status === "issued";
     const hashMatches =
       Boolean(foundOnChain && localHash) &&
       normalizeHash(onChainCertificate.hash) === normalizeHash(localHash);
@@ -139,6 +140,7 @@ export async function POST(request: Request) {
       foundLocal: Boolean(localCertificate),
       foundOnChain,
       hashMatches,
+      valid: Boolean(isIssued && hashMatches),
     });
   } catch (error) {
     console.error("Sepolia verify error:", error);

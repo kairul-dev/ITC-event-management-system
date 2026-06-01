@@ -235,7 +235,7 @@ export default function StudentDashboard() {
     void loadDashboardData();
   }, []);
 
-  const approvedCertificates = certificates.filter((certificate) => certificate.status === "approved").length;
+  const approvedCertificates = certificates.filter((certificate) => certificate.status === "issued").length;
   const attendedEvents = registrations.filter((registration) => registration.events?.status === "completed").length;
   const reminders = useMemo(
     () =>

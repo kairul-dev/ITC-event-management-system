@@ -41,7 +41,7 @@ async function callCertificateContract({
 
 export async function POST(request: Request) {
   try {
-    const roleCheck = await requireApiRole(request, ["admin"]);
+    const roleCheck = await requireApiRole(request, ["club_advisor"]);
     if (!roleCheck.ok) {
       return Response.json({ error: roleCheck.error }, { status: roleCheck.status });
     }
@@ -102,6 +102,11 @@ export async function POST(request: Request) {
       courseName: eventTitle,
       ipfsHash: certificateHash,
     });
+
+    await supabaseAdmin
+      .from("certificates")
+      .update({ certificate_hash: certificateHash })
+      .eq("id", certificateId);
 
     return Response.json({
       anchored: true,

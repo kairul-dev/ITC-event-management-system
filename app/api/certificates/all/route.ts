@@ -23,7 +23,7 @@ type UserRow = {
 
 export async function GET(request: Request) {
   try {
-    const roleCheck = await requireApiRole(request, ["admin", "club_advisor"]);
+    const roleCheck = await requireApiRole(request, ["club_advisor"]);
     if (!roleCheck.ok) {
       return Response.json({ error: roleCheck.error }, { status: roleCheck.status });
     }

@@ -1,1 +1,5 @@
-export { default } from "../../president/certificates/page";
+import { redirect } from "next/navigation";
+
+export default function HighCouncilCertificatesRoute() {
+  redirect("/high-council");
+}

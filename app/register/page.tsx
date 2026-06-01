@@ -68,6 +68,7 @@ function RegisterContent() {
         email: data.user.email,
         matrix_number: matrixNumber.trim().toUpperCase(),
         role: "student",
+        status: "active",
       });
 
       if (insertError) {

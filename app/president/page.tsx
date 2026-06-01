@@ -61,10 +61,10 @@ function SummaryCard({
   );
 }
 
-export default function PresidentHomePage() {
+export default function ApprovalHomePage() {
   const pathname = usePathname();
-  const basePath = pathname.startsWith("/president") ? "/president" : "/club-advisor";
-  const roleName = pathname.startsWith("/president") ? "President" : "Club Advisor";
+  const basePath = pathname.startsWith("/club-advisor") ? "/club-advisor" : "/high-council";
+  const roleName = pathname.startsWith("/club-advisor") ? "Club Advisor" : "High Council";
   const [stats, setStats] = useState({
     pendingEvents: 0,
     approvedEvents: 0,
@@ -76,13 +76,14 @@ export default function PresidentHomePage() {
     const loadDashboardData = async () => {
       setLoading(true);
       try {
+        const pendingStatus = pathname.startsWith("/club-advisor") ? "Pending Club Advisor Approval" : "Pending Approval";
         const [pendingEventsCount, approvedEventsCount, pendingEventRows] = await Promise.all([
-          supabase.from("events").select("*", { count: "exact", head: true }).eq("status", "Pending Club Advisor Approval"),
+          supabase.from("events").select("*", { count: "exact", head: true }).eq("status", pendingStatus),
           supabase.from("events").select("*", { count: "exact", head: true }).eq("status", "Approved"),
           supabase
             .from("events")
             .select("id,title,start_date,created_at,location")
-            .eq("status", "Pending Club Advisor Approval")
+            .eq("status", pendingStatus)
             .order("created_at", { ascending: false })
             .limit(5),
         ]);
@@ -100,7 +101,7 @@ export default function PresidentHomePage() {
     };
 
     void loadDashboardData();
-  }, []);
+  }, [pathname]);
 
   if (loading) {
     return (
@@ -114,7 +115,11 @@ export default function PresidentHomePage() {
     <div className="w-full space-y-6">
       <section>
         <h2 className="text-3xl font-black tracking-tight text-slate-950">Welcome back, {roleName}!</h2>
-        <p className="mt-2 text-base font-medium text-slate-500">Give final approval for event paperwork.</p>
+        <p className="mt-2 text-base font-medium text-slate-500">
+          {pathname.startsWith("/club-advisor")
+            ? "Give final approval for forwarded paperwork and certificate drafts."
+            : "Review submitted event paperwork before final advisor approval."}
+        </p>
       </section>
 
       <section className="grid gap-5 md:grid-cols-2">

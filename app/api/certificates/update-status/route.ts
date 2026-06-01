@@ -3,7 +3,7 @@ import { requireApiRole } from "@/lib/apiAuth";
 
 export async function POST(request: Request) {
   try {
-    const roleCheck = await requireApiRole(request, ["admin", "club_advisor"]);
+    const roleCheck = await requireApiRole(request, ["club_advisor"]);
     if (!roleCheck.ok) {
       return Response.json({ error: roleCheck.error }, { status: roleCheck.status });
     }
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     // Get the certificate to retrieve event_id
     const { data: certificate, error: fetchError } = await supabaseAdmin
       .from("certificates")
-      .select("id, event_id, user_id, status")
+      .select("id, event_id, user_id, status, issued_at")
       .eq("id", certificateId)
       .single();
 
@@ -33,10 +33,14 @@ export async function POST(request: Request) {
     }
 
     // Update certificate status
-    const newStatus = action === "approve" ? "approved" : "rejected";
+    const newStatus = action === "approve" ? "issued" : "rejected";
     const { error: updateError } = await supabaseAdmin
       .from("certificates")
-      .update({ status: newStatus })
+      .update({
+        status: newStatus,
+        approved_by: action === "approve" ? roleCheck.userId : null,
+        issued_at: action === "approve" ? new Date().toISOString() : certificate.issued_at,
+      })
       .eq("id", certificateId);
 
     if (updateError) {
@@ -48,13 +52,24 @@ export async function POST(request: Request) {
     if (action === "approve") {
       const { error: eventError } = await supabaseAdmin
         .from("events")
-        .update({ status: "completed" })
+        .update({ status: "Completed" })
         .eq("id", certificate.event_id);
 
       if (eventError) {
         console.warn("Error updating event status:", eventError);
       }
     }
+
+    await supabaseAdmin.from("approval_history").insert({
+      entity_type: "certificate",
+      entity_id: certificateId,
+      action: action === "approve" ? "approved" : "rejected",
+      actor_id: roleCheck.userId,
+      actor_role: roleCheck.role,
+      from_status: certificate.status,
+      to_status: newStatus,
+      comments: null,
+    });
 
     return Response.json({ 
       success: true, 

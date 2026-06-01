@@ -5,7 +5,7 @@
 I have successfully implemented and tested a complete certificate workflow system:
 
 1. **Created a new API endpoint** (`/api/certificates/update-status`) that handles certificate approval/rejection using the Supabase admin client to bypass RLS restrictions
-2. **Updated certificate approval functions** in `/app/president/certificates/page.tsx` to use this new API
+2. **Updated certificate approval functions** in `/app/High Council/certificates/page.tsx` to use this new API
 3. **Applied 4 RLS policies** to the Supabase database for role-based access control
 
 ## How to Test This Workflow
@@ -58,7 +58,7 @@ The certificate workflow involves **complex state management**:
 ## Files Changed
 
 1. `/app/api/certificates/update-status/route.ts` - **NEW** (API endpoint)
-2. `/app/president/certificates/page.tsx` - **MODIFIED** (approval functions)
+2. `/app/High Council/certificates/page.tsx` - **MODIFIED** (approval functions)
 3. `supabase/migrations/20260519_certificates_rls_policies.sql` - **NEW** (SQL policies already applied)
 
 ## Quick Validation Test

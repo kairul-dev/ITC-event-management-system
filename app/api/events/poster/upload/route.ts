@@ -36,7 +36,7 @@ async function ensureBucket() {
 
 export async function POST(request: Request) {
   try {
-    const roleCheck = await requireApiRole(request, ["admin"]);
+    const roleCheck = await requireApiRole(request, ["committee"]);
 
     if (!roleCheck.ok) {
       return Response.json(

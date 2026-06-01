@@ -74,7 +74,6 @@ export default function RoleDashboardShell({
   const getNotificationHref = (item: NotificationItem) => {
     if (item.type === "certificate") {
       if (pathname.startsWith("/admin")) return "/admin/certificates";
-      if (pathname.startsWith("/president")) return "/president/certificates";
       if (pathname.startsWith("/club-advisor")) return "/club-advisor/certificates";
       if (pathname.startsWith("/high-council")) return "/high-council/certificates";
       return "/student/certificates";
@@ -82,7 +81,6 @@ export default function RoleDashboardShell({
 
     if (pathname.startsWith("/admin")) return "/admin/approval-status";
     if (pathname.startsWith("/high-council")) return "/high-council/events";
-    if (pathname.startsWith("/president")) return "/president/events";
     if (pathname.startsWith("/club-advisor")) return "/club-advisor/events";
     return navItems.find((item) => item.label.toLowerCase().includes("event"))?.href ?? "/";
   };

@@ -9,6 +9,7 @@ type User = {
   name: string;
   matrix_number?: string;
   role: string;
+  status?: string;
   created_at: string;
 };
 
@@ -16,7 +17,7 @@ export default function AdminUsers() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "student" | "club_advisor" | "high_council">("all");
+  const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "student" | "committee" | "high_council" | "club_advisor">("all");
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
@@ -74,6 +75,43 @@ export default function AdminUsers() {
     } catch (error) {
       console.error("Error:", error);
       alert("Error updating user role");
+    } finally {
+      setUpdatingUserId(null);
+    }
+  };
+
+  const updateUserStatus = async (userId: string, status: string) => {
+    setUpdatingUserId(userId);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      if (!token) {
+        alert("Your session has expired. Please log in again.");
+        return;
+      }
+
+      const response = await fetch("/api/admin/users/role", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId, status }),
+      });
+
+      const result = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        alert("Error updating account status: " + (result.error || "Unknown error"));
+        return;
+      }
+
+      alert("Account status updated successfully");
+      await loadUsers();
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error updating account status");
     } finally {
       setUpdatingUserId(null);
     }
@@ -176,6 +214,13 @@ export default function AdminUsers() {
       return matchesSearch && matchesRole;
     }
   );
+  const formatRoleLabel = (role?: string) => {
+    if (role === "admin") return "Admin";
+    if (role === "committee") return "Club Committee";
+    if (role === "high_council") return "High Council";
+    if (role === "club_advisor") return "Club Advisor";
+    return "Student";
+  };
 
   return (
     <div className="space-y-6">
@@ -211,16 +256,15 @@ export default function AdminUsers() {
           />
           <select
             value={roleFilter}
-            onChange={(e) =>
-              setRoleFilter(e.target.value as "all" | "admin" | "student" | "club_advisor" | "high_council")
-            }
+            onChange={(e) => setRoleFilter(e.target.value as "all" | "admin" | "student" | "committee" | "high_council" | "club_advisor")}
             className="w-full md:w-56 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           >
             <option value="all">All Roles</option>
             <option value="admin">Admin Only</option>
-            <option value="student">Student Only</option>
-            <option value="club_advisor">Club Advisor Only</option>
+            <option value="committee">Club Committee Only</option>
             <option value="high_council">High Council Only</option>
+            <option value="club_advisor">Club Advisor Only</option>
+            <option value="student">Student Only</option>
           </select>
         </div>
 
@@ -254,6 +298,9 @@ export default function AdminUsers() {
                     Role
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Joined
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -280,12 +327,25 @@ export default function AdminUsers() {
                             ? "bg-purple-100 text-purple-800"
                             : user.role === "high_council"
                             ? "bg-amber-100 text-amber-800"
-                            : user.role === "club_advisor" || user.role === "president"
+                            : user.role === "club_advisor"
+                            ? "bg-cyan-100 text-cyan-800"
+                            : user.role === "committee"
                             ? "bg-blue-100 text-blue-800"
                             : "bg-gray-100 text-gray-800"
                         }`}
                       >
-                        {user.role || "student"}
+                        {formatRoleLabel(user.role)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          (user.status || "active") === "locked"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-green-100 text-green-800"
+                        }`}
+                      >
+                        {user.status || "active"}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -303,9 +363,17 @@ export default function AdminUsers() {
                         >
                           <option value="student">Student</option>
                           <option value="admin">Admin</option>
-                          <option value="club_advisor">Club Advisor</option>
+                          <option value="committee">Club Committee</option>
                           <option value="high_council">High Council</option>
+                          <option value="club_advisor">Club Advisor</option>
                         </select>
+                        <button
+                          onClick={() => updateUserStatus(user.id, (user.status || "active") === "locked" ? "active" : "locked")}
+                          disabled={updatingUserId === user.id || deletingUserId === user.id}
+                          className="px-3 py-1 rounded-lg bg-slate-700 text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {(user.status || "active") === "locked" ? "Unlock" : "Lock"}
+                        </button>
                         <button
                           onClick={() => deleteUser(user)}
                           disabled={updatingUserId === user.id || deletingUserId === user.id}

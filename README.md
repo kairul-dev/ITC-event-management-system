@@ -45,7 +45,7 @@ Development modes:
 - `npm run dev`: Uses Webpack (default, recommended on Windows for this project).
 - `npm run dev:turbo`: Uses Turbopack (faster when compatible in your environment).
 
-Certificate emails are sent automatically when a president approves a certificate.
+Certificate emails are sent automatically when a High Council approves a certificate.
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 

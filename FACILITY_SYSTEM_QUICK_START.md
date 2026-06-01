@@ -92,7 +92,7 @@ ALTER TABLE events ADD COLUMN facility_id UUID;
 Now you have these roles:
 - **admin** - Manage events, view system-wide data
 - **facility_manager** - Manage facilities and availability (NEW)
-- **president** - View approved events
+- **High Council** - View approved events
 - **student** - Register for events
 
 ## How It Works
