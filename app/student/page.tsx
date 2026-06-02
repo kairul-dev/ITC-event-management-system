@@ -385,7 +385,7 @@ export default function StudentDashboard() {
                         <div className="min-w-0">
                           <p className="truncate text-base font-extrabold text-slate-950">{registration.events.title}</p>
                           <p className="mt-1 text-xs font-semibold text-slate-500">
-                            {formatDate(registration.events.start_date)} <span className="mx-1">·</span> {formatTime(registration.events.start_date)}
+                            {formatDate(registration.events.start_date)} <span className="mx-1">|</span> {formatTime(registration.events.start_date)}
                           </p>
                           <p className="mt-1 text-sm font-medium text-slate-600">{registration.events.location || "ITC venue"}</p>
                         </div>

@@ -200,7 +200,7 @@ export default function ApprovalHomePage() {
                       <div className="min-w-0">
                         <p className="truncate text-base font-extrabold text-slate-950">{event.title}</p>
                         <p className="mt-1 text-xs font-semibold text-slate-500">
-                          {formatDate(event.start_date)} <span className="mx-1">·</span> forwarded {formatDate(event.created_at)}
+                          {formatDate(event.start_date)} <span className="mx-1">|</span> forwarded {formatDate(event.created_at)}
                         </p>
                         <p className="mt-1 text-sm font-medium text-slate-600">{event.location || "Not set"}</p>
                       </div>

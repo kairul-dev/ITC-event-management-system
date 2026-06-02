@@ -468,7 +468,7 @@ export default function AdminPage() {
                         <div className="min-w-0">
                           <p className="truncate text-base font-extrabold text-slate-950">{event.title}</p>
                           <p className="mt-1 text-xs font-semibold text-slate-500">
-                            {formatDate(event.start_date)} <span className="mx-1">·</span> {formatTime(event.start_date)}
+                            {formatDate(event.start_date)} <span className="mx-1">|</span> {formatTime(event.start_date)}
                           </p>
                           <p className="mt-1 text-sm font-medium text-slate-600">{event.location || "Venue not set"}</p>
                         </div>

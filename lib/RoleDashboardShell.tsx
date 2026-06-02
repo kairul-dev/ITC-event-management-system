@@ -219,8 +219,7 @@ export default function RoleDashboardShell({
   };
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-slate-50 text-slate-950 antialiased">
-      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(37,99,235,0.12),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(14,165,233,0.1),_transparent_28%),linear-gradient(180deg,_#f8fafc_0%,_#f8fafc_38%,_#eef2ff_100%)]" />
+    <div className="min-h-screen bg-slate-50 text-slate-950 antialiased">
       {!isDesktop && sidebarOpen && (
         <button
           aria-label="Close sidebar"
@@ -230,24 +229,24 @@ export default function RoleDashboardShell({
       )}
 
       <aside
-        className="fixed inset-y-0 left-0 z-30 flex h-[100dvh] w-[82vw] min-w-56 max-w-72 flex-col border-r border-slate-800/80 bg-slate-950 text-slate-50 shadow-none transition-transform duration-200 no-print sm:w-72 lg:w-64"
+        className="fixed inset-y-0 left-0 z-30 flex h-dvh w-[78vw] min-w-56 max-w-64 flex-col border-r border-slate-200 bg-white text-slate-950 shadow-none transition-transform duration-200 no-print sm:w-72 lg:w-64"
         style={{
           width: isDesktop ? sidebarWidth : undefined,
           transform: sidebarVisible ? "translateX(0)" : "translateX(-100%)",
         }}
       >
-        <div className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-slate-950 px-4 py-4 sm:px-5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 text-sm font-black text-white shadow-lg shadow-blue-500/20 sm:h-11 sm:w-11">
+        <div className="flex shrink-0 items-center gap-3 border-b border-slate-100 bg-white px-4 py-4 sm:px-5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-700 text-sm font-black text-white shadow-sm sm:h-11 sm:w-11">
             ITC
           </div>
           <div className="min-w-0 flex-1 leading-tight">
-            <p className="text-lg font-black tracking-tight text-white">ITC</p>
-            <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-400">Event Management System</p>
+            <p className="text-lg font-black tracking-tight text-slate-950">ITC</p>
+            <p className="text-[10px] font-extrabold uppercase tracking-wide text-slate-500">Event Management System</p>
           </div>
           <button
             type="button"
             onClick={() => setSidebarOpen(false)}
-            className="rounded-lg p-2 text-slate-400 transition hover:bg-white/10 lg:hidden"
+            className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 lg:hidden"
             aria-label="Close menu"
             title="Close menu"
           >
@@ -257,11 +256,11 @@ export default function RoleDashboardShell({
           </button>
         </div>
 
-        <nav className="min-h-0 flex-1 overflow-y-auto px-2.5 pb-4 pt-3 text-sm sm:px-3">
+        <nav className="min-h-0 flex-1 overflow-y-auto bg-white px-2.5 pb-4 pt-3 text-sm sm:px-3">
           {navItems.map((item, index) => (
             <div key={`${item.href}-${item.label}`}>
               {item.section && (
-                <p className={`${index === 1 ? "mt-3" : "mt-5"} mb-2 px-3 text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-500`}>
+                <p className={`${index === 1 ? "mt-3" : "mt-5"} mb-2 px-3 text-[11px] font-extrabold uppercase tracking-wide text-slate-400`}>
                   {item.section}
                 </p>
               )}
@@ -270,8 +269,8 @@ export default function RoleDashboardShell({
                 onClick={() => setSidebarOpen(false)}
                 className={`mb-1 flex items-center gap-3 rounded-md px-3 py-2.5 font-semibold transition ${
                   isActive(item.href)
-                    ? "bg-white/10 text-white ring-1 ring-white/10"
-                    : "text-slate-300 hover:bg-white/10 hover:text-white"
+                    ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100"
+                    : "text-slate-700 hover:bg-slate-100 hover:text-blue-700"
                 }`}
               >
                 <Icon>{item.icon}</Icon>
@@ -281,11 +280,11 @@ export default function RoleDashboardShell({
           ))}
         </nav>
 
-        <div className="mt-auto shrink-0 border-t border-white/10 bg-slate-950 px-3 py-3">
+        <div className="mt-auto shrink-0 border-t border-slate-100 bg-white px-3 py-3">
           <Link
             href={profileHref}
             onClick={() => setSidebarOpen(false)}
-            className="mb-2 flex items-center gap-3 rounded-xl px-3 py-2.5 transition hover:bg-white/[0.06]"
+            className="mb-2 flex items-center gap-3 rounded-md px-3 py-2.5 transition hover:bg-slate-50"
           >
             {avatarUrl ? (
               <img
@@ -294,18 +293,18 @@ export default function RoleDashboardShell({
                 className="h-9 w-9 rounded-full object-cover"
               />
             ) : (
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-xs font-extrabold text-white ring-1 ring-white/10">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-xs font-extrabold text-blue-700 ring-1 ring-blue-100">
                 {roleInitial}
               </span>
             )}
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-bold text-white">{displayName}</span>
-              <span className="block truncate text-xs font-semibold text-slate-400">ITC {roleLabel}</span>
+              <span className="block truncate text-sm font-bold text-slate-950">{displayName}</span>
+              <span className="block truncate text-xs font-semibold text-slate-500">ITC {roleLabel}</span>
             </span>
           </Link>
           <button
             onClick={onLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-red-300 transition hover:bg-red-500/10 hover:text-red-200"
+            className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-bold text-red-500 transition hover:bg-red-50"
             title="Logout"
           >
             <Icon>
@@ -320,7 +319,7 @@ export default function RoleDashboardShell({
         className="dashboard-shell-content min-w-0 transition-[padding] duration-200 print:!pl-0"
         style={{ paddingLeft: isDesktop && !desktopSidebarCollapsed ? sidebarWidth : 0 }}
       >
-        <header className="sticky top-0 z-10 flex min-h-16 items-center justify-between gap-2 border-b border-slate-200/80 bg-white/80 px-3 py-2 backdrop-blur-xl no-print sm:px-5 lg:h-16 lg:px-6 lg:py-0">
+        <header className="sticky top-0 z-10 flex min-h-16 items-center justify-between gap-2 border-b border-slate-200 bg-white/95 px-3 py-2 backdrop-blur no-print sm:px-5 lg:h-16 lg:px-6 lg:py-0">
           <div className="flex min-w-0 items-center gap-2 sm:gap-4 lg:gap-5">
             <button
               onClick={() => {
@@ -342,7 +341,7 @@ export default function RoleDashboardShell({
             </button>
             <button
               onClick={() => router.back()}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/90 p-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-white sm:px-3"
+              className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white p-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 sm:px-3"
               title="Go back"
               aria-label="Go back to previous page"
             >
