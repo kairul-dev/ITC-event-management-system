@@ -176,49 +176,58 @@ export default function ApprovalHomePage() {
       <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
         <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="mb-5 flex items-center justify-between">
-            <h3 className="text-lg font-black text-slate-950 sm:text-xl">Final Approval Queue</h3>
+            <div>
+              <h3 className="text-lg font-black text-slate-950 sm:text-xl">Final Approval Queue</h3>
+              <p className="mt-1 text-sm font-medium text-slate-500">Compact review cards keep the queue readable without a wide table.</p>
+            </div>
             <Link href={`${basePath}/events`} className="text-sm font-bold text-violet-700 hover:text-violet-600">View All -&gt;</Link>
           </div>
-          <div className="overflow-hidden rounded-lg border border-slate-200">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs font-black uppercase text-slate-500">
-                <tr>
-                  <th className="px-4 py-3">Event</th>
-                  <th className="px-4 py-3">Event Date</th>
-                  <th className="px-4 py-3">Forwarded</th>
-                  <th className="px-4 py-3">Venue</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 bg-white">
-                {pendingEvents.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center font-medium text-slate-500">
-                      No paperwork is waiting for final approval.
-                    </td>
-                  </tr>
-                ) : (
-                  pendingEvents.map((event) => (
-                    <tr key={event.id}>
-                      <td className="px-4 py-3 font-bold text-slate-900">{event.title}</td>
-                      <td className="px-4 py-3 font-medium text-slate-600">{formatDate(event.start_date)}</td>
-                      <td className="px-4 py-3 font-medium text-slate-600">{formatDate(event.created_at)}</td>
-                      <td className="px-4 py-3 font-medium text-slate-600">{event.location || "Not set"}</td>
-                      <td className="px-4 py-3">
-                        <span className="rounded-md bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">Pending</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Link href={`${basePath}/events`} className="rounded-md border border-violet-300 px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-50">
-                          Review
-                        </Link>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          {pendingEvents.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-slate-200 px-4 py-8 text-center font-medium text-slate-500">
+              No paperwork is waiting for final approval.
+            </p>
+          ) : (
+            <div className="grid gap-3">
+              {pendingEvents.map((event, index) => (
+                <article key={event.id} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-violet-200 hover:bg-white">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-violet-100 text-violet-700 ring-1 ring-violet-100">
+                        <Icon>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 3h10a2 2 0 0 1 2 2v16l-4-2-3 2-3-2-4 2V5a2 2 0 0 1 2-2Z" />
+                        </Icon>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-extrabold text-slate-950">{event.title}</p>
+                        <p className="mt-1 text-xs font-semibold text-slate-500">
+                          {formatDate(event.start_date)} <span className="mx-1">·</span> forwarded {formatDate(event.created_at)}
+                        </p>
+                        <p className="mt-1 text-sm font-medium text-slate-600">{event.location || "Not set"}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 lg:justify-end">
+                      <span className="rounded-md bg-amber-100 px-3 py-2 text-xs font-bold text-amber-700">Pending</span>
+                      <Link href={`${basePath}/events`} className="rounded-lg border border-violet-300 px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-50">
+                        Review
+                      </Link>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Submitted</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">{formatDate(event.created_at)}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Queue position</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">#{index + 1}</p>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
 
         <aside className="space-y-4">

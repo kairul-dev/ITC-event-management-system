@@ -271,7 +271,7 @@ export default function RoleDashboardShell({
                 className={`mb-1 flex items-center gap-3 rounded-md px-3 py-2.5 font-semibold transition ${
                   isActive(item.href)
                     ? "bg-white/10 text-white ring-1 ring-white/10"
-                    : "text-slate-300 hover:bg-white/8 hover:text-white"
+                    : "text-slate-300 hover:bg-white/10 hover:text-white"
                 }`}
               >
                 <Icon>{item.icon}</Icon>
@@ -285,7 +285,7 @@ export default function RoleDashboardShell({
           <Link
             href={profileHref}
             onClick={() => setSidebarOpen(false)}
-            className="mb-2 flex items-center gap-3 rounded-xl px-3 py-2.5 transition hover:bg-white/6"
+            className="mb-2 flex items-center gap-3 rounded-xl px-3 py-2.5 transition hover:bg-white/[0.06]"
           >
             {avatarUrl ? (
               <img

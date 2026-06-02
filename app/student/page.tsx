@@ -367,49 +367,41 @@ export default function StudentDashboard() {
               <h3 className="text-lg font-black text-slate-950 sm:text-xl">My Registrations</h3>
               <Link href="/student/registered-events" className="shrink-0 text-xs font-bold text-blue-700 hover:text-blue-800 sm:text-sm">View All -&gt;</Link>
             </div>
-            <div className="mobile-card-scroll rounded-lg border border-slate-200">
-              <table className="w-full min-w-[720px] text-left text-sm">
-                <thead className="bg-slate-50 text-xs font-black uppercase text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3">Event</th>
-                    <th className="px-4 py-3">Date</th>
-                    <th className="px-4 py-3">Time</th>
-                    <th className="px-4 py-3">Venue</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 bg-white">
-                  {registrations.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center font-medium text-slate-500">
-                        You have not registered for any events yet.
-                      </td>
-                    </tr>
-                  ) : (
-                    registrations.slice(0, 4).map((registration, index) => (
-                      <tr key={registration.id}>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <div className={`h-10 w-10 rounded-md bg-gradient-to-br ${eventVisuals[index % eventVisuals.length]}`} />
-                            <span className="max-w-52 font-bold text-slate-800">{registration.events.title}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 font-medium text-slate-600">{formatDate(registration.events.start_date)}</td>
-                        <td className="px-4 py-3 font-medium text-slate-600">{formatTime(registration.events.start_date)}</td>
-                        <td className="px-4 py-3 font-medium text-slate-600">{registration.events.location || "ITC venue"}</td>
-                        <td className="px-4 py-3"><StatusPill status={registration.payment_status} /></td>
-                        <td className="px-4 py-3">
-                          <Link href={`/student/events/${registration.events.id}`} className="rounded-md border border-blue-300 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50">
-                            View Details
-                          </Link>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+            {registrations.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-200 p-8 text-center text-sm font-medium text-slate-500">
+                You have not registered for any events yet.
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {registrations.slice(0, 4).map((registration, index) => (
+                  <article key={registration.id} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-blue-200 hover:bg-white">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${eventVisuals[index % eventVisuals.length]}`}>
+                          <Icon className="text-white/90">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3M5 11h14M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z" />
+                          </Icon>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-base font-extrabold text-slate-950">{registration.events.title}</p>
+                          <p className="mt-1 text-xs font-semibold text-slate-500">
+                            {formatDate(registration.events.start_date)} <span className="mx-1">·</span> {formatTime(registration.events.start_date)}
+                          </p>
+                          <p className="mt-1 text-sm font-medium text-slate-600">{registration.events.location || "ITC venue"}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3 lg:justify-end">
+                        <StatusPill status={registration.payment_status} />
+                        <Link href={`/student/events/${registration.events.id}`} className="rounded-lg border border-blue-300 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50">
+                          View Details
+                        </Link>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
           </section>
         </div>
 

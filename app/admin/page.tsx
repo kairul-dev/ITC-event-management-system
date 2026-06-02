@@ -443,59 +443,63 @@ export default function AdminPage() {
       <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2.08fr)_minmax(0,0.95fr)]">
         <Card className="p-4 sm:p-5">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <h3 className="text-lg font-extrabold text-slate-950">Recent Events</h3>
+            <div>
+              <h3 className="text-lg font-extrabold text-slate-950">Recent Events</h3>
+              <p className="mt-1 text-sm font-medium text-slate-500">A compact activity feed with registration status at a glance.</p>
+            </div>
             <Link href="/admin/report" className="shrink-0 text-xs font-bold text-blue-700 sm:text-sm">View Reports</Link>
           </div>
-          <div className="mobile-card-scroll rounded-md border border-slate-200">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-50 text-xs font-bold text-slate-700">
-                <tr>
-                  <th className="px-4 py-3 text-left">Event Title</th>
-                  <th className="px-4 py-3 text-left">Date</th>
-                  <th className="px-4 py-3 text-left">Registrations</th>
-                  <th className="px-4 py-3 text-left">Status</th>
-                  <th className="px-4 py-3 text-left">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 bg-white">
-                {displayEvents.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-sm font-semibold text-slate-500">
-                      No real event data found.
-                    </td>
-                  </tr>
-                ) : displayEvents.map((event, index) => (
-                  <tr key={event.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-2">
-                      <div className="flex items-center gap-3">
+          {displayEvents.length === 0 ? (
+            <p className="rounded-md border border-dashed border-slate-200 px-4 py-8 text-center text-sm font-semibold text-slate-500">
+              No real event data found.
+            </p>
+          ) : (
+            <div className="grid gap-3">
+              {displayEvents.slice(0, 4).map((event, index) => {
+                const seats = event.max_students || 0;
+                const registrations = event.registration_count || 0;
+                const progress = seats > 0 ? Math.min(100, (registrations / seats) * 100) : 0;
+
+                return (
+                  <article key={event.id} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-blue-200 hover:bg-white">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="flex min-w-0 items-start gap-3">
                         <MiniThumb index={index} />
-                        <span className="font-semibold text-slate-950">{event.title}</span>
+                        <div className="min-w-0">
+                          <p className="truncate text-base font-extrabold text-slate-950">{event.title}</p>
+                          <p className="mt-1 text-xs font-semibold text-slate-500">
+                            {formatDate(event.start_date)} <span className="mx-1">·</span> {formatTime(event.start_date)}
+                          </p>
+                          <p className="mt-1 text-sm font-medium text-slate-600">{event.location || "Venue not set"}</p>
+                        </div>
                       </div>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-2 font-medium text-slate-600">{formatDate(event.start_date)}</td>
-                    <td className="whitespace-nowrap px-4 py-2 font-medium text-slate-600">{event.registration_count || 0} / {event.max_students || 0}</td>
-                    <td className="whitespace-nowrap px-4 py-2">
-                      <span className={`rounded-md px-2 py-1 text-xs font-bold ${statusClasses(event.status)}`}>{statusLabel(event.status)}</span>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-2">
-                      <div className="flex gap-2">
-                        <Link href="/admin/report" className="rounded-md border border-slate-200 p-2 text-slate-600 hover:bg-slate-100" title="View report">
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Zm10 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
-                          </svg>
-                        </Link>
-                        <Link href="/admin/report" className="rounded-md border border-slate-200 p-2 text-slate-600 hover:bg-slate-100" title="View report">
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m15 5 4 4M4 20l4.5-1L20 7.5 16.5 4 5 15.5 4 20Z" />
-                          </svg>
+
+                      <div className="flex flex-wrap items-center gap-3 lg:justify-end">
+                        <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-right">
+                          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Registrations</p>
+                          <p className="text-sm font-black text-slate-950">
+                            {registrations} / {seats || "Open"}
+                          </p>
+                        </div>
+                        <span className={`rounded-md px-3 py-2 text-xs font-bold ${statusClasses(event.status)}`}>{statusLabel(event.status)}</span>
+                        <Link
+                          href="/admin/report"
+                          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                        >
+                          Open
+                          <span aria-hidden="true">-&gt;</span>
                         </Link>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+
+                    <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
+                      <div className="h-full rounded-full bg-gradient-to-r from-blue-600 via-cyan-500 to-emerald-500" style={{ width: `${progress}%` }} />
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
           <Link href="/admin/report" className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-slate-200 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50">
             View All Events <span aria-hidden="true">-&gt;</span>
           </Link>
