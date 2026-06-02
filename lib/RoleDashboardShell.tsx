@@ -229,13 +229,13 @@ export default function RoleDashboardShell({
       )}
 
       <aside
-        className="fixed inset-y-0 left-0 z-30 flex w-[72vw] min-w-56 max-w-64 flex-col border-r border-slate-200 bg-white text-slate-950 shadow-2xl shadow-slate-950/20 transition-transform duration-200 no-print sm:w-72 lg:w-64 lg:shadow-sm"
+        className="fixed inset-y-0 left-0 z-30 flex h-screen w-[72vw] min-w-56 max-w-64 flex-col border-r border-slate-200 bg-white text-slate-950 shadow-2xl shadow-slate-950/20 transition-transform duration-200 no-print sm:w-72 lg:w-64 lg:shadow-sm"
         style={{
           width: isDesktop ? sidebarWidth : undefined,
           transform: sidebarVisible ? "translateX(0)" : "translateX(-100%)",
         }}
       >
-        <div className="flex items-center gap-3 px-4 py-4 sm:px-6 sm:py-6">
+        <div className="flex items-center gap-3 bg-white px-4 py-4 sm:px-6 sm:py-6">
           <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-blue-700 text-sm font-black text-white shadow-md shadow-blue-200 sm:h-12 sm:w-12">
             ITC
           </div>
@@ -256,7 +256,7 @@ export default function RoleDashboardShell({
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 pb-4 pt-2 text-sm sm:px-4 sm:pb-5 sm:pt-4">
+        <nav className="flex-1 overflow-y-auto bg-white px-3 pb-4 pt-2 text-sm sm:px-4 sm:pb-5 sm:pt-4">
           {navItems.map((item, index) => (
             <div key={`${item.href}-${item.label}`}>
               {item.section && (
@@ -280,17 +280,7 @@ export default function RoleDashboardShell({
           ))}
         </nav>
 
-        <div className="px-3 pb-4 sm:px-4 sm:pb-5">
-          <div className="mb-4 hidden rounded-lg bg-blue-50 p-4 text-center ring-1 ring-blue-100 sm:block">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-white text-blue-700 shadow-sm">
-              <Icon>
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3M5 11h14M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z" />
-              </Icon>
-            </div>
-            <p className="text-sm font-semibold leading-5 text-slate-700">
-              Join events, track approvals, and manage certificates with ITC.
-            </p>
-          </div>
+        <div className="bg-white px-3 pb-4 sm:px-4 sm:pb-5">
           <button
             onClick={onLogout}
             className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-red-500 transition hover:bg-red-50"
