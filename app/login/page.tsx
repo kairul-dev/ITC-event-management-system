@@ -187,6 +187,15 @@ function LoginContent() {
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
+      <Link
+        href="/"
+        className="fixed left-4 top-4 z-20 inline-flex items-center gap-2 rounded-lg border border-white/25 bg-white/90 px-4 py-2 text-sm font-black text-slate-800 shadow-lg shadow-slate-950/10 backdrop-blur transition hover:bg-white sm:left-6 sm:top-6"
+      >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19 8 12l7-7" />
+        </svg>
+        Back to Home
+      </Link>
       <div className="grid min-h-screen lg:grid-cols-[0.92fr_1.08fr]">
         <section className="relative isolate overflow-hidden bg-slate-950 px-6 py-8 text-white sm:px-10 lg:flex lg:flex-col lg:justify-between lg:rounded-r-[4rem] lg:px-12 xl:px-16">
           <div className="absolute inset-0 -z-20 bg-[linear-gradient(135deg,#020617_0%,#082f6f_48%,#0f172a_100%)]" />
@@ -372,14 +381,30 @@ function LoginContent() {
               </div>
             )}
 
-            <div className="mt-8 space-y-3 text-center">
-              <p className="text-sm text-slate-600">
-                Don&apos;t have an account?{" "}
-                <span className="font-semibold text-blue-700">Contact ITC Club Administrator</span>
+            <div className="mt-8 grid gap-3 md:grid-cols-2">
+              <section className="rounded-xl border border-blue-100 bg-blue-50/70 p-4 text-left">
+                <p className="text-sm font-black text-slate-950">Don&apos;t have an account?</p>
+                <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">
+                  Student accounts can self-register. Staff and committee accounts are created by Admin.
+                </p>
+                <Link href="/register" className="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-black text-white shadow-sm hover:bg-blue-800">
+                  Create Student Account
+                </Link>
+              </section>
+
+              <section className="rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm">
+                <p className="text-sm font-black text-slate-950">Need to verify a certificate?</p>
+                <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">
+                  Public verification does not require login.
+                </p>
+                <Link href="/verify" className="mt-4 inline-flex w-full items-center justify-center rounded-lg border border-blue-200 px-4 py-2.5 text-sm font-black text-blue-700 hover:bg-blue-50">
+                  Verify Certificate
+                </Link>
+              </section>
+
+              <p className="text-center text-xs font-semibold leading-5 text-slate-500 md:col-span-2">
+                Admin, High Council, Club Advisor, and Club Committee accounts must be created by the system Admin.
               </p>
-              <Link href="/verify" className="inline-flex items-center justify-center rounded-lg border border-blue-200 px-5 py-2.5 text-sm font-bold text-blue-700 hover:bg-blue-50">
-                Verify Certificate
-              </Link>
             </div>
           </div>
         </section>
