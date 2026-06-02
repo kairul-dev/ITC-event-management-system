@@ -187,15 +187,6 @@ function LoginContent() {
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
-      <Link
-        href="/"
-        className="fixed left-4 top-4 z-20 inline-flex items-center gap-2 rounded-lg border border-white/25 bg-white/90 px-4 py-2 text-sm font-black text-slate-800 shadow-lg shadow-slate-950/10 backdrop-blur transition hover:bg-white sm:left-6 sm:top-6"
-      >
-        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19 8 12l7-7" />
-        </svg>
-        Back to Home
-      </Link>
       <div className="grid min-h-screen lg:grid-cols-[0.92fr_1.08fr]">
         <section className="relative isolate overflow-hidden bg-slate-950 px-6 py-8 text-white sm:px-10 lg:flex lg:flex-col lg:justify-between lg:rounded-r-[4rem] lg:px-12 xl:px-16">
           <div className="absolute inset-0 -z-20 bg-[linear-gradient(135deg,#020617_0%,#082f6f_48%,#0f172a_100%)]" />
@@ -257,6 +248,14 @@ function LoginContent() {
 
         <section className="flex items-center justify-center px-4 py-8 sm:px-8 lg:px-10 xl:px-16">
           <div className="w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl shadow-slate-950/10 sm:p-8 lg:p-12">
+            <Link
+              href="/"
+              className="group mb-8 inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition-colors duration-200 hover:text-blue-700"
+            >
+              <span className="transition-transform duration-200 group-hover:-translate-x-1">←</span>
+              <span>Back to Home</span>
+            </Link>
+
             <div className="text-center">
               <div className="mx-auto grid h-24 w-24 place-items-center rounded-full bg-blue-50 ring-8 ring-blue-50/70">
                 <div className="grid h-16 w-16 place-items-center rounded-full bg-blue-100 text-blue-700">
