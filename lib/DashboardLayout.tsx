@@ -40,8 +40,8 @@ export default function DashboardLayout({
 
   const isActive = (path: string) => {
     return pathname === path
-      ? "bg-indigo-700 text-white"
-      : "text-indigo-100 hover:bg-indigo-700 hover:text-white";
+      ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100"
+      : "text-slate-700 hover:bg-slate-100 hover:text-blue-700";
   };
 
   const handleLogout = async () => {
@@ -54,14 +54,14 @@ export default function DashboardLayout({
   };
 
   return (
-    <div className="min-h-screen flex bg-gray-50">
+    <div className="min-h-screen flex bg-slate-50">
       {/* Sidebar */}
-      <aside className="w-64 bg-indigo-900 text-white flex flex-col">
-        <div className="px-6 py-5 text-2xl font-bold border-b border-indigo-800">
+      <aside className="w-64 min-h-screen bg-white text-slate-950 flex flex-col border-r border-slate-200">
+        <div className="px-6 py-5 text-2xl font-bold border-b border-slate-200 bg-white">
           {title}
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-2">
+        <nav className="flex-1 px-4 py-6 space-y-2 bg-white">
           {navLinks.map((link) => (
             <Link
               key={link.href}
@@ -77,20 +77,20 @@ export default function DashboardLayout({
         </nav>
 
         {/* User Section */}
-        <div className="px-4 py-4 border-t border-indigo-800">
+        <div className="px-4 py-4 border-t border-slate-200 bg-white">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-indigo-700 flex items-center justify-center font-bold text-lg">
+            <div className="w-10 h-10 rounded-full bg-blue-700 text-white flex items-center justify-center font-bold text-lg">
               {user?.email?.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 text-sm">
-              <p className="font-semibold text-white">
+              <p className="font-semibold text-slate-950">
                 {user?.email || "User"}
               </p>
-              <p className="text-indigo-200">{userRole}</p>
+              <p className="text-slate-500">{userRole}</p>
             </div>
             <button
               onClick={handleLogout}
-              className="p-2 rounded-lg text-indigo-200 hover:bg-indigo-700 hover:text-white transition-colors"
+              className="p-2 rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
               title="Logout"
             >
               <svg
