@@ -3,9 +3,9 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { appendEventPosterMarker, getEventPoster, stripEventPosterMarker, UploadedEventPoster } from "@/lib/eventPoster";
-import { appendPaperworkFileMarker, formatFileSize, UploadedPaperworkFile } from "@/lib/paperworkFile";
+import { appendPaperworkFileMarker, formatFileSize, getPaperworkFile, UploadedPaperworkFile } from "@/lib/paperworkFile";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 type Event = {
   id: string;
@@ -77,8 +77,13 @@ const dateRangesOverlap = (
 
 function AdminEventContent() {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const mode = searchParams.get("mode");
   const isEventListMode = mode === "events" || mode === "edit";
+  const isAdminRoute = pathname.startsWith("/admin");
+  const eventRoute = isAdminRoute ? "/admin/event" : "/committee/event";
+  const approvalRoute = isAdminRoute ? "/admin/approval-status" : "/committee/approval-status";
+  const certificateRoute = isAdminRoute ? "/admin/certificates" : "/committee/certificates";
   const [title, setTitle] = useState("");
   const [organizedBy, setOrganizedBy] = useState("");
   const [purpose, setPurpose] = useState("");
@@ -123,6 +128,8 @@ function AdminEventContent() {
   const [updatingEvent, setUpdatingEvent] = useState(false);
   const [publishingEventId, setPublishingEventId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState("");
+  const [activeDetailsTab, setActiveDetailsTab] = useState("Overview");
 
   const loadEvents = useCallback(async () => {
     setLoading(true);
@@ -427,6 +434,11 @@ function AdminEventContent() {
   );
 
   const publicEventCount = events.filter((event) => event.status === STATUSES.published).length;
+  const selectedEvent =
+    events.find((event) => event.id === selectedEventId) ||
+    filteredEvents[0] ||
+    events[0] ||
+    null;
   const editingOriginalEvent = editingEvent
     ? events.find((event) => event.id === editingEvent.id)
     : null;
@@ -597,6 +609,96 @@ function AdminEventContent() {
 
   const statusLabel = (status: string) =>
     status === STATUSES.completed ? "Completed" : status;
+
+  const formatEventDate = (value?: string) => {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString("en-MY", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const formatEventTime = (value?: string) => {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleTimeString("en-MY", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const detailId = (event?: Event | null) =>
+    event ? `EVT-${event.created_at ? new Date(event.created_at).getFullYear() : "0000"}-${event.id.slice(0, 6).toUpperCase()}` : "EVT";
+
+  const categoryForEvent = (event?: Event | null) => {
+    const text = `${event?.title || ""} ${event?.purpose || ""}`.toLowerCase();
+    if (text.includes("workshop")) return "Workshop";
+    if (text.includes("talk") || text.includes("seminar")) return "Talk";
+    if (text.includes("competition") || text.includes("challenge")) return "Competition";
+    if (text.includes("training")) return "Training";
+    return "Program";
+  };
+
+  const reviewStage = (event?: Event | null) => {
+    if (!event) return "Draft";
+    if (event.status === STATUSES.approved || event.status === STATUSES.published) return "Approved";
+    if (event.status === STATUSES.rejected) return "Rejected";
+    if (event.status === STATUSES.pendingApproval) return "Pending High Council";
+    if (event.status === "Pending Club Advisor Approval") return "Pending Club Advisor";
+    if (event.status === STATUSES.completed || event.status === STATUSES.closed) return "Completed";
+    return event.status || "Draft";
+  };
+
+  const detailTabs = ["Overview", "Paperwork", "Timeline", "Participants", "Certificates", "Activity Log"];
+
+  const detailTimeline = (event?: Event | null) => [
+    {
+      label: "Draft Created",
+      detail: event ? `Created on ${formatEventDate(event.created_at)}` : "Waiting for paperwork",
+      state: event ? "done" : "pending",
+    },
+    {
+      label: "Submitted to High Council",
+      detail: event?.status === STATUSES.draft ? "Submit paperwork for review" : "Paperwork submitted",
+      state: event && event.status !== STATUSES.draft ? "done" : "pending",
+    },
+    {
+      label: "Reviewed by High Council",
+      detail: event?.status === STATUSES.rejected ? event.rejection_reason || "Changes requested" : "High Council review stage",
+      state:
+        event?.status === STATUSES.rejected
+          ? "rejected"
+          : event?.status === STATUSES.approved || event?.status === STATUSES.published || event?.status === STATUSES.completed || event?.status === STATUSES.closed
+            ? "done"
+            : event?.status === STATUSES.pendingApproval
+              ? "current"
+              : "pending",
+    },
+    {
+      label: "Reviewed by Club Advisor",
+      detail: "Final review before publishing",
+      state:
+        event?.status === STATUSES.approved || event?.status === STATUSES.published || event?.status === STATUSES.completed || event?.status === STATUSES.closed
+          ? "done"
+          : event?.status === "Pending Club Advisor Approval"
+            ? "current"
+            : "pending",
+    },
+    {
+      label: "Published",
+      detail: event?.status === STATUSES.published ? "Visible to students" : "Publish after approval",
+      state: event?.status === STATUSES.published || event?.status === STATUSES.completed || event?.status === STATUSES.closed ? "current" : "pending",
+    },
+    {
+      label: "Certificate Draft Generated",
+      detail: "Available after event completion",
+      state: event?.status === STATUSES.completed || event?.status === STATUSES.closed ? "current" : "pending",
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -891,7 +993,273 @@ function AdminEventContent() {
       </div>
       )}
 
-      <div id="event-details" className="ds-card scroll-mt-6 p-6">
+      <div id="event-details" className="scroll-mt-6 space-y-5">
+        {selectedEvent && (
+          <section className="space-y-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <Link href={`${eventRoute}?mode=events#event-details`} className="inline-flex items-center gap-2 text-sm font-bold text-blue-700 hover:text-blue-800">
+                  <span aria-hidden="true">-&lt;</span>
+                  Back to Event List
+                </Link>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <h2 className="text-2xl font-black tracking-tight text-slate-950">
+                    Event Details &gt; {selectedEvent.title}
+                  </h2>
+                  <span className={statusBadgeClass(selectedEvent.status)}>{statusLabel(selectedEvent.status)}</span>
+                </div>
+                <p className="mt-2 text-sm font-medium text-slate-500">
+                  Created on {formatEventDate(selectedEvent.created_at)}, {formatEventTime(selectedEvent.created_at)}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => startEditingEvent(selectedEvent)}
+                  className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-white px-4 py-2 text-sm font-bold text-blue-700 shadow-sm hover:bg-blue-50"
+                >
+                  <span aria-hidden="true">/</span>
+                  Edit Event
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50"
+                >
+                  <span aria-hidden="true">v</span>
+                  Download PDF
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50"
+                >
+                  More
+                  <span aria-hidden="true">...</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              {[
+                { label: "Event Date", value: formatEventDate(selectedEvent.start_date), detail: `${formatEventTime(selectedEvent.start_date)} - ${formatEventTime(selectedEvent.end_date)}`, tone: "bg-blue-100 text-blue-700" },
+                { label: "Venue", value: selectedEvent.location || "To be confirmed", detail: "Event location", tone: "bg-amber-100 text-amber-700" },
+                { label: "Category", value: categoryForEvent(selectedEvent), detail: "Program category", tone: "bg-orange-100 text-orange-700" },
+                { label: "Expected Participants", value: `${selectedEvent.max_students || 0}`, detail: "Students", tone: "bg-indigo-100 text-indigo-700" },
+                { label: "Current Status", value: statusLabel(selectedEvent.status), detail: reviewStage(selectedEvent), tone: "bg-emerald-100 text-emerald-700" },
+              ].map((card) => (
+                <section key={card.label} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex gap-3">
+                    <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-md ${card.tone}`}>
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h10M7 12h10M7 17h6" />
+                      </svg>
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-black uppercase tracking-wide text-slate-500">{card.label}</p>
+                      <p className="mt-1 truncate text-base font-black text-slate-950">{card.value}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">{card.detail}</p>
+                    </div>
+                  </div>
+                </section>
+              ))}
+            </div>
+
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+              <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+                <div className="flex gap-1 overflow-x-auto border-b border-slate-200 px-3 pt-3">
+                  {detailTabs.map((tab) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setActiveDetailsTab(tab)}
+                      className={`whitespace-nowrap border-b-2 px-3 py-3 text-sm font-black transition ${
+                        activeDetailsTab === tab
+                          ? "border-blue-600 text-blue-700"
+                          : "border-transparent text-slate-500 hover:text-slate-900"
+                      }`}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="p-4 sm:p-5">
+                  {activeDetailsTab === "Overview" ? (
+                    <div className="space-y-6">
+                      <section>
+                        <h3 className="text-sm font-black text-slate-950">Event Description</h3>
+                        <p className="mt-3 text-sm leading-7 text-slate-600">
+                          {selectedEvent.purpose || "No event description has been added yet."}
+                        </p>
+                      </section>
+
+                      <div className="grid gap-6 border-t border-slate-200 pt-5 lg:grid-cols-2">
+                        <section>
+                          <h3 className="text-sm font-black text-slate-950">Event Information</h3>
+                          <div className="mt-4 grid gap-3 text-sm">
+                            {[
+                              ["Event ID", detailId(selectedEvent)],
+                              ["Organizer", "ITC Club Committee"],
+                              ["Program", `${categoryForEvent(selectedEvent)} Series`],
+                              ["Mode", selectedEvent.location ? "Physical" : "To be confirmed"],
+                              ["Created Date", `${formatEventDate(selectedEvent.created_at)}, ${formatEventTime(selectedEvent.created_at)}`],
+                              ["Last Updated", `${formatEventDate(selectedEvent.created_at)}, ${formatEventTime(selectedEvent.created_at)}`],
+                            ].map(([label, value]) => (
+                              <div key={label} className="grid grid-cols-[130px_1fr] gap-3">
+                                <span className="font-semibold text-slate-500">{label}</span>
+                                <span className="font-bold text-slate-800">{value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </section>
+
+                        <section>
+                          <h3 className="text-sm font-black text-slate-950">Additional Information</h3>
+                          <div className="mt-4 grid gap-3 text-sm">
+                            {[
+                              ["Target Audience", "All ITC Students"],
+                              ["Dress Code", "Smart Casual"],
+                              ["Refreshments", "To be confirmed"],
+                              ["Transportation", "To be confirmed"],
+                              ["Contact Person", "ITC Club Committee"],
+                              ["Contact Email", "itcclub@example.edu.my"],
+                            ].map(([label, value]) => (
+                              <div key={label} className="grid grid-cols-[130px_1fr] gap-3">
+                                <span className="font-semibold text-slate-500">{label}</span>
+                                <span className="font-bold text-slate-800">{value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </section>
+                      </div>
+
+                      <div className="grid gap-6 border-t border-slate-200 pt-5 lg:grid-cols-2">
+                        <section>
+                          <h3 className="text-sm font-black text-slate-950">Event Objectives</h3>
+                          <div className="mt-4 space-y-3">
+                            {(stripEventPosterMarker(selectedEvent.objective).split(/\n+/).filter(Boolean).slice(0, 4).length
+                              ? stripEventPosterMarker(selectedEvent.objective).split(/\n+/).filter(Boolean).slice(0, 4)
+                              : ["Provide a structured learning experience for participants.", "Encourage student participation and technical development.", "Support ITC Club program outcomes."]
+                            ).map((item) => (
+                              <p key={item} className="flex gap-3 text-sm leading-6 text-slate-600">
+                                <span className="mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-100 text-xs font-black text-emerald-700">✓</span>
+                                {item}
+                              </p>
+                            ))}
+                          </div>
+                        </section>
+
+                        <section>
+                          <h3 className="text-sm font-black text-slate-950">Event Highlights</h3>
+                          <div className="mt-4 space-y-3">
+                            {["Structured event paperwork", "Approval workflow tracking", "Participant registration support", "Certificate draft preparation"].map((item) => (
+                              <p key={item} className="flex gap-3 text-sm leading-6 text-slate-600">
+                                <span className="mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-amber-100 text-xs font-black text-amber-700">*</span>
+                                {item}
+                              </p>
+                            ))}
+                          </div>
+                        </section>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+                      <p className="text-base font-black text-slate-950">{activeDetailsTab}</p>
+                      <p className="mt-2 text-sm font-medium text-slate-500">
+                        This tab summarizes the selected event while keeping the existing workflow routes unchanged.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <aside className="space-y-4">
+                <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-black text-slate-950">Approval Progress</h3>
+                    <span className="rounded-md bg-violet-100 px-2.5 py-1 text-xs font-black text-violet-700">{detailId(selectedEvent)}</span>
+                  </div>
+                  <div className="space-y-1">
+                    {detailTimeline(selectedEvent).map((step, index, items) => (
+                      <div key={step.label} className="relative flex gap-3 pb-4 last:pb-0">
+                        {index < items.length - 1 && (
+                          <span className={`absolute left-3.5 top-8 h-[calc(100%-1rem)] border-l ${step.state === "done" ? "border-emerald-300" : "border-slate-200"}`} />
+                        )}
+                        <span className={`z-10 grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-black ring-4 ring-white ${
+                          step.state === "done"
+                            ? "bg-emerald-500 text-white"
+                            : step.state === "current"
+                              ? "bg-blue-600 text-white"
+                              : step.state === "rejected"
+                                ? "bg-red-100 text-red-700"
+                                : "bg-slate-100 text-slate-500"
+                        }`}>
+                          {step.state === "done" ? "✓" : index + 1}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-black text-slate-950">{step.label}</p>
+                          <p className="mt-1 text-xs leading-5 text-slate-500">{step.detail}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h3 className="text-sm font-black text-slate-950">Participants Summary</h3>
+                    <Link href={`${eventRoute}?mode=events#event-details`} className="text-xs font-black text-blue-700 hover:text-blue-800">View Participants</Link>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    <div className="rounded-md bg-blue-50 p-3">
+                      <p className="text-lg font-black text-slate-950">0</p>
+                      <p className="text-[11px] font-bold text-slate-500">Registered</p>
+                    </div>
+                    <div className="rounded-md bg-emerald-50 p-3">
+                      <p className="text-lg font-black text-slate-950">0</p>
+                      <p className="text-[11px] font-bold text-slate-500">Checked In</p>
+                    </div>
+                    <div className="rounded-md bg-amber-50 p-3">
+                      <p className="text-lg font-black text-slate-950">{selectedEvent.max_students || 0}</p>
+                      <p className="text-[11px] font-bold text-slate-500">Capacity</p>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h3 className="text-sm font-black text-slate-950">Attachments</h3>
+                    <span className="text-xs font-black text-slate-400">View All</span>
+                  </div>
+                  {getPaperworkFile(selectedEvent.objective) ? (
+                    <div className="rounded-md border border-slate-200 p-3 text-sm">
+                      <p className="font-black text-slate-950">{getPaperworkFile(selectedEvent.objective)?.name}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">
+                        {formatFileSize(getPaperworkFile(selectedEvent.objective)?.size || 0)}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="rounded-md border border-dashed border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-500">
+                      No paperwork attachment found.
+                    </p>
+                  )}
+                </section>
+
+                <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                  <h3 className="text-sm font-black text-slate-950">Quick Actions</h3>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                    <button type="button" onClick={() => startEditingEvent(selectedEvent)} className="rounded-md border border-blue-200 px-3 py-2 text-sm font-black text-blue-700 hover:bg-blue-50">Edit Event</button>
+                    <Link href={`${eventRoute}?mode=paperwork`} className="rounded-md border border-blue-200 px-3 py-2 text-center text-sm font-black text-blue-700 hover:bg-blue-50">Upload Document</Link>
+                    <Link href={`${approvalRoute}?eventId=${selectedEvent.id}`} className="rounded-md border border-blue-200 px-3 py-2 text-center text-sm font-black text-blue-700 hover:bg-blue-50">View Approval Status</Link>
+                    <Link href={certificateRoute} className="rounded-md border border-blue-200 px-3 py-2 text-center text-sm font-black text-blue-700 hover:bg-blue-50">Generate Certificate Draft</Link>
+                  </div>
+                </section>
+              </aside>
+            </div>
+          </section>
+        )}
+
+        <div className="ds-card p-6">
         <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h2 className="text-xl font-semibold text-slate-900">All Events</h2>
@@ -1233,13 +1601,22 @@ function AdminEventContent() {
                     <td className="px-4 py-2 text-sm">
                       <div className="flex gap-2">
                         <button
-                          onClick={() => startEditingEvent(event)}
+                          onClick={() => {
+                            setSelectedEventId(event.id);
+                            startEditingEvent(event);
+                          }}
                           className="px-2 py-1 bg-slate-800 text-white rounded hover:bg-slate-900"
                         >
                           Edit
                         </button>
+                        <button
+                          onClick={() => setSelectedEventId(event.id)}
+                          className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                          View
+                        </button>
                         <Link
-                          href={`/committee/approval-status?eventId=${event.id}`}
+                          href={`${approvalRoute}?eventId=${event.id}`}
                           className="px-2 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700"
                         >
                           Report
@@ -1291,6 +1668,7 @@ function AdminEventContent() {
             </table>
           </div>
         )}
+        </div>
       </div>
     </div>
   );
