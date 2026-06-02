@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import AdminEventPage from "../../admin/event/page";
 
@@ -87,6 +88,7 @@ function StatCard({ label, value, tone }: { label: string; value: number; tone: 
 }
 
 export default function CommitteeEventPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const mode = searchParams.get("mode");
   const [events, setEvents] = useState<EventRow[]>([]);
@@ -94,6 +96,7 @@ export default function CommitteeEventPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [openingEventId, setOpeningEventId] = useState<string | null>(null);
 
   useEffect(() => {
     if (mode !== "events") return;
@@ -218,8 +221,22 @@ export default function CommitteeEventPage() {
     await reloadEvents();
   };
 
+  const openEventDetails = (eventId: string) => {
+    if (openingEventId) return;
+    setOpeningEventId(eventId);
+    window.setTimeout(() => {
+      router.push(`/club-committee/events/${eventId}`);
+    }, 180);
+  };
+
   return (
-    <div className="space-y-6">
+    <motion.div
+      className={`space-y-6 transition-opacity duration-200 ${openingEventId ? "opacity-75" : "opacity-100"}`}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.24, ease: "easeOut" }}
+    >
       <div>
         <h1 className="text-3xl font-black tracking-tight text-slate-950">Event Details</h1>
         <p className="mt-2 text-sm font-medium text-slate-500">
@@ -323,7 +340,12 @@ export default function CommitteeEventPage() {
                     const progress = max > 0 ? Math.min(100, Math.round((registered / max) * 100)) : 0;
                     const status = normalizeStatus(event.status);
                     return (
-                      <tr key={event.id} className="hover:bg-slate-50">
+                      <tr
+                        key={event.id}
+                        className={`transition-all duration-200 hover:bg-slate-50 ${
+                          openingEventId === event.id ? "bg-blue-50 shadow-[inset_3px_0_0_#2563eb]" : ""
+                        }`}
+                      >
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
                             <span className="grid h-11 w-11 place-items-center rounded-md bg-blue-50 text-blue-700">
@@ -361,9 +383,17 @@ export default function CommitteeEventPage() {
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-2">
-                            <Link href={`/club-committee/events/${event.id}`} className="rounded-md border border-blue-200 px-3 py-2 text-xs font-black text-blue-700 hover:bg-blue-50">
-                              View Details
-                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => openEventDetails(event.id)}
+                              disabled={Boolean(openingEventId)}
+                              className="inline-flex min-w-24 items-center justify-center gap-2 rounded-md border border-blue-200 px-3 py-2 text-xs font-black text-blue-700 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-70"
+                            >
+                              {openingEventId === event.id && (
+                                <span className="h-3 w-3 animate-spin rounded-full border-2 border-blue-200 border-t-blue-700" />
+                              )}
+                              {openingEventId === event.id ? "Opening..." : "View Details"}
+                            </button>
                             <details className="relative">
                               <summary className="list-none rounded-md border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 hover:bg-slate-50">More</summary>
                               <div className="absolute right-0 z-10 mt-2 w-44 rounded-lg border border-slate-200 bg-white p-2 shadow-xl">
@@ -388,7 +418,12 @@ export default function CommitteeEventPage() {
               {filteredEvents.map((event) => {
                 const status = normalizeStatus(event.status);
                 return (
-                  <article key={event.id} className="rounded-lg border border-slate-200 p-4">
+                  <article
+                    key={event.id}
+                    className={`rounded-lg border border-slate-200 p-4 transition-all duration-200 ${
+                      openingEventId === event.id ? "border-blue-200 bg-blue-50 shadow-sm" : ""
+                    }`}
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="font-black text-slate-950">{event.title}</p>
@@ -401,9 +436,17 @@ export default function CommitteeEventPage() {
                       <p>Venue: {event.location || "Not provided"}</p>
                       <p>Participants: {registrations[event.id] || 0} / {event.max_students || 0}</p>
                     </div>
-                    <Link href={`/club-committee/events/${event.id}`} className="mt-4 inline-flex rounded-md border border-blue-200 px-3 py-2 text-xs font-black text-blue-700">
-                      View Details
-                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => openEventDetails(event.id)}
+                      disabled={Boolean(openingEventId)}
+                      className="mt-4 inline-flex items-center gap-2 rounded-md border border-blue-200 px-3 py-2 text-xs font-black text-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {openingEventId === event.id && (
+                        <span className="h-3 w-3 animate-spin rounded-full border-2 border-blue-200 border-t-blue-700" />
+                      )}
+                      {openingEventId === event.id ? "Opening..." : "View Details"}
+                    </button>
                   </article>
                 );
               })}
@@ -423,6 +466,6 @@ export default function CommitteeEventPage() {
           View User Guide
         </Link>
       </section>
-    </div>
+    </motion.div>
   );
 }
