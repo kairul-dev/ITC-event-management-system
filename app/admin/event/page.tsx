@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { appendEventPosterMarker, getEventPoster, stripEventPosterMarker, UploadedEventPoster } from "@/lib/eventPoster";
-import { appendPaperworkFileMarker, formatFileSize, getPaperworkFile, UploadedPaperworkFile } from "@/lib/paperworkFile";
+import { appendPaperworkFileMarker, formatFileSize, getPaperworkFile, stripPaperworkFileMarker, UploadedPaperworkFile } from "@/lib/paperworkFile";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
@@ -21,6 +21,46 @@ type Event = {
   purpose?: string;
   objective?: string;
   rejection_reason?: string;
+  created_by?: string | null;
+  approved_by?: string | null;
+};
+
+type ApprovalHistoryRow = {
+  id: string;
+  entity_type?: string | null;
+  entity_id?: string | null;
+  action?: string | null;
+  actor_id?: string | null;
+  actor_role?: string | null;
+  from_status?: string | null;
+  to_status?: string | null;
+  comments?: string | null;
+  created_at?: string | null;
+};
+
+type RegistrationRow = {
+  id: string;
+  event_id?: string | null;
+  user_id?: string | null;
+  payment_status?: string | null;
+  status?: string | null;
+  created_at?: string | null;
+  checked_in_at?: string | null;
+};
+
+type CertificateRow = {
+  id: string;
+  event_id?: string | null;
+  status?: string | null;
+  certificate_no?: string | null;
+  issued_at?: string | null;
+};
+
+type UserLookup = {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  role?: string | null;
 };
 
 type EditableEvent = {
@@ -128,22 +168,110 @@ function AdminEventContent() {
   const [updatingEvent, setUpdatingEvent] = useState(false);
   const [publishingEventId, setPublishingEventId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState("");
+  const [selectedDraftId, setSelectedDraftId] = useState("");
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [selectedEventLoading, setSelectedEventLoading] = useState(false);
+  const [approvalHistory, setApprovalHistory] = useState<ApprovalHistoryRow[]>([]);
+  const [registrations, setRegistrations] = useState<RegistrationRow[]>([]);
+  const [relatedCertificates, setRelatedCertificates] = useState<CertificateRow[]>([]);
+  const [usersById, setUsersById] = useState<Record<string, UserLookup>>({});
   const [activeDetailsTab, setActiveDetailsTab] = useState("Overview");
 
   const loadEvents = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    let eventQuery = supabase
       .from("events")
       .select("*")
       .order("created_at", { ascending: false });
+
+    if (!isAdminRoute && user?.id) {
+      eventQuery = eventQuery.eq("created_by", user.id);
+    }
+
+    const { data, error } = await eventQuery;
 
     if (!error && data) {
       setEvents(data as Event[]);
     }
 
     setLoading(false);
-  }, []);
+  }, [isAdminRoute]);
+
+  const loadSelectedEvent = useCallback(
+    async (eventId: string) => {
+      if (!eventId) return;
+
+      setSelectedEventLoading(true);
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        let eventQuery = supabase.from("events").select("*").eq("id", eventId);
+        if (!isAdminRoute && user?.id) {
+          eventQuery = eventQuery.eq("created_by", user.id);
+        }
+
+        const { data: eventData, error: eventError } = await eventQuery.maybeSingle();
+        if (eventError || !eventData) {
+          setSelectedEvent(null);
+          setApprovalHistory([]);
+          setRegistrations([]);
+          setRelatedCertificates([]);
+          setUsersById({});
+          return;
+        }
+
+        const eventRecord = eventData as Event;
+        setSelectedEvent(eventRecord);
+        setSelectedDraftId(eventRecord.id);
+        setActiveDetailsTab("Overview");
+
+        const [historyResult, registrationResult, certificateResult] = await Promise.all([
+          supabase
+            .from("approval_history")
+            .select("id,entity_type,entity_id,action,actor_id,actor_role,from_status,to_status,comments,created_at")
+            .eq("entity_type", "event")
+            .eq("entity_id", eventId)
+            .order("created_at", { ascending: false }),
+          supabase.from("event_registrations").select("*").eq("event_id", eventId),
+          supabase.from("certificates").select("*").eq("event_id", eventId),
+        ]);
+
+        const historyRows = (historyResult.data || []) as ApprovalHistoryRow[];
+        const registrationRows = (registrationResult.data || []) as RegistrationRow[];
+        const certificateRows = (certificateResult.data || []) as CertificateRow[];
+        const userIds = new Set<string>();
+
+        if (eventRecord.created_by) userIds.add(eventRecord.created_by);
+        if (eventRecord.approved_by) userIds.add(eventRecord.approved_by);
+        historyRows.forEach((item) => {
+          if (item.actor_id) userIds.add(item.actor_id);
+        });
+
+        let userMap: Record<string, UserLookup> = {};
+        if (userIds.size > 0) {
+          const { data: users } = await supabase
+            .from("users")
+            .select("id,name,email,role")
+            .in("id", Array.from(userIds));
+          userMap = Object.fromEntries(((users || []) as UserLookup[]).map((item) => [item.id, item]));
+        }
+
+        setApprovalHistory(historyRows);
+        setRegistrations(registrationRows);
+        setRelatedCertificates(certificateRows);
+        setUsersById(userMap);
+      } finally {
+        setSelectedEventLoading(false);
+      }
+    },
+    [isAdminRoute],
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -152,6 +280,13 @@ function AdminEventContent() {
 
     return () => window.clearTimeout(timer);
   }, [loadEvents]);
+
+  useEffect(() => {
+    const eventId = searchParams.get("eventId");
+    if (!eventId) return;
+    setSelectedDraftId(eventId);
+    void loadSelectedEvent(eventId);
+  }, [loadSelectedEvent, searchParams]);
 
   const formatPaperworkDate = (value: string) => {
     if (!value) return "-";
@@ -434,11 +569,6 @@ function AdminEventContent() {
   );
 
   const publicEventCount = events.filter((event) => event.status === STATUSES.published).length;
-  const selectedEvent =
-    events.find((event) => event.id === selectedEventId) ||
-    filteredEvents[0] ||
-    events[0] ||
-    null;
   const editingOriginalEvent = editingEvent
     ? events.find((event) => event.id === editingEvent.id)
     : null;
@@ -610,7 +740,7 @@ function AdminEventContent() {
   const statusLabel = (status: string) =>
     status === STATUSES.completed ? "Completed" : status;
 
-  const formatEventDate = (value?: string) => {
+  const formatEventDate = (value?: string | null) => {
     if (!value) return "-";
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
@@ -621,7 +751,7 @@ function AdminEventContent() {
     });
   };
 
-  const formatEventTime = (value?: string) => {
+  const formatEventTime = (value?: string | null) => {
     if (!value) return "-";
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "-";
@@ -663,12 +793,19 @@ function AdminEventContent() {
     },
     {
       label: "Submitted to High Council",
-      detail: event?.status === STATUSES.draft ? "Submit paperwork for review" : "Paperwork submitted",
+      detail:
+        approvalHistory.find((item) => item.action === "submitted" || item.action === "resubmitted")?.created_at
+          ? `Submitted on ${formatEventDate(approvalHistory.find((item) => item.action === "submitted" || item.action === "resubmitted")?.created_at)}`
+          : event?.status === STATUSES.draft
+            ? "Submit paperwork for review"
+            : "Paperwork submitted",
       state: event && event.status !== STATUSES.draft ? "done" : "pending",
     },
     {
       label: "Reviewed by High Council",
-      detail: event?.status === STATUSES.rejected ? event.rejection_reason || "Changes requested" : "High Council review stage",
+      detail:
+        approvalHistory.find((item) => item.actor_role === "high_council")?.comments ||
+        (event?.status === STATUSES.rejected ? event.rejection_reason || "Changes requested" : "High Council review stage"),
       state:
         event?.status === STATUSES.rejected
           ? "rejected"
@@ -680,7 +817,7 @@ function AdminEventContent() {
     },
     {
       label: "Reviewed by Club Advisor",
-      detail: "Final review before publishing",
+      detail: approvalHistory.find((item) => item.actor_role === "club_advisor")?.comments || "Final review before publishing",
       state:
         event?.status === STATUSES.approved || event?.status === STATUSES.published || event?.status === STATUSES.completed || event?.status === STATUSES.closed
           ? "done"
@@ -695,20 +832,43 @@ function AdminEventContent() {
     },
     {
       label: "Certificate Draft Generated",
-      detail: "Available after event completion",
-      state: event?.status === STATUSES.completed || event?.status === STATUSES.closed ? "current" : "pending",
+      detail: relatedCertificates.length > 0 ? `${relatedCertificates.length} certificate draft record${relatedCertificates.length === 1 ? "" : "s"}` : "Available after event completion",
+      state: relatedCertificates.length > 0 || event?.status === STATUSES.completed || event?.status === STATUSES.closed ? "current" : "pending",
     },
   ];
+
+  const selectorEvents = useMemo(() => {
+    const needle = searchQuery.trim().toLowerCase();
+    return events.filter((event) => {
+      const id = detailId(event).toLowerCase();
+      return !needle || event.title.toLowerCase().includes(needle) || id.includes(needle) || event.id.toLowerCase().includes(needle);
+    });
+  }, [events, searchQuery]);
+
+  const recentEvents = events.slice(0, 4);
+  const selectedPaperworkFile = getPaperworkFile(selectedEvent?.objective);
+  const selectedObjectiveText = stripPaperworkFileMarker(stripEventPosterMarker(selectedEvent?.objective));
+  const createdBy = selectedEvent?.created_by ? usersById[selectedEvent.created_by] : null;
+  const createdByLabel = createdBy?.name || createdBy?.email || "Not provided";
+  const checkedInCount = registrations.filter((registration) => registration.checked_in_at || registration.status === "checked_in").length;
+  const registeredCount = registrations.length;
+  const notAttendedCount = Math.max(registeredCount - checkedInCount, 0);
+  const attendanceRate = registeredCount > 0 ? Math.round((checkedInCount / registeredCount) * 100) : 0;
+  const canEditSelected = selectedEvent?.status === STATUSES.draft || selectedEvent?.status === STATUSES.rejected;
+  const canGenerateCertificate =
+    selectedEvent?.status === STATUSES.published ||
+    selectedEvent?.status === STATUSES.completed ||
+    selectedEvent?.status === STATUSES.closed;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-slate-900">
-          {isEventListMode ? "Events" : "Paperwork"}
+          {isEventListMode ? "Event Details" : "Paperwork"}
         </h1>
         <p className="text-sm text-slate-600">
           {isEventListMode
-            ? "Update existing event details shown across the public event pages."
+            ? "Search, select, and view the full details of events managed by Club Committee."
             : "Upload the completed paperwork file and send it through the approval flow."}
         </p>
       </div>
@@ -994,6 +1154,105 @@ function AdminEventContent() {
       )}
 
       <div id="event-details" className="scroll-mt-6 space-y-5">
+        <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_520px]">
+            <div>
+              <div className="mb-4">
+                <h2 className="text-xl font-black text-slate-950">Select an Event</h2>
+                <p className="mt-1 text-sm font-medium text-slate-500">Search and select an event to view its details.</p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(220px,320px)_auto]">
+                <input
+                  type="text"
+                  placeholder="Search event title or ID"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  className="rounded-md border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+                <select
+                  value={selectedDraftId}
+                  onChange={(event) => setSelectedDraftId(event.target.value)}
+                  className="rounded-md border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value="">Select Event</option>
+                  {selectorEvents.map((event) => (
+                    <option key={event.id} value={event.id}>
+                      {event.title} ({detailId(event)})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={!selectedDraftId || selectedEventLoading}
+                  onClick={() => void loadSelectedEvent(selectedDraftId)}
+                  className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 px-5 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                >
+                  {selectedEventLoading ? "Loading..." : "Load Event"}
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h3 className="text-sm font-black text-slate-950">Recent Events</h3>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="rounded-md border border-blue-100 bg-white px-3 py-1.5 text-xs font-black text-blue-700 hover:bg-blue-50"
+                >
+                  View All
+                </button>
+              </div>
+              {recentEvents.length === 0 ? (
+                <p className="rounded-md border border-dashed border-slate-200 bg-white p-4 text-sm font-semibold text-slate-500">
+                  No recent events found.
+                </p>
+              ) : (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {recentEvents.map((event) => (
+                    <button
+                      key={event.id}
+                      type="button"
+                      onClick={() => void loadSelectedEvent(event.id)}
+                      className={`rounded-md border bg-white p-3 text-left transition hover:border-blue-300 hover:bg-blue-50 ${
+                        selectedEvent?.id === event.id ? "border-blue-500 ring-2 ring-blue-100" : "border-slate-200"
+                      }`}
+                    >
+                      <div className="flex gap-3">
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-blue-50 text-blue-700">
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 3v4m8-4v4M4 9h16M5 5h14a1 1 0 0 1 1 1v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a1 1 0 0 1 1-1Z" />
+                          </svg>
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-black text-slate-950">{event.title}</span>
+                          <span className="mt-1 block text-xs font-semibold text-slate-500">{formatEventDate(event.start_date)}</span>
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {!selectedEvent && (
+          <section className="grid min-h-72 place-items-center rounded-lg border border-dashed border-slate-200 bg-white p-8 text-center shadow-sm">
+            <div>
+              <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-blue-50 text-blue-700">
+                <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h10M7 12h10M7 17h6M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+                </svg>
+              </div>
+              <h2 className="mt-4 text-lg font-black text-slate-950">Select an event to view its details.</h2>
+              <p className="mt-2 text-sm font-medium text-slate-500">
+                Use the search, dropdown, or recent event cards to load a full event profile.
+              </p>
+            </div>
+          </section>
+        )}
+
         {selectedEvent && (
           <section className="space-y-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -1009,18 +1268,20 @@ function AdminEventContent() {
                   <span className={statusBadgeClass(selectedEvent.status)}>{statusLabel(selectedEvent.status)}</span>
                 </div>
                 <p className="mt-2 text-sm font-medium text-slate-500">
-                  Created on {formatEventDate(selectedEvent.created_at)}, {formatEventTime(selectedEvent.created_at)}
+                  Created on {formatEventDate(selectedEvent.created_at)}, {formatEventTime(selectedEvent.created_at)} by {createdByLabel}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => startEditingEvent(selectedEvent)}
-                  className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-white px-4 py-2 text-sm font-bold text-blue-700 shadow-sm hover:bg-blue-50"
-                >
-                  <span aria-hidden="true">/</span>
-                  Edit Event
-                </button>
+                {canEditSelected && (
+                  <button
+                    type="button"
+                    onClick={() => startEditingEvent(selectedEvent)}
+                    className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-white px-4 py-2 text-sm font-bold text-blue-700 shadow-sm hover:bg-blue-50"
+                  >
+                    <span aria-hidden="true">/</span>
+                    Edit Event
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => window.print()}
@@ -1039,13 +1300,14 @@ function AdminEventContent() {
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
               {[
                 { label: "Event Date", value: formatEventDate(selectedEvent.start_date), detail: `${formatEventTime(selectedEvent.start_date)} - ${formatEventTime(selectedEvent.end_date)}`, tone: "bg-blue-100 text-blue-700" },
                 { label: "Venue", value: selectedEvent.location || "To be confirmed", detail: "Event location", tone: "bg-amber-100 text-amber-700" },
                 { label: "Category", value: categoryForEvent(selectedEvent), detail: "Program category", tone: "bg-orange-100 text-orange-700" },
                 { label: "Expected Participants", value: `${selectedEvent.max_students || 0}`, detail: "Students", tone: "bg-indigo-100 text-indigo-700" },
                 { label: "Current Status", value: statusLabel(selectedEvent.status), detail: reviewStage(selectedEvent), tone: "bg-emerald-100 text-emerald-700" },
+                { label: "Paperwork ID", value: detailId(selectedEvent), detail: selectedPaperworkFile ? "Document uploaded" : "Not provided", tone: "bg-violet-100 text-violet-700" },
               ].map((card) => (
                 <section key={card.label} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                   <div className="flex gap-3">
@@ -1099,11 +1361,18 @@ function AdminEventContent() {
                           <div className="mt-4 grid gap-3 text-sm">
                             {[
                               ["Event ID", detailId(selectedEvent)],
-                              ["Organizer", "ITC Club Committee"],
-                              ["Program", `${categoryForEvent(selectedEvent)} Series`],
-                              ["Mode", selectedEvent.location ? "Physical" : "To be confirmed"],
+                              ["Organizer", createdByLabel],
+                              ["Program", categoryForEvent(selectedEvent) || "Not provided"],
+                              ["Mode", selectedEvent.location ? "Physical" : "Not provided"],
+                              ["Language", "Not provided"],
+                              ["Created By", createdByLabel],
                               ["Created Date", `${formatEventDate(selectedEvent.created_at)}, ${formatEventTime(selectedEvent.created_at)}`],
-                              ["Last Updated", `${formatEventDate(selectedEvent.created_at)}, ${formatEventTime(selectedEvent.created_at)}`],
+                              [
+                                "Last Updated",
+                                approvalHistory[0]?.created_at
+                                  ? `${formatEventDate(approvalHistory[0].created_at)}, ${formatEventTime(approvalHistory[0].created_at)}`
+                                  : `${formatEventDate(selectedEvent.created_at)}, ${formatEventTime(selectedEvent.created_at)}`,
+                              ],
                             ].map(([label, value]) => (
                               <div key={label} className="grid grid-cols-[130px_1fr] gap-3">
                                 <span className="font-semibold text-slate-500">{label}</span>
@@ -1117,12 +1386,13 @@ function AdminEventContent() {
                           <h3 className="text-sm font-black text-slate-950">Additional Information</h3>
                           <div className="mt-4 grid gap-3 text-sm">
                             {[
-                              ["Target Audience", "All ITC Students"],
-                              ["Dress Code", "Smart Casual"],
-                              ["Refreshments", "To be confirmed"],
-                              ["Transportation", "To be confirmed"],
-                              ["Contact Person", "ITC Club Committee"],
-                              ["Contact Email", "itcclub@example.edu.my"],
+                              ["Target Audience", "Not provided"],
+                              ["Dress Code", "Not provided"],
+                              ["Refreshments", "Not provided"],
+                              ["Transportation", "Not provided"],
+                              ["Contact Person", createdByLabel],
+                              ["Contact Email", createdBy?.email || "Not provided"],
+                              ["Contact Phone", "Not provided"],
                             ].map(([label, value]) => (
                               <div key={label} className="grid grid-cols-[130px_1fr] gap-3">
                                 <span className="font-semibold text-slate-500">{label}</span>
@@ -1137,12 +1407,12 @@ function AdminEventContent() {
                         <section>
                           <h3 className="text-sm font-black text-slate-950">Event Objectives</h3>
                           <div className="mt-4 space-y-3">
-                            {(stripEventPosterMarker(selectedEvent.objective).split(/\n+/).filter(Boolean).slice(0, 4).length
-                              ? stripEventPosterMarker(selectedEvent.objective).split(/\n+/).filter(Boolean).slice(0, 4)
-                              : ["Provide a structured learning experience for participants.", "Encourage student participation and technical development.", "Support ITC Club program outcomes."]
+                            {(selectedObjectiveText.split(/\n+/).filter(Boolean).slice(0, 4).length
+                              ? selectedObjectiveText.split(/\n+/).filter(Boolean).slice(0, 4)
+                              : ["Not provided"]
                             ).map((item) => (
                               <p key={item} className="flex gap-3 text-sm leading-6 text-slate-600">
-                                <span className="mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-100 text-xs font-black text-emerald-700">✓</span>
+                                <span className="mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-100 text-[10px] font-black text-emerald-700">OK</span>
                                 {item}
                               </p>
                             ))}
@@ -1152,7 +1422,12 @@ function AdminEventContent() {
                         <section>
                           <h3 className="text-sm font-black text-slate-950">Event Highlights</h3>
                           <div className="mt-4 space-y-3">
-                            {["Structured event paperwork", "Approval workflow tracking", "Participant registration support", "Certificate draft preparation"].map((item) => (
+                            {[
+                              selectedPaperworkFile ? "Uploaded paperwork available" : "Paperwork attachment not provided",
+                              `${registeredCount} registered participant${registeredCount === 1 ? "" : "s"}`,
+                              `${relatedCertificates.length} certificate draft${relatedCertificates.length === 1 ? "" : "s"}`,
+                              reviewStage(selectedEvent),
+                            ].map((item) => (
                               <p key={item} className="flex gap-3 text-sm leading-6 text-slate-600">
                                 <span className="mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-amber-100 text-xs font-black text-amber-700">*</span>
                                 {item}
@@ -1194,7 +1469,7 @@ function AdminEventContent() {
                                 ? "bg-red-100 text-red-700"
                                 : "bg-slate-100 text-slate-500"
                         }`}>
-                          {step.state === "done" ? "✓" : index + 1}
+                          {step.state === "done" ? "OK" : index + 1}
                         </span>
                         <div className="min-w-0">
                           <p className="text-sm font-black text-slate-950">{step.label}</p>
@@ -1212,16 +1487,25 @@ function AdminEventContent() {
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-center">
                     <div className="rounded-md bg-blue-50 p-3">
-                      <p className="text-lg font-black text-slate-950">0</p>
+                      <p className="text-lg font-black text-slate-950">{registeredCount}</p>
                       <p className="text-[11px] font-bold text-slate-500">Registered</p>
                     </div>
                     <div className="rounded-md bg-emerald-50 p-3">
-                      <p className="text-lg font-black text-slate-950">0</p>
+                      <p className="text-lg font-black text-slate-950">{checkedInCount}</p>
                       <p className="text-[11px] font-bold text-slate-500">Checked In</p>
                     </div>
                     <div className="rounded-md bg-amber-50 p-3">
-                      <p className="text-lg font-black text-slate-950">{selectedEvent.max_students || 0}</p>
-                      <p className="text-[11px] font-bold text-slate-500">Capacity</p>
+                      <p className="text-lg font-black text-slate-950">{notAttendedCount}</p>
+                      <p className="text-[11px] font-bold text-slate-500">Not Attended</p>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <div className="mb-1 flex items-center justify-between text-xs font-black text-slate-600">
+                      <span>Attendance Rate</span>
+                      <span>{attendanceRate}%</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-full rounded-full bg-blue-600" style={{ width: `${attendanceRate}%` }} />
                     </div>
                   </div>
                 </section>
@@ -1231,12 +1515,17 @@ function AdminEventContent() {
                     <h3 className="text-sm font-black text-slate-950">Attachments</h3>
                     <span className="text-xs font-black text-slate-400">View All</span>
                   </div>
-                  {getPaperworkFile(selectedEvent.objective) ? (
-                    <div className="rounded-md border border-slate-200 p-3 text-sm">
-                      <p className="font-black text-slate-950">{getPaperworkFile(selectedEvent.objective)?.name}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">
-                        {formatFileSize(getPaperworkFile(selectedEvent.objective)?.size || 0)}
-                      </p>
+                  {selectedPaperworkFile ? (
+                    <div className="flex items-center justify-between gap-3 rounded-md border border-slate-200 p-3 text-sm">
+                      <div className="min-w-0">
+                        <p className="truncate font-black text-slate-950">{selectedPaperworkFile.name}</p>
+                        <p className="mt-1 text-xs font-semibold text-slate-500">
+                          {formatFileSize(selectedPaperworkFile.size)}
+                        </p>
+                      </div>
+                      <span className="shrink-0 rounded-md bg-slate-100 px-2 py-1 text-[10px] font-black uppercase text-slate-600">
+                        {selectedPaperworkFile.type?.split("/").pop() || "file"}
+                      </span>
                     </div>
                   ) : (
                     <p className="rounded-md border border-dashed border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-500">
@@ -1248,10 +1537,14 @@ function AdminEventContent() {
                 <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                   <h3 className="text-sm font-black text-slate-950">Quick Actions</h3>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-                    <button type="button" onClick={() => startEditingEvent(selectedEvent)} className="rounded-md border border-blue-200 px-3 py-2 text-sm font-black text-blue-700 hover:bg-blue-50">Edit Event</button>
+                    {canEditSelected && (
+                      <button type="button" onClick={() => startEditingEvent(selectedEvent)} className="rounded-md border border-blue-200 px-3 py-2 text-sm font-black text-blue-700 hover:bg-blue-50">Edit Event</button>
+                    )}
                     <Link href={`${eventRoute}?mode=paperwork`} className="rounded-md border border-blue-200 px-3 py-2 text-center text-sm font-black text-blue-700 hover:bg-blue-50">Upload Document</Link>
                     <Link href={`${approvalRoute}?eventId=${selectedEvent.id}`} className="rounded-md border border-blue-200 px-3 py-2 text-center text-sm font-black text-blue-700 hover:bg-blue-50">View Approval Status</Link>
-                    <Link href={certificateRoute} className="rounded-md border border-blue-200 px-3 py-2 text-center text-sm font-black text-blue-700 hover:bg-blue-50">Generate Certificate Draft</Link>
+                    {canGenerateCertificate && (
+                      <Link href={certificateRoute} className="rounded-md border border-blue-200 px-3 py-2 text-center text-sm font-black text-blue-700 hover:bg-blue-50">Generate Certificate Draft</Link>
+                    )}
                   </div>
                 </section>
               </aside>
@@ -1369,17 +1662,6 @@ function AdminEventContent() {
                   min="1"
                   value={editingEvent.max_students}
                   onChange={(e) => setEditingEvent({ ...editingEvent, max_students: e.target.value })}
-                  className="ds-input"
-                />
-              </div>
-              <div>
-                <label className="ds-label">Budget (RM)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={editingEvent.budget}
-                  onChange={(e) => setEditingEvent({ ...editingEvent, budget: e.target.value })}
                   className="ds-input"
                 />
               </div>
@@ -1602,7 +1884,6 @@ function AdminEventContent() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => {
-                            setSelectedEventId(event.id);
                             startEditingEvent(event);
                           }}
                           className="px-2 py-1 bg-slate-800 text-white rounded hover:bg-slate-900"
@@ -1610,7 +1891,7 @@ function AdminEventContent() {
                           Edit
                         </button>
                         <button
-                          onClick={() => setSelectedEventId(event.id)}
+                          onClick={() => void loadSelectedEvent(event.id)}
                           className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
                         >
                           View
