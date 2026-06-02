@@ -1,11 +1,77 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { supabase } from "../../lib/supabase";
-import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { supabase } from "../../lib/supabase";
 
 type AccessRole = "student" | "committee" | "high_council" | "club_advisor" | "admin";
+
+const roleCards: Array<{
+  role: AccessRole;
+  label: string;
+  icon: React.ReactNode;
+}> = [
+  {
+    role: "admin",
+    label: "Admin",
+    icon: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l7 3v5c0 4.2-2.7 7.8-7 9-4.3-1.2-7-4.8-7-9V6l7-3Zm0 6v4m0 3h.01" />
+    ),
+  },
+  {
+    role: "high_council",
+    label: "High Council",
+    icon: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 20h16M6 10h12M7 10v7m4-7v7m4-7v7m3-10H5l7-4 7 4Z" />
+    ),
+  },
+  {
+    role: "club_advisor",
+    label: "Club Advisor",
+    icon: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0m-4-4 2 2 4-4" />
+    ),
+  },
+  {
+    role: "committee",
+    label: "Club Committee",
+    icon: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1m14-10a4 4 0 1 0-8 0 4 4 0 0 0 8 0Zm4 10v-1a4 4 0 0 0-3-3.8M18 6.2a4 4 0 0 1 0 7.6" />
+    ),
+  },
+  {
+    role: "student",
+    label: "Student",
+    icon: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4 3 8l9 4 9-4-9-4Zm0 8v8m-5-5 5 3 5-3" />
+    ),
+  },
+];
+
+const featureHighlights = [
+  {
+    title: "Secure",
+    description: "Blockchain-powered security ensures data integrity.",
+    icon: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l7 3v5c0 4.2-2.7 7.8-7 9-4.3-1.2-7-4.8-7-9V6l7-3Zm-3 9 2 2 4-5" />
+    ),
+  },
+  {
+    title: "Reliable",
+    description: "Tamper-proof certificates users can trust.",
+    icon: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 4h8l3 3v17l-5-2-4 2-4-2-5 2V7l3-3Zm2 8h6m-6 4h4" />
+    ),
+  },
+  {
+    title: "Easy to Use",
+    description: "Simple and efficient system for every role.",
+    icon: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m13 2-8 12h7l-1 8 8-12h-7l1-8Z" />
+    ),
+  },
+];
 
 function LoginContent() {
   const searchParams = useSearchParams();
@@ -18,59 +84,45 @@ function LoginContent() {
   const roleParam = searchParams.get("role");
   const lockedRole: AccessRole | null =
     roleParam === "admin" ||
-        roleParam === "committee" ||
-        roleParam === "high_council" ||
-        roleParam === "club_advisor" ||
-        roleParam === "student"
+    roleParam === "committee" ||
+    roleParam === "high_council" ||
+    roleParam === "club_advisor" ||
+    roleParam === "student"
       ? roleParam
       : null;
-  const [selectedRole, setSelectedRole] = useState<AccessRole>("student");
+  const [selectedRole, setSelectedRole] = useState<AccessRole>("admin");
   const accessRole = lockedRole || selectedRole;
   const [matrixNumber, setMatrixNumber] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const usesMatrixLogin = true;
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    let loginEmail: string | null = null;
+    const response = await fetch("/api/auth/matrix-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        matrixNumber: matrixNumber.trim(),
+        role: accessRole,
+      }),
+    });
 
-    if (usesMatrixLogin) {
-      const response = await fetch("/api/auth/matrix-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          matrixNumber: matrixNumber.trim(),
-          role: accessRole,
-        }),
-      });
+    const result = (await response.json()) as {
+      email?: string;
+      error?: string;
+    };
 
-      const result = (await response.json()) as {
-        email?: string;
-        error?: string;
-      };
-
-      if (!response.ok || !result.email) {
-        alert(result.error || "Matrix number not found for this login role.");
-        setLoading(false);
-        return;
-      }
-
-      loginEmail = result.email;
-    }
-
-    if (!loginEmail) {
-      alert("Login account not found.");
+    if (!response.ok || !result.email) {
+      alert(result.error || "Username not found for this login role.");
       setLoading(false);
       return;
     }
 
     const { error } = await supabase.auth.signInWithPassword({
-      email: loginEmail,
+      email: result.email,
       password,
     });
 
@@ -123,7 +175,7 @@ function LoginContent() {
     if (role === "admin") {
       router.replace("/admin");
     } else if (role === "committee") {
-      router.replace("/committee");
+      router.replace("/club-committee");
     } else if (role === "high_council") {
       router.replace("/high-council");
     } else if (role === "club_advisor") {
@@ -133,260 +185,206 @@ function LoginContent() {
     }
   };
 
-  const roleCards: Array<{
-    role: AccessRole;
-    label: string;
-    description: string;
-  }> = [
-    {
-      role: "student",
-      label: "Student",
-      description: "Use matrix number login",
-    },
-    {
-      role: "committee",
-      label: "Club Committee",
-      description: "Create events and certificate drafts",
-    },
-    {
-      role: "high_council",
-      label: "High Council",
-      description: "Review event paperwork",
-    },
-    {
-      role: "club_advisor",
-      label: "Club Advisor",
-      description: "Review and approve submissions",
-    },
-    {
-      role: "admin",
-      label: "Admin",
-      description: "Use matrix number login",
-    },
-  ];
-
-  const headingRole =
-    accessRole === "committee"
-      ? "Club Committee"
-      : accessRole === "high_council"
-      ? "High Council"
-      : accessRole === "club_advisor"
-      ? "Club Advisor"
-      : accessRole.charAt(0).toUpperCase() + accessRole.slice(1);
-
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-b from-slate-50 via-white to-blue-50 px-4 py-8">
+    <main className="min-h-screen bg-slate-50 text-slate-950">
+      <div className="grid min-h-screen lg:grid-cols-[0.92fr_1.08fr]">
+        <section className="relative isolate overflow-hidden bg-slate-950 px-6 py-8 text-white sm:px-10 lg:flex lg:flex-col lg:justify-between lg:rounded-r-[4rem] lg:px-12 xl:px-16">
+          <div className="absolute inset-0 -z-20 bg-[linear-gradient(135deg,#020617_0%,#082f6f_48%,#0f172a_100%)]" />
+          <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_16%_20%,rgba(59,130,246,0.35),transparent_28%),radial-gradient(circle_at_70%_78%,rgba(37,99,235,0.28),transparent_35%)]" />
+          <svg className="absolute bottom-0 right-0 -z-10 h-80 w-full opacity-45" viewBox="0 0 640 320" fill="none" aria-hidden="true">
+            <path d="M12 285 120 224l96 42 118-126 88 56 126-142" stroke="#60a5fa" strokeWidth="1.5" />
+            <path d="M42 248 180 282l92-78 104 36 176-92" stroke="#38bdf8" strokeWidth="1" opacity=".65" />
+            {[12, 120, 216, 334, 422, 548, 42, 180, 272, 376, 552].map((x, index) => (
+              <circle key={`${x}-${index}`} cx={x} cy={index < 6 ? [285, 224, 266, 140, 196, 54][index] : [248, 282, 204, 240, 148][index - 6]} r={index % 3 === 0 ? 5 : 3} fill="#60a5fa" />
+            ))}
+          </svg>
 
-      <div className="w-full max-w-5xl mx-4 relative z-10 grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-        <div className="rounded-lg border border-slate-800 bg-slate-950 p-8 text-white shadow-2xl shadow-slate-950/20">
-          <div className="flex items-center justify-between gap-4">
-            <Link
-              href="/"
-              className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-300 transition hover:text-blue-200"
-            >
-              ITC FSKTM UTHM
-            </Link>
-            <Link
-              href="/"
-              className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-white transition hover:bg-white/10"
-            >
-              Back to home
-            </Link>
-          </div>
-          <h1 className="mt-5 text-4xl font-black leading-tight tracking-tight">
-            Sign in as {headingRole}.
-          </h1>
-          <p className="mt-4 text-sm leading-7 text-slate-300">
-            {accessRole === "student"
-              ? "Students use matrix number login. After signing in, registration uses your saved account details."
-              : accessRole === "committee"
-              ? "Club Committee users create events, upload participants, and submit certificate drafts for approval."
-              : accessRole === "high_council"
-              ? "High Council users review submitted event paperwork."
-              : accessRole === "club_advisor"
-              ? "Club advisors review submitted events and certificate drafts."
-              : "This role uses matrix number login and opens its own management workspace."}
-          </p>
-
-          {!lockedRole && (
-            <div className="mt-8 grid gap-3">
-              {roleCards.map((item) => (
-                <button
-                  key={item.role}
-                  type="button"
-                  onClick={() => {
-                    setSelectedRole(item.role);
-                    setMatrixNumber("");
-                    setPassword("");
-                  }}
-                  className={`rounded-2xl border px-4 py-3 text-left transition ${
-                    accessRole === item.role
-                      ? "border-blue-400 bg-white/10"
-                      : "border-white/10 bg-white/5 hover:bg-white/10"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-white">{item.label}</p>
-                      <p className="mt-1 text-sm text-slate-300">{item.description}</p>
-                    </div>
-                    <span className="rounded-full bg-blue-400/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-blue-200">
-                      {item.role}
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
-            {accessRole === "student"
-              ? "Create your student account once, then register future events with one confirmation."
-              : accessRole === "committee"
-              ? "Use your matrix number to open the operational event and certificate workspace."
-              : accessRole === "high_council"
-              ? "Use your matrix number to open the High Council review workspace."
-              : accessRole === "club_advisor"
-              ? "Use your matrix number to open the advisor approval workspace."
-              : "Staff access is separated from the student event browsing experience."}
-          </div>
-        </div>
-
-        <div className="w-full relative z-10">
-          <div className="space-y-6 rounded-lg border border-slate-200 bg-white/95 p-8 shadow-2xl shadow-slate-950/10 backdrop-blur">
-            <div className="text-center space-y-2">
-              <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-lg bg-gradient-to-br from-blue-700 to-slate-900 shadow-lg shadow-blue-700/20">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
+          <div>
+            <div className="flex items-center gap-4">
+              <div className="grid h-20 w-16 place-items-center rounded-t-lg rounded-b-3xl border border-blue-300/50 bg-blue-900/80 shadow-lg shadow-blue-950/30">
+                <div className="grid h-12 w-12 place-items-center rounded-full border border-white/30 bg-white/10 text-xl font-black text-white">
+                  ITC
+                </div>
               </div>
-              <h2 className="text-3xl font-bold text-slate-950">
-                {headingRole} Login
-              </h2>
-              <p className="text-slate-600">
-                {usesMatrixLogin
-                  ? "Enter your matrix number and password to continue"
-                  : "Enter your account details to continue"}
+              <div>
+                <p className="text-3xl font-black tracking-tight">ITC CLUB</p>
+                <p className="mt-1 text-sm font-semibold uppercase tracking-wide text-blue-100">
+                  Universiti Tun Hussein Onn Malaysia
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-14 max-w-xl lg:mt-20">
+              <h1 className="text-4xl font-black leading-tight tracking-tight sm:text-5xl">
+                ITC Secure Document Verification System
+              </h1>
+              <div className="mt-7 h-1 w-24 rounded-full bg-blue-500" />
+              <p className="mt-7 text-lg leading-8 text-blue-50">
+                A secure and trusted platform for managing, issuing, and verifying participation certificates using blockchain technology.
               </p>
             </div>
 
-            <form onSubmit={handleLogin} className="space-y-5">
-              {usesMatrixLogin ? (
-                <div className="space-y-2">
-                  <label htmlFor="matrixNumber" className="text-sm font-medium text-slate-700 block">
-                    Matrix Number
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v10a2 2 0 002 2h5m0 0h5a2 2 0 002-2v-10a2 2 0 00-2-2h-5m0 0V5a2 2 0 012-2h3.28a1 1 0 00.948-.684l1.498-4.493a1 1 0 00-.502-1.21l-.306-.102A1 1 0 0015 2.5v5z" />
-                      </svg>
-                    </div>
-                    <input
-                      id="matrixNumber"
-                      type="text"
-                      placeholder="e.g., A12345678"
-                      value={matrixNumber}
-                      onChange={(e) => setMatrixNumber(e.target.value.toUpperCase())}
-                      required
-                    className="w-full rounded-lg border border-slate-300 bg-white py-3 pl-10 pr-4 transition duration-200 hover:bg-slate-50 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+            <div className="mt-10 space-y-7">
+              {featureHighlights.map((feature) => (
+                <div key={feature.title} className="flex gap-5">
+                  <div className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-blue-500/20 text-blue-100 ring-1 ring-blue-300/20">
+                    <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      {feature.icon}
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black">{feature.title}</h2>
+                    <p className="mt-1 max-w-sm text-sm leading-6 text-blue-100">{feature.description}</p>
                   </div>
                 </div>
-              ) : null}
+              ))}
+            </div>
+          </div>
 
-              <div className="space-y-2">
-                <label htmlFor="password" className="text-sm font-medium text-slate-700 block">
+          <p className="mt-12 text-xs font-medium text-blue-100/80">
+            © 2026 ITC Club, UTHM. All rights reserved.
+          </p>
+        </section>
+
+        <section className="flex items-center justify-center px-4 py-8 sm:px-8 lg:px-10 xl:px-16">
+          <div className="w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl shadow-slate-950/10 sm:p-8 lg:p-12">
+            <div className="text-center">
+              <div className="mx-auto grid h-24 w-24 place-items-center rounded-full bg-blue-50 ring-8 ring-blue-50/70">
+                <div className="grid h-16 w-16 place-items-center rounded-full bg-blue-100 text-blue-700">
+                  <svg className="h-9 w-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 10V7a4 4 0 0 0-8 0v3m-2 0h12v10H6V10Zm6 5v2" />
+                  </svg>
+                </div>
+              </div>
+              <h2 className="mt-8 text-3xl font-black tracking-tight text-slate-950">Welcome Back!</h2>
+              <p className="mt-3 text-base font-medium text-slate-600">
+                Please sign in to your account to continue
+              </p>
+            </div>
+
+            <form onSubmit={handleLogin} className="mt-8 space-y-5">
+              <div>
+                <label htmlFor="matrixNumber" className="mb-2 block text-sm font-bold text-slate-900">
+                  Username
+                </label>
+                <div className="relative">
+                  <svg className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0" />
+                  </svg>
+                  <input
+                    id="matrixNumber"
+                    type="text"
+                    placeholder="Enter your username"
+                    value={matrixNumber}
+                    onChange={(e) => setMatrixNumber(e.target.value)}
+                    required
+                    className="h-14 w-full rounded-lg border border-slate-300 bg-white pl-12 pr-4 text-base text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="password" className="mb-2 block text-sm font-bold text-slate-900">
                   Password
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg className="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                  </div>
+                  <svg className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 10V7a4 4 0 0 0-8 0v3m-2 0h12v10H6V10Z" />
+                  </svg>
                   <input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
+                    placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="w-full rounded-lg border border-slate-300 bg-white py-3 pl-10 pr-12 transition duration-200 hover:bg-slate-50 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="h-14 w-full rounded-lg border border-slate-300 bg-white pl-12 pr-12 text-base text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 transition"
+                    onClick={() => setShowPassword((value) => !value)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-blue-700"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                   >
-                    {showPassword ? (
-                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                      </svg>
-                    ) : (
-                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    )}
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      {showPassword ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l18 18M10.6 10.6A3 3 0 0 0 14 14m3.5 3.5A10.5 10.5 0 0 1 12 19C5.5 19 2 12 2 12a18.6 18.6 0 0 1 4.1-5.2M9.9 4.2A10.8 10.8 0 0 1 12 4c6.5 0 10 8 10 8a18.7 18.7 0 0 1-2.1 3.2" />
+                      ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Zm10 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+                      )}
+                    </svg>
                   </button>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-sm">
-                <label className="flex items-center cursor-pointer group">
-                  <input type="checkbox" className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
-                  <span className="ml-2 text-slate-600 group-hover:text-slate-900 transition">Remember me</span>
+              <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                <label className="flex items-center gap-3 font-medium text-slate-700">
+                  <input type="checkbox" className="h-5 w-5 rounded border-slate-300 text-blue-700 focus:ring-blue-500" />
+                  Remember me
                 </label>
-                <a href="/forgot-password" className="font-medium text-blue-700 transition hover:text-blue-600">
+                <Link href="/forgot-password" className="font-semibold text-blue-700 hover:text-blue-800">
                   Forgot password?
-                </a>
+                </Link>
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-lg bg-blue-700 py-3.5 font-semibold text-white shadow-lg shadow-blue-700/20 transition duration-200 hover:-translate-y-0.5 hover:bg-blue-800 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-14 w-full items-center justify-center gap-3 rounded-lg bg-blue-700 text-base font-bold text-white shadow-lg shadow-blue-700/20 transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? (
-                  <span className="flex items-center justify-center">
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Signing in...
-                  </span>
-                ) : (
-                  `Login as ${headingRole}`
-                )}
+                {loading ? "Signing In..." : "Sign In"}
               </button>
             </form>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-300"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white text-slate-500">New to ITC Secure?</span>
-              </div>
-            </div>
+            {!lockedRole && (
+              <div className="mt-8">
+                <div className="flex items-center gap-4">
+                  <div className="h-px flex-1 bg-slate-200" />
+                  <p className="text-sm font-medium text-slate-500">or continue with</p>
+                  <div className="h-px flex-1 bg-slate-200" />
+                </div>
 
-            <div className="text-center">
-              <a
-                href={safeNextPath ? `/register?next=${encodeURIComponent(safeNextPath)}` : "/register"}
-                className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 px-4 py-3 font-medium text-slate-700 transition duration-200 hover:border-slate-400 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              >
-                Create new account
-              </a>
+                <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+                  {roleCards.map((item) => (
+                    <button
+                      key={item.role}
+                      type="button"
+                      onClick={() => {
+                        setSelectedRole(item.role);
+                        setMatrixNumber("");
+                        setPassword("");
+                      }}
+                      className={`min-h-24 rounded-lg border p-3 text-center transition hover:-translate-y-0.5 hover:shadow-md ${
+                        accessRole === item.role
+                          ? "border-blue-500 bg-blue-50 text-blue-800 shadow-sm"
+                          : "border-slate-200 bg-white text-slate-700 hover:border-blue-200"
+                      }`}
+                    >
+                      <span className="mx-auto grid h-10 w-10 place-items-center rounded-lg bg-blue-50 text-blue-700">
+                        <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          {item.icon}
+                        </svg>
+                      </span>
+                      <span className="mt-3 block text-sm font-bold">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-8 space-y-3 text-center">
+              <p className="text-sm text-slate-600">
+                Don&apos;t have an account?{" "}
+                <span className="font-semibold text-blue-700">Contact ITC Club Administrator</span>
+              </p>
+              <Link href="/verify" className="inline-flex items-center justify-center rounded-lg border border-blue-200 px-5 py-2.5 text-sm font-bold text-blue-700 hover:bg-blue-50">
+                Verify Certificate
+              </Link>
             </div>
           </div>
-
-          <div className="text-center text-sm text-slate-500">
-            Protected by enterprise-grade security
-          </div>
-        </div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }
 
