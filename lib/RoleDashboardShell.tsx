@@ -206,6 +206,14 @@ export default function RoleDashboardShell({
 
   const isActive = (href: string) => {
     const [path, queryAndHash] = href.split("?");
+    if (
+      pathname.startsWith("/club-committee/events/") &&
+      path === "/committee/event" &&
+      href.includes("mode=events")
+    ) {
+      return true;
+    }
+
     if (pathname !== path) return false;
     if (!queryAndHash) return true;
 

@@ -44,11 +44,15 @@ export async function POST(request: Request) {
       .from("events")
       .select("id, status, objective, purpose")
       .in("status", [
+        "Draft",
         "Pending High Council Approval",
         "Pending Club Advisor Approval",
         "Pending Approval",
         "Approved",
         "Rejected",
+        "Published",
+        "Completed",
+        "Closed",
       ]);
 
     if (eventError) {
