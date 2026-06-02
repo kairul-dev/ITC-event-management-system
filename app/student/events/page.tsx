@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { getObjectiveText, getPurposeText } from "@/lib/eventDisplay";
 
@@ -10,7 +11,6 @@ type Event = {
   title: string;
   start_date: string;
   end_date: string;
-  budget: number;
   max_students: number;
   status: string;
   created_at: string;
@@ -21,40 +21,117 @@ type Event = {
   registered_count?: number;
 };
 
-type ViewMode = "grid" | "list" | "calendar";
+type RegistrationRow = {
+  event_id: string;
+};
+
+type Category = "All" | "Technical" | "Workshop" | "Seminar" | "Competition" | "Career" | "Others";
+type SortMode = "newest" | "oldest" | "popular" | "closing";
+
+const categories: Category[] = ["All", "Technical", "Workshop", "Seminar", "Competition", "Career", "Others"];
+const eventVisuals = [
+  "from-blue-950 via-blue-700 to-cyan-500",
+  "from-slate-950 via-indigo-800 to-fuchsia-500",
+  "from-emerald-950 via-teal-700 to-cyan-500",
+  "from-slate-800 via-blue-900 to-slate-500",
+  "from-violet-950 via-purple-700 to-blue-500",
+  "from-orange-700 via-amber-600 to-yellow-400",
+];
+
+function Icon({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <svg className={`h-5 w-5 ${className}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      {children}
+    </svg>
+  );
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return "Not provided";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not provided";
+  return date.toLocaleDateString("en-MY", { day: "numeric", month: "short", year: "numeric", weekday: "short" });
+}
+
+function formatTime(value?: string | null) {
+  if (!value) return "Not provided";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not provided";
+  return date.toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" });
+}
+
+function inferCategory(event: Event): Category {
+  const text = `${event.title} ${getPurposeText(event.purpose)} ${getObjectiveText(event.purpose, event.objective)}`.toLowerCase();
+  if (text.includes("workshop")) return "Workshop";
+  if (text.includes("seminar") || text.includes("talk")) return "Seminar";
+  if (text.includes("competition") || text.includes("tournament") || text.includes("challenge")) return "Competition";
+  if (text.includes("career") || text.includes("fair")) return "Career";
+  if (text.includes("ai") || text.includes("web") || text.includes("cyber") || text.includes("tech") || text.includes("coding")) return "Technical";
+  return "Others";
+}
+
+function getAvailability(event: Event, registeredEventIds: Set<string>, now: number) {
+  const used = event.registered_count || 0;
+  const total = event.max_students || 0;
+  const progress = total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0;
+  const alreadyRegistered = registeredEventIds.has(event.id);
+  const full = total > 0 && used >= total;
+  const closed = event.status === "Closed" || event.status === "Completed" || new Date(event.start_date).getTime() <= now;
+
+  if (alreadyRegistered) return { badge: "Registered", label: "Already registered", action: "Registered", disabled: true, tone: "bg-blue-100 text-blue-700", progress };
+  if (closed) return { badge: "Closed", label: "Event ended", action: "Closed", disabled: true, tone: "bg-red-100 text-red-700", progress: Math.max(progress, 100) };
+  if (full) return { badge: "Full", label: "Fully booked", action: "Full", disabled: true, tone: "bg-slate-100 text-slate-700", progress: 100 };
+  if (progress >= 80) return { badge: "Almost Full", label: "Almost full", action: "Register Now", disabled: false, tone: "bg-amber-100 text-amber-700", progress };
+  return { badge: "Open", label: "Slots left", action: "Register Now", disabled: false, tone: "bg-emerald-100 text-emerald-700", progress };
+}
+
+function EventPoster({ event, index }: { event: Event; index: number }) {
+  return (
+    <div className={`relative h-44 overflow-hidden bg-gradient-to-br ${eventVisuals[index % eventVisuals.length]}`}>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_25%,rgba(255,255,255,0.35),transparent_20%),radial-gradient(circle_at_78%_35%,rgba(255,255,255,0.22),transparent_22%)]" />
+      <div className="absolute bottom-5 left-5 max-w-[72%]">
+        <p className="line-clamp-2 text-xl font-black text-white drop-shadow">{event.title}</p>
+        <p className="mt-2 text-xs font-bold uppercase tracking-wide text-white/75">{inferCategory(event)}</p>
+      </div>
+      <div className="absolute right-5 top-5 grid h-10 w-10 place-items-center rounded-lg border border-white/25 bg-white/15 text-white backdrop-blur">
+        <Icon><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4h10v17l-5-3-5 3V4Z" /></Icon>
+      </div>
+      <div className="absolute bottom-5 right-5 h-16 w-20 rounded-xl border border-white/20 bg-white/15" />
+    </div>
+  );
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-5">
+      <div className="h-24 animate-pulse rounded-lg bg-white" />
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="h-80 animate-pulse rounded-lg bg-white" />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function StudentEventsPage() {
-  const [allEvents, setAllEvents] = useState<Event[]>([]);
-  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [registeredEventIds, setRegisteredEventIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [registeringId, setRegisteringId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type?: "success" | "error" } | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<"upcoming" | "trending" | "newest">("trending");
-  const [filterLocation, setFilterLocation] = useState<string>("");
-  const [filterPriceRange, setFilterPriceRange] = useState<"all" | "free" | "paid">("all");
-  const [locations, setLocations] = useState<string[]>([]);
+  const [activeCategory, setActiveCategory] = useState<Category>("All");
+  const [sortBy, setSortBy] = useState<SortMode>("newest");
+  const [page, setPage] = useState(1);
   const [now] = useState(() => Date.now());
-  const formatYearMonth = (d: Date) => `${d.getFullYear()}-${String(
-    d.getMonth() + 1
-  ).padStart(2, "0")}`;
-
-  const getRegistrationDeadline = (event: Event) => new Date(event.start_date);
-  const getStudentStatus = (event: Event) => {
-    const isFull = (event.registered_count || 0) >= event.max_students;
-    const isClosed = event.status === "Closed" || getRegistrationDeadline(event).getTime() <= now;
-    if (isFull) return "Full";
-    if (isClosed) return "Closed";
-    return "Open";
-  };
-
-  const [selectedMonth, setSelectedMonth] = useState<string>(
-    formatYearMonth(new Date())
-  );
+  const pageSize = 8;
 
   const loadEvents = async () => {
     setLoading(true);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     const { data, error } = await supabase
       .from("events")
@@ -64,88 +141,61 @@ export default function StudentEventsPage() {
 
     if (error) {
       console.error("Error loading events:", error);
-      setAllEvents([]);
-      setFilteredEvents([]);
-    } else {
-      const events = (data || []) as Event[];
+      setEvents([]);
+      setLoading(false);
+      return;
+    }
 
-      // Get registration count for each event
-      const eventsWithCounts = await Promise.all(
-        events.map(async (event) => {
+    const rows = (data || []) as Event[];
+    const [eventsWithCounts, registrationsResult] = await Promise.all([
+      Promise.all(
+        rows.map(async (event) => {
           const { count } = await supabase
             .from("event_registrations")
             .select("*", { count: "exact", head: true })
             .eq("event_id", event.id);
-
           return { ...event, registered_count: count || 0 };
-        })
-      );
+        }),
+      ),
+      user
+        ? supabase.from("event_registrations").select("event_id").eq("user_id", user.id)
+        : Promise.resolve({ data: [] as RegistrationRow[] }),
+    ]);
 
-      setAllEvents(eventsWithCounts);
-
-      // Extract unique locations
-      const uniqueLocations = Array.from(
-        new Set(eventsWithCounts.map((e) => e.location).filter(Boolean))
-      ) as string[];
-      setLocations(uniqueLocations);
-    }
-
+    setEvents(eventsWithCounts);
+    setRegisteredEventIds(new Set(((registrationsResult.data || []) as RegistrationRow[]).map((row) => row.event_id)));
     setLoading(false);
-  };
-
-  const filterAndSortEvents = () => {
-    let filtered = allEvents;
-
-    // Search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (event) =>
-          event.title.toLowerCase().includes(query) ||
-          getPurposeText(event.purpose).toLowerCase().includes(query) ||
-          getObjectiveText(event.purpose, event.objective).toLowerCase().includes(query)
-      );
-    }
-
-    // Location filter
-    if (filterLocation) {
-      filtered = filtered.filter((event) => event.location === filterLocation);
-    }
-
-    // Price filter
-    if (filterPriceRange === "free") {
-      filtered = filtered.filter((event) => !event.fee_amount || event.fee_amount === 0);
-    } else if (filterPriceRange === "paid") {
-      filtered = filtered.filter((event) => event.fee_amount && event.fee_amount > 0);
-    }
-
-    // Sort
-    if (sortBy === "trending") {
-      filtered.sort((a, b) => (b.registered_count || 0) - (a.registered_count || 0));
-    } else if (sortBy === "upcoming") {
-      filtered.sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
-    } else if (sortBy === "newest") {
-      filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    }
-
-    setFilteredEvents(filtered);
   };
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void loadEvents();
     }, 0);
-
     return () => window.clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      filterAndSortEvents();
-    }, 0);
+  const filteredEvents = useMemo(() => {
+    const needle = searchQuery.trim().toLowerCase();
+    const next = events.filter((event) => {
+      const matchesCategory = activeCategory === "All" || inferCategory(event) === activeCategory;
+      const matchesSearch =
+        !needle ||
+        event.title.toLowerCase().includes(needle) ||
+        (event.location || "").toLowerCase().includes(needle) ||
+        getPurposeText(event.purpose).toLowerCase().includes(needle);
+      return matchesCategory && matchesSearch;
+    });
 
-    return () => window.clearTimeout(timer);
-  }, [allEvents, searchQuery, sortBy, filterLocation, filterPriceRange]);
+    return next.sort((a, b) => {
+      if (sortBy === "oldest") return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      if (sortBy === "popular") return (b.registered_count || 0) - (a.registered_count || 0);
+      if (sortBy === "closing") return new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [activeCategory, events, searchQuery, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredEvents.length / pageSize));
+  const pagedEvents = filteredEvents.slice((page - 1) * pageSize, page * pageSize);
 
   const registerEvent = async (eventId: string) => {
     const {
@@ -153,13 +203,11 @@ export default function StudentEventsPage() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      setToast({ message: "Please login first", type: "error" });
+      setToast({ message: "Please login first.", type: "error" });
       return;
     }
 
     setRegisteringId(eventId);
-
-    // Get event to check if it's free
     const { data: eventData, error: eventError } = await supabase
       .from("events")
       .select("fee_amount, max_students, start_date, status")
@@ -168,26 +216,20 @@ export default function StudentEventsPage() {
 
     if (eventError || !eventData) {
       setRegisteringId(null);
-      setToast({ message: "Event not found", type: "error" });
+      setToast({ message: "Event not found.", type: "error" });
       return;
     }
 
-    if (eventData.status !== "Published") {
+    if (eventData.status !== "Published" || new Date(eventData.start_date).getTime() <= Date.now()) {
       setRegisteringId(null);
-      setToast({ message: "This event is not open for registration.", type: "error" });
+      setToast({ message: "This event is closed for registration.", type: "error" });
       return;
     }
 
-    if (new Date(eventData.start_date).getTime() <= new Date().getTime()) {
-      setRegisteringId(null);
-      setToast({ message: "Registration deadline has passed.", type: "error" });
-      return;
-    }
-
-    const { count } = await supabase
-      .from("event_registrations")
-      .select("*", { count: "exact", head: true })
-      .eq("event_id", eventId);
+    const [{ count }, { data: existingRegistration }] = await Promise.all([
+      supabase.from("event_registrations").select("*", { count: "exact", head: true }).eq("event_id", eventId),
+      supabase.from("event_registrations").select("id").eq("event_id", eventId).eq("user_id", user.id).maybeSingle(),
+    ]);
 
     if ((count || 0) >= eventData.max_students) {
       setRegisteringId(null);
@@ -195,558 +237,168 @@ export default function StudentEventsPage() {
       return;
     }
 
-    const { data: existingRegistration } = await supabase
-      .from("event_registrations")
-      .select("id")
-      .eq("event_id", eventId)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
     if (existingRegistration) {
       setRegisteringId(null);
-      setToast({ message: "You already registered for this event", type: "error" });
+      setToast({ message: "You already registered for this event.", type: "error" });
+      await loadEvents();
       return;
     }
 
-    // Determine payment status: free events are automatically "paid"
     const isFreeEvent = !eventData.fee_amount || eventData.fee_amount === 0;
-    const paymentStatus = isFreeEvent ? "paid" : "unpaid";
-
     const { error } = await supabase.from("event_registrations").insert({
       user_id: user.id,
       event_id: eventId,
-      payment_status: paymentStatus,
+      payment_status: isFreeEvent ? "paid" : "unpaid",
     });
 
     setRegisteringId(null);
 
     if (error) {
-      if (error.code === "23505") {
-        setToast({ message: "You already registered for this event", type: "error" });
-      } else {
-        setToast({ message: error.message, type: "error" });
-      }
-    } else {
-      const message = isFreeEvent
-        ? "✓ Registered successfully! No payment needed."
-        : "Registration started. Please pay by card from My Registrations.";
-      setToast({ message, type: "success" });
-      loadEvents();
-    }
-  };
-
-  const getEventTrend = (registered: number) => {
-    if (registered >= 20) return "🔥 Trending";
-    if (registered >= 10) return "📈 Popular";
-    return "";
-  };
-
-  const renderCalendarView = () => {
-    const [year, month] = selectedMonth.split("-").map(Number);
-    const firstDay = new Date(year, month - 1, 1);
-    const lastDay = new Date(year, month, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
-
-    const days = [];
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(null);
-    }
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push(i);
+      setToast({ message: error.code === "23505" ? "You already registered for this event." : error.message, type: "error" });
+      return;
     }
 
-    const eventsByDate = new Map<string, Event[]>();
-    filteredEvents.forEach((event) => {
-      const date = new Date(event.start_date).toISOString().substring(0, 10);
-      if (!eventsByDate.has(date)) {
-        eventsByDate.set(date, []);
-      }
-      eventsByDate.get(date)!.push(event);
+    setToast({
+      message: isFreeEvent ? "Registered successfully. No payment needed." : "Registration started. Please pay by card from My Registrations.",
+      type: "success",
     });
-
-    return (
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-gray-900">
-            {new Date(year, month - 1).toLocaleDateString("en-US", {
-              month: "long",
-              year: "numeric",
-            })}
-          </h2>
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                  const [y, m] = selectedMonth.split("-").map(Number);
-                  const newDate = new Date(y, m - 2, 1);
-                  setSelectedMonth(formatYearMonth(newDate));
-                }}
-              className="px-3 py-1 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-            >
-              ← Prev
-            </button>
-            <button
-              onClick={() => {
-                  const [y, m] = selectedMonth.split("-").map(Number);
-                  const newDate = new Date(y, m, 1);
-                  setSelectedMonth(formatYearMonth(newDate));
-                }}
-              className="px-3 py-1 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-            >
-              Next →
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-7 gap-2 text-center text-sm font-semibold text-gray-700 mb-3">
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-            <div key={day} className="py-2">
-              {day}
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-7 gap-2">
-          {days.map((day, index) => {
-            const dateStr = day
-              ? `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
-              : "";
-            const dayEvents = dateStr ? eventsByDate.get(dateStr) || [] : [];
-
-            return (
-              <div
-                key={index}
-                className={`min-h-24 p-2 rounded-lg border-2 ${
-                  day ? "bg-gray-50 border-gray-200" : "bg-gray-100 border-transparent"
-                }`}
-              >
-                {day && (
-                  <>
-                    <p className="font-semibold text-gray-900 mb-1">{day}</p>
-                    {dayEvents.length > 0 && (
-                      <div className="space-y-1">
-                        {dayEvents.slice(0, 2).map((event) => (
-                          <Link
-                            key={event.id}
-                            href={`/student/events/${event.id}`}
-                            className="block text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded truncate hover:bg-indigo-200"
-                          >
-                            {event.title}
-                          </Link>
-                        ))}
-                        {dayEvents.length > 2 && (
-                          <p className="text-xs text-gray-600">+{dayEvents.length - 2} more</p>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
+    await loadEvents();
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingSkeleton />;
 
   return (
-    <div className="space-y-6">
-      {/* Toast */}
+    <motion.div
+      className="space-y-5"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: "easeOut" }}
+    >
       {toast && (
-        <div
-          className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-lg text-white ${
-            toast.type === "error" ? "bg-red-600" : "bg-green-600"
-          }`}
-          role="status"
-        >
+        <div className={`rounded-lg border px-4 py-3 text-sm font-bold ${toast.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>
           {toast.message}
         </div>
       )}
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Discover Events</h1>
-        <p className="text-gray-600 mt-2">
-          Browse and register for upcoming events. Found {filteredEvents.length} event
-          {filteredEvents.length !== 1 ? "s" : ""}
-          {searchQuery || filterLocation || filterPriceRange !== "all" ? " matching your filters" : ""}
-        </p>
-      </div>
 
-      {/* Search and Filters */}
-      <div className="bg-white rounded-lg shadow-md p-6 space-y-4">
-        {/* Search */}
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <input
-            type="text"
-            placeholder="Search events by title, purpose, or objective..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+          <h1 className="text-3xl font-black tracking-tight text-slate-950">Available Events</h1>
+          <p className="mt-2 text-sm font-semibold text-slate-500">Discover and register for exciting ITC events.</p>
         </div>
-
-        {/* Filters Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Sort */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as "upcoming" | "trending" | "newest")}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="trending">🔥 Most Popular</option>
-              <option value="upcoming">📅 Upcoming First</option>
-              <option value="newest">✨ Newest First</option>
-            </select>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="relative min-w-0 sm:w-96">
+            <Icon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m21 21-4.3-4.3M10 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z" />
+            </Icon>
+            <input
+              value={searchQuery}
+              onChange={(event) => {
+                setSearchQuery(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Search events by title, organizer or venue..."
+              className="w-full rounded-lg border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm font-semibold outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
           </div>
-
-          {/* Location Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-            <select
-              value={filterLocation}
-              onChange={(e) => setFilterLocation(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="">All Locations</option>
-              {locations.map((loc) => (
-                <option key={loc} value={loc}>
-                  {loc}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Price Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
-            <select
-              value={filterPriceRange}
-              onChange={(e) => setFilterPriceRange(e.target.value as "all" | "free" | "paid")}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="all">All Prices</option>
-              <option value="free">💰 Free</option>
-              <option value="paid">💵 Paid</option>
-            </select>
-          </div>
-
-          {/* View Mode */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">View</label>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setViewMode("grid")}
-                className={`flex-1 px-3 py-2 rounded-lg font-medium transition ${
-                  viewMode === "grid"
-                    ? "bg-indigo-600 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                📋 Grid
-              </button>
-              <button
-                onClick={() => setViewMode("list")}
-                className={`flex-1 px-3 py-2 rounded-lg font-medium transition ${
-                  viewMode === "list"
-                    ? "bg-indigo-600 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                📝 List
-              </button>
-              <button
-                onClick={() => setViewMode("calendar")}
-                className={`flex-1 px-3 py-2 rounded-lg font-medium transition ${
-                  viewMode === "calendar"
-                    ? "bg-indigo-600 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                📅 Calendar
-              </button>
-            </div>
-          </div>
+          <button type="button" className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-50">Filter</button>
+          <select
+            value={sortBy}
+            onChange={(event) => {
+              setSortBy(event.target.value as SortMode);
+              setPage(1);
+            }}
+            className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          >
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="popular">Most Popular</option>
+            <option value="closing">Closing Soon</option>
+          </select>
         </div>
+      </header>
+
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {categories.map((category) => (
+          <button
+            key={category}
+            type="button"
+            onClick={() => {
+              setActiveCategory(category);
+              setPage(1);
+            }}
+            className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-black transition ${activeCategory === category ? "bg-blue-700 text-white shadow-sm" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700"}`}
+          >
+            {category}
+          </button>
+        ))}
       </div>
 
-      {/* No Results */}
-      {filteredEvents.length === 0 && (
-        <div className="bg-white rounded-lg shadow-md p-10 text-center">
-          <svg
-            className="mx-auto h-12 w-12 text-gray-400 mb-3"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">No events found</h2>
-          <p className="text-gray-500 text-sm">
-            Try adjusting your filters or search terms
-          </p>
-        </div>
-      )}
-
-      {/* Calendar View */}
-      {viewMode === "calendar" && filteredEvents.length > 0 && renderCalendarView()}
-
-      {/* Grid View */}
-      {viewMode === "grid" && filteredEvents.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredEvents.map((event) => {
-            const spotsRemaining = Math.max(0, event.max_students - (event.registered_count || 0));
-            const isEventFull = spotsRemaining === 0;
-            const eventTrend = getEventTrend(event.registered_count || 0);
-            const studentStatus = getStudentStatus(event);
-            const isRegistrationClosed = studentStatus !== "Open";
-            const purposeText = getPurposeText(event.purpose);
-
-            return (
-              <Link
-                key={event.id}
-                href={`/student/events/${event.id}`}
-                className="group bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition transform hover:scale-105"
-              >
-                {/* Card Header */}
-                <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 p-4 text-white">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="text-lg font-semibold flex-1 group-hover:underline">
-                      {event.title}
-                    </h3>
-                    {eventTrend && (
-                      <span className="text-xs font-bold bg-white bg-opacity-20 px-2 py-1 rounded-full whitespace-nowrap">
-                        {eventTrend}
-                      </span>
-                    )}
+      {filteredEvents.length === 0 ? (
+        <section className="rounded-lg border border-dashed border-slate-200 bg-white p-10 text-center shadow-sm">
+          <h2 className="text-lg font-black text-slate-950">No available events at the moment.</h2>
+          <p className="mt-2 text-sm font-semibold text-slate-500">Please check again later for new ITC events.</p>
+        </section>
+      ) : (
+        <>
+          <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {pagedEvents.map((event, index) => {
+              const availability = getAvailability(event, registeredEventIds, now);
+              const used = event.registered_count || 0;
+              const total = event.max_students || 0;
+              return (
+                <article key={event.id} className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+                  <div className="relative">
+                    <EventPoster event={event} index={index} />
+                    <span className={`absolute left-3 top-3 rounded-md px-3 py-1 text-xs font-black ${availability.tone}`}>{availability.badge}</span>
                   </div>
-                  {event.location && (
-                    <p className="text-sm text-indigo-100">📍 {event.location}</p>
-                  )}
-                </div>
-
-                {/* Card Body */}
-                <div className="p-4 space-y-3">
-                  {purposeText && (
-                    <p className="text-sm text-gray-600 line-clamp-2">{purposeText}</p>
-                  )}
-
-                  {/* Date */}
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <span>📅</span>
-                    <span>
-                      {new Date(event.start_date).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </span>
-                  </div>
-
-                  {/* Capacity */}
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between text-xs text-gray-600">
-                      <span>Capacity</span>
-                      <span className="font-semibold">
-                        {event.registered_count || 0} / {event.max_students}
-                      </span>
+                  <div className="space-y-3 p-4">
+                    <h2 className="line-clamp-2 min-h-11 text-base font-black text-slate-950">{event.title}</h2>
+                    <div className="space-y-2 text-sm font-semibold text-slate-600">
+                      <p className="flex items-center gap-2"><Icon className="text-blue-500"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3M5 11h14M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z" /></Icon>{formatDate(event.start_date)}</p>
+                      <p className="flex items-center gap-2"><Icon className="text-blue-500"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6l4 2m5-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></Icon>{formatTime(event.start_date)} - {formatTime(event.end_date)}</p>
+                      <p className="flex items-center gap-2"><Icon className="text-blue-500"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 21s7-4.4 7-11a7 7 0 1 0-14 0c0 6.6 7 11 7 11Z" /></Icon>{event.location || "Not provided"}</p>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full ${
-                          isEventFull
-                            ? "bg-red-500"
-                            : spotsRemaining < 5
-                            ? "bg-yellow-500"
-                            : "bg-green-500"
-                        }`}
-                        style={{
-                          width: `${Math.min(
-                            ((event.registered_count || 0) / event.max_students) * 100,
-                            100
-                          )}%`,
-                        }}
-                      ></div>
-                    </div>
-                    <p className="text-xs text-gray-600">
-                      {isEventFull ? "Event is full" : `${spotsRemaining} spot${spotsRemaining !== 1 ? "s" : ""} left`}
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                    <span>Deadline: {getRegistrationDeadline(event).toLocaleDateString()}</span>
-                    <span className="text-right font-bold">Status: {studentStatus}</span>
-                  </div>
-
-                  {/* Fee */}
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-200">
-                    {!event.fee_amount || event.fee_amount === 0 ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">
-                        ✓ FREE
-                      </span>
-                    ) : (
-                      <span className="font-semibold text-indigo-600">
-                        RM {Number(event.fee_amount).toFixed(2)}
-                      </span>
-                    )}
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        registerEvent(event.id);
-                      }}
-                      disabled={registeringId === event.id || isRegistrationClosed}
-                      className="px-3 py-1 bg-indigo-600 text-white text-sm font-medium rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                    >
-                      {registeringId === event.id ? "..." : isRegistrationClosed ? studentStatus : "Register"}
-                    </button>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      )}
-
-      {/* List View */}
-      {viewMode === "list" && filteredEvents.length > 0 && (
-        <div className="space-y-3">
-          {filteredEvents.map((event) => {
-            const spotsRemaining = Math.max(0, event.max_students - (event.registered_count || 0));
-            const isEventFull = spotsRemaining === 0;
-            const eventTrend = getEventTrend(event.registered_count || 0);
-            const studentStatus = getStudentStatus(event);
-            const isRegistrationClosed = studentStatus !== "Open";
-            const purposeText = getPurposeText(event.purpose);
-
-            return (
-              <div
-                key={event.id}
-                className="bg-white rounded-lg shadow-md p-4 flex flex-col md:flex-row md:items-center md:justify-between border border-gray-200 hover:shadow-lg transition"
-              >
-                <Link href={`/student/events/${event.id}`} className="flex-1 hover:text-indigo-600">
-                  <div className="flex items-start gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {event.title}
-                        </h3>
-                        {eventTrend && (
-                          <span className="text-xs font-bold bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">
-                            {eventTrend}
-                          </span>
-                        )}
+                    <div>
+                      <div className="flex items-center justify-between text-xs font-black">
+                        <span>{used} / {total || "Open"}</span>
+                        <span className={availability.disabled && availability.badge !== "Registered" ? "text-red-600" : "text-emerald-600"}>{availability.label}</span>
                       </div>
-                      {purposeText && (
-                        <p className="text-sm text-gray-600 mb-2 line-clamp-1">
-                          {purposeText}
-                        </p>
-                      )}
-                      <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                        <span>📅 {new Date(event.start_date).toLocaleDateString()}</span>
-                        {event.location && <span>📍 {event.location}</span>}
-                        <span>Deadline: {getRegistrationDeadline(event).toLocaleDateString()}</span>
-                        <span>Status: {studentStatus}</span>
-                        {!event.fee_amount || event.fee_amount === 0 ? (
-                          <span className="inline-flex items-center gap-1 text-green-700 font-semibold">
-                            ✓ FREE
-                          </span>
-                        ) : (
-                          <span>💰 RM {Number(event.fee_amount).toFixed(2)}</span>
-                        )}
-                      </div>
-
-                      {/* Capacity Bar */}
-                      <div className="mt-2 w-full md:w-80">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-gray-600">
-                            {event.registered_count || 0} / {event.max_students} registered
-                          </span>
-                          <span className="text-xs font-semibold text-gray-600">
-                            {isEventFull ? "Full" : `${spotsRemaining} left`}
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className={`h-2 rounded-full ${
-                              isEventFull
-                                ? "bg-red-500"
-                                : spotsRemaining < 5
-                                ? "bg-yellow-500"
-                                : "bg-green-500"
-                            }`}
-                            style={{
-                              width: `${Math.min(
-                                ((event.registered_count || 0) / event.max_students) * 100,
-                                100
-                              )}%`,
-                            }}
-                          ></div>
-                        </div>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div className={`h-full rounded-full ${availability.progress >= 100 ? "bg-red-500" : availability.progress >= 80 ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${availability.progress}%` }} />
                       </div>
                     </div>
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <Link href={`/student/events/${event.id}`} className="rounded-md border border-blue-200 px-3 py-2 text-center text-xs font-black text-blue-700 hover:bg-blue-50">View Details</Link>
+                      <button
+                        type="button"
+                        onClick={() => registerEvent(event.id)}
+                        disabled={availability.disabled || registeringId === event.id}
+                        className="rounded-md bg-blue-700 px-3 py-2 text-xs font-black text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+                      >
+                        {registeringId === event.id ? "Registering..." : availability.action}
+                      </button>
+                    </div>
                   </div>
-                </Link>
+                </article>
+              );
+            })}
+          </section>
 
-                <div className="mt-4 md:mt-0 md:ml-6 flex items-center gap-2">
-                  <Link
-                    href={`/student/events/${event.id}`}
-                    className="px-4 py-2 bg-gray-200 text-gray-800 text-sm font-medium rounded-lg hover:bg-gray-300 transition"
-                  >
-                    View Details
-                  </Link>
-                  <button
-                    onClick={() => registerEvent(event.id)}
-                    disabled={registeringId === event.id || isRegistrationClosed}
-                    className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
-                  >
-                    {registeringId === event.id ? (
-                      <>
-                        <svg
-                          className="animate-spin h-4 w-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          ></path>
-                        </svg>
-                        Registering...
-                      </>
-                    ) : isRegistrationClosed ? (
-                      studentStatus
-                    ) : (
-                      "Register"
-                    )}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+          <footer className="flex flex-col gap-3 text-sm font-semibold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+            <p>Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, filteredEvents.length)} of {filteredEvents.length} events</p>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={page === 1} className="rounded-md border border-slate-200 bg-white px-3 py-2 font-black text-slate-700 disabled:opacity-50">Prev</button>
+              {Array.from({ length: totalPages }).slice(0, 5).map((_, index) => {
+                const pageNumber = index + 1;
+                return (
+                  <button key={pageNumber} type="button" onClick={() => setPage(pageNumber)} className={`rounded-md px-3 py-2 font-black ${page === pageNumber ? "bg-blue-700 text-white" : "border border-slate-200 bg-white text-slate-700"}`}>{pageNumber}</button>
+                );
+              })}
+              <button type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={page === totalPages} className="rounded-md border border-slate-200 bg-white px-3 py-2 font-black text-slate-700 disabled:opacity-50">Next</button>
+            </div>
+          </footer>
+        </>
       )}
-    </div>
+    </motion.div>
   );
 }
