@@ -54,19 +54,19 @@ export default function DashboardLayout({
   };
 
   return (
-    <div className="min-h-screen flex bg-slate-50">
+    <div className="min-h-screen bg-slate-50">
       {/* Sidebar */}
-      <aside className="w-64 min-h-screen bg-white text-slate-950 flex flex-col border-r border-slate-200">
-        <div className="px-6 py-5 text-2xl font-bold border-b border-slate-200 bg-white">
+      <aside className="fixed inset-y-0 left-0 z-30 flex h-dvh w-64 flex-col border-r border-slate-200 bg-white text-slate-950">
+        <div className="shrink-0 px-5 py-4 text-xl font-black border-b border-slate-100 bg-white">
           {title}
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-2 bg-white">
+        <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-4 space-y-1 bg-white">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive(
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-semibold transition-colors ${isActive(
                 link.href
               )}`}
             >
@@ -77,8 +77,8 @@ export default function DashboardLayout({
         </nav>
 
         {/* User Section */}
-        <div className="px-4 py-4 border-t border-slate-200 bg-white">
-          <div className="flex items-center gap-3">
+        <div className="mt-auto shrink-0 px-3 py-3 border-t border-slate-100 bg-white">
+          <div className="mb-2 flex items-center gap-3 rounded-md px-3 py-2.5">
             <div className="w-10 h-10 rounded-full bg-blue-700 text-white flex items-center justify-center font-bold text-lg">
               {user?.email?.charAt(0).toUpperCase()}
             </div>
@@ -90,7 +90,7 @@ export default function DashboardLayout({
             </div>
             <button
               onClick={handleLogout}
-              className="p-2 rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+              className="p-2 rounded-md text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
               title="Logout"
             >
               <svg
@@ -113,13 +113,13 @@ export default function DashboardLayout({
       </aside>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col">
+      <div className="min-w-0 pl-64">
         {/* Topbar */}
-        <header className="h-20 bg-white border-b px-6 flex items-center justify-between shadow-sm">
+        <header className="sticky top-0 z-10 h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={handleBack}
-              className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+              className="p-2 hover:bg-slate-100 rounded-md transition-colors"
               title="Go back"
             >
               <svg
@@ -142,7 +142,7 @@ export default function DashboardLayout({
           </div>
         </header>
 
-        <main className="p-8 flex-1 overflow-y-auto">{children}</main>
+        <main className="p-5 lg:p-6">{children}</main>
       </div>
     </div>
   );

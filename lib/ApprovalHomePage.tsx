@@ -112,17 +112,17 @@ export default function ApprovalHomePage() {
   }
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-5">
       <section>
-        <h2 className="text-3xl font-black tracking-tight text-slate-950">Welcome back, {roleName}!</h2>
-        <p className="mt-2 text-base font-medium text-slate-500">
+        <h2 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Welcome back, {roleName}!</h2>
+        <p className="mt-2 text-sm font-medium text-slate-500 sm:text-base">
           {pathname.startsWith("/club-advisor")
             ? "Give final approval for forwarded paperwork and certificate drafts."
             : "Review submitted event paperwork before final advisor approval."}
         </p>
       </section>
 
-      <section className="grid gap-5 md:grid-cols-2">
+      <section className="grid gap-4 md:grid-cols-2">
         <SummaryCard
           label="Pending Events"
           value={stats.pendingEvents}
@@ -141,10 +141,42 @@ export default function ApprovalHomePage() {
         />
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
-        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+          <div>
+            <h3 className="text-lg font-black text-slate-950">Approval Throughput</h3>
+            <p className="mt-1 text-sm font-medium text-slate-500">Current queue compared with completed approvals.</p>
+          </div>
+          <Link href={`${basePath}/events`} className="text-sm font-bold text-violet-700 hover:text-violet-600">
+            Open review queue -&gt;
+          </Link>
+        </div>
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          {[
+            ["Waiting", stats.pendingEvents, "bg-amber-500"],
+            ["Approved", stats.approvedEvents, "bg-emerald-500"],
+          ].map(([label, value, color]) => {
+            const total = Math.max(1, stats.pendingEvents + stats.approvedEvents);
+            const width = `${Math.max(8, Math.round(((value as number) / total) * 100))}%`;
+            return (
+              <div key={label as string} className="rounded-md border border-slate-100 bg-slate-50 p-3">
+                <div className="flex items-center justify-between text-sm font-bold">
+                  <span className="text-slate-700">{label as string}</span>
+                  <span className="text-slate-950">{value as number}</span>
+                </div>
+                <div className="mt-3 h-2 rounded-full bg-white">
+                  <div className={`h-full rounded-full ${color as string}`} style={{ width }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
+        <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="mb-5 flex items-center justify-between">
-            <h3 className="text-xl font-black text-slate-950">Final Approval Queue</h3>
+            <h3 className="text-lg font-black text-slate-950 sm:text-xl">Final Approval Queue</h3>
             <Link href={`${basePath}/events`} className="text-sm font-bold text-violet-700 hover:text-violet-600">View All -&gt;</Link>
           </div>
           <div className="overflow-hidden rounded-lg border border-slate-200">
@@ -189,8 +221,8 @@ export default function ApprovalHomePage() {
           </div>
         </section>
 
-        <aside className="space-y-5">
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <aside className="space-y-4">
+          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <h3 className="text-lg font-black text-slate-950">Quick Actions</h3>
             <div className="mt-4 space-y-2">
               {[

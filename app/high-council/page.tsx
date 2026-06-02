@@ -46,17 +46,17 @@ function SummaryCard({
   icon: React.ReactNode;
 }) {
   return (
-    <Link href={href} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+    <Link href={href} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-violet-200 hover:shadow-md sm:p-5">
       <div className="flex items-center gap-4">
-        <div className={`flex h-14 w-14 items-center justify-center rounded-lg ${tone}`}>
+        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg sm:h-14 sm:w-14 ${tone}`}>
           <Icon>{icon}</Icon>
         </div>
         <div>
-          <p className="text-3xl font-black text-slate-950">{value}</p>
+          <p className="text-2xl font-black text-slate-950 sm:text-3xl">{value}</p>
           <p className="text-sm font-semibold text-slate-600">{label}</p>
         </div>
       </div>
-      <p className="mt-5 text-sm font-bold text-violet-700">{action} <span aria-hidden="true">-&gt;</span></p>
+      <p className="mt-4 text-sm font-bold text-violet-700">{action} <span aria-hidden="true">-&gt;</span></p>
     </Link>
   );
 }
@@ -118,13 +118,13 @@ export default function HighCouncilHomePage() {
   }
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-5">
       <section>
-        <h2 className="text-3xl font-black tracking-tight text-slate-950">Welcome back, High Council!</h2>
-        <p className="mt-2 text-base font-medium text-slate-500">Review event paperwork and send complete proposals to the Club Advisor.</p>
+        <h2 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Welcome back, High Council!</h2>
+        <p className="mt-2 text-sm font-medium text-slate-500 sm:text-base">Review event paperwork and send complete proposals to the Club Advisor.</p>
       </section>
 
-      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <SummaryCard
           label="Pending Review"
           value={stats.pendingEvents}
@@ -159,10 +159,42 @@ export default function HighCouncilHomePage() {
         />
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
-        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+          <div>
+            <h3 className="text-lg font-black text-slate-950">Review Distribution</h3>
+            <p className="mt-1 text-sm font-medium text-slate-500">Live paperwork status for council review.</p>
+          </div>
+          <Link href="/high-council/events" className="text-sm font-bold text-violet-700 hover:text-violet-600">Manage queue -&gt;</Link>
+        </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-4">
+          {[
+            ["Pending", stats.pendingEvents, "bg-amber-500"],
+            ["Forwarded", stats.forwardedEvents, "bg-emerald-500"],
+            ["Rejected", stats.rejectedEvents, "bg-red-500"],
+            ["Published", stats.publishedEvents, "bg-sky-500"],
+          ].map(([label, value, color]) => {
+            const total = Math.max(1, stats.pendingEvents + stats.forwardedEvents + stats.rejectedEvents + stats.publishedEvents);
+            const width = `${Math.max(8, Math.round(((value as number) / total) * 100))}%`;
+            return (
+              <div key={label as string} className="rounded-md border border-slate-100 bg-slate-50 p-3">
+                <div className="flex items-center justify-between text-sm font-bold">
+                  <span className="text-slate-700">{label as string}</span>
+                  <span className="text-slate-950">{value as number}</span>
+                </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
+                  <div className={`h-full rounded-full ${color as string}`} style={{ width }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
+        <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="mb-5 flex items-center justify-between">
-            <h3 className="text-xl font-black text-slate-950">Paperwork Queue</h3>
+            <h3 className="text-lg font-black text-slate-950 sm:text-xl">Paperwork Queue</h3>
             <Link href="/high-council/events" className="text-sm font-bold text-violet-700 hover:text-violet-600">View All -&gt;</Link>
           </div>
           <div className="overflow-hidden rounded-lg border border-slate-200">
@@ -207,8 +239,8 @@ export default function HighCouncilHomePage() {
           </div>
         </section>
 
-        <aside className="space-y-5">
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <aside className="space-y-4">
+          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <h3 className="text-lg font-black text-slate-950">Recently Forwarded</h3>
             <div className="mt-4 space-y-4">
               {forwardedEvents.length === 0 ? (
@@ -229,7 +261,7 @@ export default function HighCouncilHomePage() {
             </div>
           </section>
 
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <h3 className="text-lg font-black text-slate-950">Quick Actions</h3>
             <div className="mt-4 space-y-2">
               {[
