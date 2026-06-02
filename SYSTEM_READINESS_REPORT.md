@@ -2,7 +2,7 @@
 
 ## Verification Date
 
-2026-06-01
+2026-06-02
 
 ## Final Demo Readiness Summary
 
@@ -20,13 +20,14 @@ Results:
 - Lint passed with warnings only.
 - Build passed.
 - No `supabase db push` was run.
-- No database migration was required.
+- Safe migration mode was used for the Admin role update fix.
 
 ## Migration History Status
 
 - Repository migration files are preserved in `supabase/migrations/` for schema provenance and recovery.
 - The linked Supabase migration ledger currently records only `20260411`, `20260601`, and `20260601124500`.
 - The live database already contains later schema work, RLS policies, and helper routines that are not fully represented in the recorded ledger.
+- On 2026-06-02, migration `20260602053206_fix_users_role_check_high_council.sql` was applied individually with `supabase db query --linked --file` and repaired as applied.
 
 ## Repository Recovery Status
 
@@ -58,6 +59,10 @@ Results:
 
 5. Admin dashboard duplicate React key:
    - Removed duplicate quick action key/label issue.
+
+6. Admin user role management:
+   - Fixed the live `public.users` role check constraint so Admin can assign `admin`, `committee`, `high_council`, `club_advisor`, and `student`.
+   - Verified Admin API role update by changing demo student `AI220385` to `committee`, confirming the database update, then changing the user back to `student`.
 
 ## Demo Accounts
 
@@ -115,6 +120,7 @@ Current Stripe implementation creates Checkout sessions server-side and does not
 
 Browser/API checks completed:
 
+- Admin user role update API: `student` -> `committee` -> `student`
 - Committee login -> `/committee`
 - Committee feedback analytics -> `/committee/feedback`
 - Student login -> `/student`

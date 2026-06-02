@@ -1,1 +1,1 @@
-export { default } from "../../president/profile/page";
+export { default } from "@/lib/ProfileSettingsPage";

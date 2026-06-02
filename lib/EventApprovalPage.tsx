@@ -97,10 +97,10 @@ function UploadedPaperworkCard({
   onOpen: () => void;
 }) {
   return (
-    <div className="rounded-2xl border border-violet-200 bg-violet-50 p-5">
+    <div className="rounded-lg border border-blue-200 bg-blue-50 p-5">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-xs font-black uppercase tracking-wide text-violet-700">Uploaded Paperwork File</p>
+          <p className="text-xs font-black uppercase tracking-wide text-blue-700">Uploaded Paperwork File</p>
           <h3 className="mt-1 text-lg font-black text-slate-950">{file.name}</h3>
           <p className="mt-1 text-sm font-medium text-slate-600">
             {formatFileSize(file.size)} uploaded on {formatDateTime(file.uploadedAt)}
@@ -109,12 +109,12 @@ function UploadedPaperworkCard({
         <button
           type="button"
           onClick={onOpen}
-          className="rounded-xl bg-violet-700 px-5 py-3 text-sm font-bold text-white hover:bg-violet-800"
+          className="rounded-lg bg-blue-700 px-5 py-3 text-sm font-bold text-white hover:bg-blue-800"
         >
           Open Paperwork File
         </button>
       </div>
-      <p className="mt-4 text-sm font-medium text-violet-800">
+      <p className="mt-4 text-sm font-medium text-blue-800">
         Review this completed Word/PDF document, then approve or reject using the buttons below.
       </p>
     </div>
@@ -163,7 +163,7 @@ function WordPaperworkPreview({
       <div className="mx-auto flex h-full max-w-6xl flex-col rounded-xl bg-slate-100 shadow-2xl">
         <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
           <div>
-            <p className="text-xs font-black uppercase tracking-wide text-violet-700">Word Format Preview</p>
+            <p className="text-xs font-black uppercase tracking-wide text-blue-700">Word Format Preview</p>
             <h2 className="text-lg font-black text-slate-950">{event.title}</h2>
           </div>
           <div className="flex gap-2">
@@ -501,7 +501,7 @@ export default function EventApprovalPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-blue-700"></div>
       </div>
     );
   }
@@ -589,7 +589,7 @@ export default function EventApprovalPage() {
                         <button
                           type="button"
                           onClick={() => openUploadedPaperworkFile(uploadedPaperworkFile)}
-                          className="rounded-lg border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100"
+                          className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100"
                         >
                           Open File
                         </button>
@@ -597,7 +597,7 @@ export default function EventApprovalPage() {
                         <button
                           type="button"
                           onClick={() => setShowWordPreview(true)}
-                          className="rounded-lg border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100"
+                          className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100"
                         >
                           View Word Format
                         </button>
@@ -646,9 +646,9 @@ export default function EventApprovalPage() {
                       </>
                     ) : (
                       <>
-                        <div className="rounded-xl border border-violet-100 bg-violet-50 p-4">
-                          <h3 className="text-sm font-black uppercase tracking-wide text-violet-800">Full Paperwork Preview</h3>
-                          <p className="mt-1 text-sm font-medium text-violet-700">
+                        <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
+                          <h3 className="text-sm font-black uppercase tracking-wide text-blue-800">Full Paperwork Preview</h3>
+                          <p className="mt-1 text-sm font-medium text-blue-700">
                             Review all submitted paperwork sections before approving or rejecting.
                           </p>
                         </div>

@@ -121,7 +121,7 @@ export default function StudentCertificatesPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700"></div>
       </div>
     );
   }
@@ -137,7 +137,7 @@ export default function StudentCertificatesPage() {
       </div>
 
       {certificates.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-md p-10 text-center">
+        <div className="rounded-lg border border-slate-200 bg-white p-10 text-center shadow-sm">
           <svg
             className="mx-auto h-12 w-12 text-gray-400 mb-3"
             fill="none"
@@ -151,87 +151,60 @@ export default function StudentCertificatesPage() {
               d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">
+          <h2 className="mb-1 text-lg font-semibold text-slate-900">
             No certificates yet
           </h2>
-          <p className="text-gray-500 text-sm">
+          <p className="text-sm text-slate-500">
             You will see your certificates here once events have been approved
             and certificates issued.
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Event
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Event Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Certificate No
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Issued At
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Access
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {certificates.map((c) => (
-                  <tr key={c.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {c.event?.title ?? "Event"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {c.event?.event_date && c.event.event_date.trim()
-                        ? new Date(c.event.event_date).toLocaleDateString()
-                        : "-"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {c.certificate_no}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(c.issued_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                          c.feedbackSubmitted
-                            ? "bg-green-100 text-green-800"
-                            : "bg-amber-100 text-amber-800"
-                        }`}
-                      >
-                        {c.feedbackSubmitted ? "Available" : "Pending Feedback"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <button
-                        onClick={() =>
-                          router.push(c.feedbackSubmitted ? `/certificate/${c.id}` : `/feedback/${c.event_id}`)
-                        }
-                        className={`px-3 py-1 text-white text-sm font-medium rounded-lg transition ${
-                          c.feedbackSubmitted
-                            ? "bg-indigo-600 hover:bg-indigo-700"
-                            : "bg-amber-600 hover:bg-amber-700"
-                        }`}
-                      >
-                        {c.feedbackSubmitted ? "View" : "Submit Feedback"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="grid gap-5 lg:grid-cols-2">
+          {certificates.map((c) => (
+            <article key={c.id} className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+              <div className="border-b border-slate-200 bg-gradient-to-r from-slate-950 to-blue-800 p-5 text-white">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.24em] text-blue-200">Certificate Preview</p>
+                    <h2 className="mt-2 line-clamp-2 text-xl font-black">{c.event?.title ?? "Event Certificate"}</h2>
+                  </div>
+                  <span className={c.feedbackSubmitted ? "ds-badge-issued bg-white text-blue-800" : "ds-badge-locked bg-amber-100 text-amber-800"}>
+                    {c.feedbackSubmitted ? "Issued" : "Pending Feedback"}
+                  </span>
+                </div>
+              </div>
+              <div className="p-5">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Certificate No</p>
+                  <p className="mt-1 break-all font-mono text-sm font-bold text-slate-950">{c.certificate_no}</p>
+                  <p className="mt-3 text-xs font-semibold text-slate-500">
+                    Issued {new Date(c.issued_at).toLocaleDateString("en-MY")}
+                  </p>
+                </div>
+                <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                  <button
+                    onClick={() => router.push(c.feedbackSubmitted ? `/certificate/${c.id}` : `/feedback/${c.event_id}`)}
+                    className={c.feedbackSubmitted ? "ds-btn-primary" : "inline-flex items-center justify-center rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-amber-700"}
+                  >
+                    {c.feedbackSubmitted ? "View" : "Submit Feedback"}
+                  </button>
+                  <button
+                    onClick={() => router.push(c.feedbackSubmitted ? `/certificate/${c.id}` : `/feedback/${c.event_id}`)}
+                    className="ds-btn-secondary"
+                  >
+                    Download
+                  </button>
+                  <button
+                    onClick={() => router.push(`/verify-certificate?certificateNo=${encodeURIComponent(c.certificate_no)}`)}
+                    className="ds-btn-secondary"
+                  >
+                    Verify
+                  </button>
+                </div>
+              </div>
+            </article>
+          ))}
         </div>
       )}
     </div>

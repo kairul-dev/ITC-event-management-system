@@ -1,1 +1,1 @@
-export { default } from "../../president/events/page";
+export { default } from "@/lib/EventApprovalPage";

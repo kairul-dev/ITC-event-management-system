@@ -7,9 +7,9 @@ Do not commit real production passwords or service credentials. Demo passwords s
 | Role | Matrix Number | Name | Status |
 | --- | --- | --- | --- |
 | Admin | `AI220382` | khairul | Ready |
-| Club Committee | `AI220386` | Demo Committee | Ready |
+| Club Committee | `AI220384` | Demo Committee | Ready |
 | High Council | `AI220383` | akmal | Ready |
-| Club Advisor | `ADVISOR-SURIAWATI` | suriawati | Ready |
+| Club Advisor | `suriawati` | suriawati | Ready |
 | Student | `AI220385` | ali | Ready |
 
 ## Notes

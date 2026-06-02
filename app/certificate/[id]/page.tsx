@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -170,8 +170,8 @@ export default function CertificatePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-blue-700"></div>
       </div>
     );
   }
@@ -179,26 +179,26 @@ export default function CertificatePage() {
   if (!certificate) {
     if (lockedCertificate) {
       return (
-        <div className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
-          <div className="max-w-lg rounded-lg bg-white p-8 text-center shadow-md">
-            <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800">
+        <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-50 to-blue-50 p-6">
+          <div className="max-w-lg rounded-lg border border-slate-200 bg-white p-8 text-center shadow-xl shadow-slate-950/10">
+            <span className="ds-badge-locked">
               Pending Feedback
             </span>
-            <h1 className="mt-4 text-2xl font-bold text-gray-900">Certificate Locked</h1>
-            <p className="mt-2 text-gray-600">
+            <h1 className="mt-4 text-2xl font-black text-slate-950">Certificate Locked</h1>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
               Submit feedback for {lockedCertificate.eventTitle} to view and download certificate{" "}
               {lockedCertificate.certificateNo}.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <button
                 onClick={() => router.push(`/feedback/${lockedCertificate.eventId}`)}
-                className="rounded-lg bg-amber-600 px-5 py-2 text-sm font-semibold text-white hover:bg-amber-700"
+                className="rounded-lg bg-amber-600 px-5 py-2 text-sm font-bold text-white hover:bg-amber-700"
               >
                 Submit Feedback
               </button>
               <button
                 onClick={() => router.back()}
-                className="rounded-lg bg-gray-200 px-5 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-300"
+                className="ds-btn-secondary"
               >
                 Go Back
               </button>
@@ -209,13 +209,13 @@ export default function CertificatePage() {
     }
 
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Certificate Not Found</h1>
-          <p className="text-gray-600 mb-4">The certificate you&apos;re looking for does not exist.</p>
+          <h1 className="mb-2 text-2xl font-black text-slate-950">Certificate Not Found</h1>
+          <p className="mb-4 text-slate-600">The certificate you&apos;re looking for does not exist.</p>
           <button
             onClick={() => router.back()}
-            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+            className="ds-btn-primary"
           >
             Go Back
           </button>
@@ -225,30 +225,31 @@ export default function CertificatePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-blue-50 p-4 md:p-8">
       {/* Header */}
       <div className="max-w-6xl mx-auto mb-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between bg-white rounded-lg shadow-md p-6">
+        <div className="flex flex-col rounded-lg border border-slate-200 bg-white p-6 shadow-xl shadow-slate-950/10 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Certificate of Achievement</h1>
-            <p className="text-gray-600 mt-2">
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-blue-700">Issued Certificate</p>
+            <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">Certificate of Achievement</h1>
+            <p className="mt-3 text-slate-600">
               <span className="font-medium">Student:</span> {certificate.student_name}
             </p>
-            <p className="text-gray-600">
+            <p className="text-slate-600">
               <span className="font-medium">Event:</span> {certificate.event_title}
             </p>
-            <p className="text-gray-600">
+            <p className="text-slate-600">
               <span className="font-medium">Certificate No:</span> {certificate.certificate_no}
             </p>
-            <p className="mt-2 max-w-3xl break-all font-mono text-xs text-gray-600">
+            <p className="mt-3 max-w-3xl break-all rounded-lg border border-slate-200 bg-slate-50 p-3 font-mono text-xs text-slate-600">
               <span className="font-sans font-medium">Blockchain Hash:</span>{" "}
               {formatBlockchainHash(certificate.blockchain_hash)}
             </p>
             <div className="mt-3">
               <span
-                className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                className={`inline-block rounded-full px-3 py-1 text-sm font-bold ${
                   certificate.status === "issued"
-                    ? "bg-green-100 text-green-800"
+                    ? "bg-emerald-100 text-emerald-800"
                     : certificate.status === "pending"
                       ? "bg-yellow-100 text-yellow-800"
                       : "bg-gray-100 text-gray-800"
@@ -259,31 +260,31 @@ export default function CertificatePage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 mt-6 md:mt-0">
+          <div className="mt-6 flex flex-col gap-3 md:mt-0">
             <button
               onClick={downloadCertificate}
               disabled={downloading}
-              className="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex items-center justify-center gap-2 rounded-lg bg-blue-700 px-6 py-3 font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {downloading ? (
                 <>
-                  <span className="animate-spin">⟳</span> Downloading...
+                  Downloading...
                 </>
               ) : (
                 <>
-                  <span>⬇</span> Download PDF
+                  Download PDF
                 </>
               )}
             </button>
             <button
               onClick={() => router.back()}
-              className="px-6 py-3 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition"
+              className="rounded-lg bg-slate-700 px-6 py-3 font-bold text-white transition hover:bg-slate-800"
             >
               Back
             </button>
             <a
               href={`/verify-certificate?certificateNo=${encodeURIComponent(certificate.certificate_no)}`}
-              className="px-6 py-3 text-center bg-white text-indigo-700 font-semibold rounded-lg border border-indigo-200 hover:bg-indigo-50 transition"
+              className="rounded-lg border border-blue-200 bg-white px-6 py-3 text-center font-bold text-blue-700 transition hover:bg-blue-50"
             >
               Verify Hash
             </a>
@@ -292,7 +293,7 @@ export default function CertificatePage() {
       </div>
 
       {/* Certificate Display */}
-      <div className="max-w-6xl mx-auto bg-white rounded-lg shadow-2xl p-4 md:p-8">
+      <div className="mx-auto max-w-6xl rounded-lg border border-slate-200 bg-white p-4 shadow-2xl shadow-slate-950/10 md:p-8">
         <div id="certificate-container" className="flex justify-center bg-white">
           <CertificateTemplate
             data={{
@@ -322,3 +323,4 @@ export default function CertificatePage() {
     </div>
   );
 }
+

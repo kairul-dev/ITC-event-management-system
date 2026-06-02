@@ -1,1 +1,1 @@
-export { default } from "../../president/certificates/page";
+export { default } from "@/lib/CertificateApprovalPage";

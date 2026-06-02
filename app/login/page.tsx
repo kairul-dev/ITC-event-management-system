@@ -175,19 +175,14 @@ function LoginContent() {
       : accessRole.charAt(0).toUpperCase() + accessRole.slice(1);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.14),transparent_28%),radial-gradient(circle_at_top_right,rgba(15,23,42,0.12),transparent_26%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)] relative overflow-hidden">
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-emerald-400 rounded-full mix-blend-multiply filter blur-xl opacity-15 animate-blob"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-slate-500 rounded-full mix-blend-multiply filter blur-xl opacity-15 animate-blob animation-delay-2000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-teal-400 rounded-full mix-blend-multiply filter blur-xl opacity-15 animate-blob animation-delay-4000"></div>
-      </div>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-b from-slate-50 via-white to-blue-50 px-4 py-8">
 
       <div className="w-full max-w-5xl mx-4 relative z-10 grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-        <div className="rounded-[2rem] bg-slate-950 text-white p-8 shadow-[0_20px_60px_rgba(15,23,42,0.18)] border border-white/10">
+        <div className="rounded-lg border border-slate-800 bg-slate-950 p-8 text-white shadow-2xl shadow-slate-950/20">
           <div className="flex items-center justify-between gap-4">
             <Link
               href="/"
-              className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-300 transition hover:text-emerald-200"
+              className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-300 transition hover:text-blue-200"
             >
               ITC FSKTM UTHM
             </Link>
@@ -198,7 +193,7 @@ function LoginContent() {
               Back to home
             </Link>
           </div>
-          <h1 className="mt-4 text-4xl font-bold leading-tight">
+          <h1 className="mt-5 text-4xl font-black leading-tight tracking-tight">
             Sign in as {headingRole}.
           </h1>
           <p className="mt-4 text-sm leading-7 text-slate-300">
@@ -226,7 +221,7 @@ function LoginContent() {
                   }}
                   className={`rounded-2xl border px-4 py-3 text-left transition ${
                     accessRole === item.role
-                      ? "border-emerald-400 bg-white/10"
+                      ? "border-blue-400 bg-white/10"
                       : "border-white/10 bg-white/5 hover:bg-white/10"
                   }`}
                 >
@@ -235,7 +230,7 @@ function LoginContent() {
                       <p className="font-semibold text-white">{item.label}</p>
                       <p className="mt-1 text-sm text-slate-300">{item.description}</p>
                     </div>
-                    <span className="rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-200">
+                    <span className="rounded-full bg-blue-400/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-blue-200">
                       {item.role}
                     </span>
                   </div>
@@ -258,9 +253,9 @@ function LoginContent() {
         </div>
 
         <div className="w-full relative z-10">
-          <div className="bg-white/90 backdrop-blur-sm rounded-[2rem] shadow-[0_20px_60px_rgba(15,23,42,0.12)] border border-white/70 p-8 space-y-6">
+          <div className="space-y-6 rounded-lg border border-slate-200 bg-white/95 p-8 shadow-2xl shadow-slate-950/10 backdrop-blur">
             <div className="text-center space-y-2">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-2xl mb-4 shadow-lg shadow-emerald-600/20">
+              <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-lg bg-gradient-to-br from-blue-700 to-slate-900 shadow-lg shadow-blue-700/20">
                 <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
@@ -294,7 +289,7 @@ function LoginContent() {
                       value={matrixNumber}
                       onChange={(e) => setMatrixNumber(e.target.value.toUpperCase())}
                       required
-                      className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition duration-200 bg-white hover:bg-slate-50"
+                    className="w-full rounded-lg border border-slate-300 bg-white py-3 pl-10 pr-4 transition duration-200 hover:bg-slate-50 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                 </div>
@@ -317,7 +312,7 @@ function LoginContent() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="w-full pl-10 pr-12 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition duration-200 bg-white hover:bg-slate-50"
+                    className="w-full rounded-lg border border-slate-300 bg-white py-3 pl-10 pr-12 transition duration-200 hover:bg-slate-50 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <button
                     type="button"
@@ -340,10 +335,10 @@ function LoginContent() {
 
               <div className="flex items-center justify-between text-sm">
                 <label className="flex items-center cursor-pointer group">
-                  <input type="checkbox" className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500 cursor-pointer" />
+                  <input type="checkbox" className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
                   <span className="ml-2 text-slate-600 group-hover:text-slate-900 transition">Remember me</span>
                 </label>
-                <a href="/forgot-password" className="text-emerald-700 hover:text-emerald-600 font-medium transition">
+                <a href="/forgot-password" className="font-medium text-blue-700 transition hover:text-blue-600">
                   Forgot password?
                 </a>
               </div>
@@ -351,7 +346,7 @@ function LoginContent() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-xl hover:from-emerald-500 hover:to-teal-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition duration-200 shadow-lg shadow-emerald-600/20 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
+                className="w-full rounded-lg bg-blue-700 py-3.5 font-semibold text-white shadow-lg shadow-blue-700/20 transition duration-200 hover:-translate-y-0.5 hover:bg-blue-800 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading ? (
                   <span className="flex items-center justify-center">
@@ -379,7 +374,7 @@ function LoginContent() {
             <div className="text-center">
               <a
                 href={safeNextPath ? `/register?next=${encodeURIComponent(safeNextPath)}` : "/register"}
-                className="inline-flex items-center justify-center w-full py-3 px-4 border-2 border-slate-300 rounded-xl text-slate-700 font-medium hover:bg-slate-50 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition duration-200"
+                className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 px-4 py-3 font-medium text-slate-700 transition duration-200 hover:border-slate-400 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
                 Create new account
               </a>
@@ -391,18 +386,6 @@ function LoginContent() {
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes blob {
-          0% { transform: translate(0px, 0px) scale(1); }
-          33% { transform: translate(30px, -50px) scale(1.1); }
-          66% { transform: translate(-20px, 20px) scale(0.9); }
-          100% { transform: translate(0px, 0px) scale(1); }
-        }
-        .animate-blob { animation: blob 7s infinite; }
-        .animation-delay-2000 { animation-delay: 2s; }
-        .animation-delay-4000 { animation-delay: 4s; }
-      `}</style>
     </div>
   );
 }

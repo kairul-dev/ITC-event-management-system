@@ -213,18 +213,19 @@ function RegisteredEventsContent() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">My Registered Events</h1>
-        <p className="text-sm text-gray-500">
+      <div className="ds-page-header">
+        <p className="text-xs font-bold uppercase tracking-[0.24em] text-blue-700">Payment and Registration</p>
+        <h1 className="ds-page-title mt-2">My Registered Events</h1>
+        <p className="ds-page-subtitle">
           View all events you have registered for.
         </p>
         {checkoutMessage && (
-          <p className="mt-2 text-sm text-indigo-700">{checkoutMessage}</p>
+          <p className="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700">{checkoutMessage}</p>
         )}
       </div>
 
       {events.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-md p-10 text-center">
+        <div className="rounded-lg border border-slate-200 bg-white p-10 text-center shadow-sm">
           <svg
             className="mx-auto h-12 w-12 text-gray-400 mb-3"
             fill="none"
@@ -246,7 +247,7 @@ function RegisteredEventsContent() {
           </p>
           <Link
             href="/student/events"
-            className="inline-block px-5 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg shadow hover:bg-indigo-700"
+            className="ds-btn-primary"
           >
             Browse Available Events
           </Link>
@@ -259,7 +260,7 @@ function RegisteredEventsContent() {
             return (
             <div
               key={event.id}
-              className="bg-white rounded-lg shadow-md p-5 border border-gray-200 hover:bg-gray-50 transition"
+              className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
             >
               <div className="flex flex-col md:flex-row md:items-start md:justify-between">
                 <div className="flex-1">
@@ -313,7 +314,7 @@ function RegisteredEventsContent() {
                         minute: "2-digit",
                       })}
                     </p>
-                    <div className="mt-3 p-3 rounded-lg border border-gray-200 bg-gray-50 space-y-2">
+                    <div className="mt-3 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-4">
                       <p className="text-sm text-gray-700">
                         <span className="font-medium">Amount to Pay:</span>{" "}
                         RM {Number(event.events.fee_amount || 0).toFixed(2)}
@@ -341,7 +342,7 @@ function RegisteredEventsContent() {
                           <button
                             onClick={() => startStripeCheckout(event.id)}
                             disabled={startingCheckoutId === event.id}
-                            className="inline-flex w-fit items-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700 disabled:opacity-50"
+                            className="inline-flex w-fit items-center rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white shadow hover:bg-blue-800 disabled:opacity-50"
                           >
                             {startingCheckoutId === event.id
                               ? "Redirecting..."
@@ -365,7 +366,7 @@ function RegisteredEventsContent() {
                 <div className="mt-4 md:mt-0 md:ml-6">
                   <Link
                     href={`/student/events/${event.events.id}`}
-                    className="px-5 py-2.5 bg-gray-200 text-gray-800 text-sm font-medium rounded-lg shadow hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                    className="ds-btn-secondary"
                   >
                     View Details
                   </Link>

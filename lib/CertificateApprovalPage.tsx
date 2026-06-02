@@ -110,7 +110,7 @@ export default function CertificateApprovalPage() {
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-violet-700" />
+        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-blue-700" />
       </div>
     );
   }
@@ -163,7 +163,7 @@ export default function CertificateApprovalPage() {
                       <button
                         onClick={() => updateCertificate(certificate.id, "approve")}
                         disabled={processingId === certificate.id}
-                        className="rounded-lg bg-violet-700 px-4 py-2 font-semibold text-white hover:bg-violet-800 disabled:opacity-50"
+                        className="rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800 disabled:opacity-50"
                       >
                         {processingId === certificate.id ? "Processing..." : "Approve and Issue"}
                       </button>

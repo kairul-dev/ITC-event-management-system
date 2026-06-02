@@ -91,45 +91,51 @@ function RegisterContent() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-      <div className="w-full max-w-md bg-white rounded-lg shadow px-6 py-8">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-2">Create an account</h1>
-        <p className="text-sm text-gray-500 mb-6">Register as a student to access the portal.</p>
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-50 via-white to-blue-50 p-6">
+      <div className="w-full max-w-md rounded-lg border border-slate-200 bg-white px-6 py-8 shadow-2xl shadow-slate-950/10">
+        <div className="mb-6">
+          <div className="mb-4 grid h-12 w-12 place-items-center rounded-lg bg-blue-700 text-sm font-black text-white">
+            ITC
+          </div>
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-blue-700">Student Registration</p>
+          <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-950">Create an account</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Register once to join ITC events, track payments, submit feedback, and access certificates.</p>
+        </div>
 
         {error && (
-          <div className="mb-4 text-sm text-red-700 bg-red-50 p-3 rounded">{error}</div>
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">{error}</div>
         )}
 
-        <label className="block text-sm font-medium text-gray-700">Full name</label>
+        <label className="ds-label">Full name</label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="mt-1 mb-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          className="ds-input mb-3"
           placeholder="John Doe"
         />
 
-        <label className="block text-sm font-medium text-gray-700">Matrix Number</label>
+        <label className="ds-label">Matrix Number</label>
         <input
           value={matrixNumber}
           onChange={(e) => setMatrixNumber(e.target.value)}
-          className="mt-1 mb-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          className="ds-input mb-3"
           placeholder="A12345678"
         />
 
-        <label className="block text-sm font-medium text-gray-700">Email</label>
+        <label className="ds-label">Email</label>
         <input
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mt-1 mb-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          className="ds-input mb-3"
           placeholder="you@example.com"
           type="email"
         />
 
-        <label className="block text-sm font-medium text-gray-700">Password</label>
+        <label className="ds-label">Password</label>
         <input
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="mt-1 mb-4 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          className="ds-input mb-4"
           placeholder="Choose a strong password"
           type="password"
         />
@@ -137,12 +143,12 @@ function RegisterContent() {
         <button
           onClick={handleRegister}
           disabled={loading}
-          className="w-full inline-flex items-center justify-center px-4 py-2 bg-indigo-600 text-white rounded-md font-medium hover:bg-indigo-700 disabled:opacity-50"
+          className="ds-btn-primary w-full"
         >
           {loading ? "Creating account..." : "Register"}
         </button>
 
-        <div className="mt-4 text-center text-sm text-gray-600">
+        <div className="mt-4 text-center text-sm text-slate-600">
           Already have an account?{' '}
           <Link
             href={
@@ -150,7 +156,7 @@ function RegisterContent() {
                 ? `/login?role=student&next=${encodeURIComponent(safeNextPath)}`
                 : "/login"
             }
-            className="text-indigo-600 hover:underline"
+            className="font-semibold text-blue-700 hover:underline"
           >
             Sign in
           </Link>

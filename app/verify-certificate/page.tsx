@@ -105,23 +105,34 @@ function VerifyCertificateContent() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-8 text-slate-950">
+    <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-blue-50 px-4 py-8 text-slate-950">
       <div className="mx-auto max-w-5xl">
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl shadow-slate-950/10">
+          <div className="border-b border-slate-200 bg-gradient-to-r from-slate-950 to-blue-800 p-6 text-white md:p-8">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.32em] text-blue-200">ITC Certificate Verification</p>
+                <h1 className="mt-3 text-3xl font-black tracking-tight md:text-4xl">Public Verification Portal</h1>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100">
+                  Validate issued certificates against the ITC system record and the Ethereum Sepolia blockchain anchor.
+                </p>
+              </div>
+              <a
+                href="/login"
+                className="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/15"
+              >
+                Back to Login
+              </a>
+            </div>
+          </div>
+          <div className="p-6 md:p-8">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.32em] text-indigo-600">ITC Certificate Verification</p>
-              <h1 className="mt-3 text-3xl font-bold">Verify Certificate on Sepolia</h1>
-              <p className="mt-2 max-w-2xl text-sm text-slate-600">
+              <h2 className="text-xl font-black text-slate-950">Enter Certificate ID</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
                 Enter the certificate number to check the certificate stored in this system against the hash saved in the Ethereum Sepolia smart contract.
               </p>
             </div>
-            <a
-              href="/login"
-              className="inline-flex items-center justify-center rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              Back to Login
-            </a>
           </div>
 
           <form onSubmit={verifyCertificate} className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -129,12 +140,12 @@ function VerifyCertificateContent() {
               value={certificateNo}
               onChange={(event) => setCertificateNo(event.target.value)}
               placeholder="Example: CERT-1779247771947-2YGI90"
-              className="min-h-12 flex-1 rounded-lg border border-slate-300 px-4 font-mono text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              className="min-h-12 flex-1 rounded-lg border border-slate-300 px-4 font-mono text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
             <button
               type="submit"
               disabled={loading || !certificateNo.trim()}
-              className="min-h-12 rounded-lg bg-indigo-600 px-6 font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="min-h-12 rounded-lg bg-blue-700 px-6 font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? "Verifying..." : "Verify"}
             </button>
@@ -145,10 +156,11 @@ function VerifyCertificateContent() {
               {error}
             </div>
           )}
+          </div>
         </section>
 
         {result && (
-          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+          <section className="mt-6 rounded-lg border border-slate-200 bg-white p-6 shadow-xl shadow-slate-950/10 md:p-8">
             <div className="flex flex-col gap-3 border-b border-slate-200 pb-5 md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="font-mono text-sm text-slate-500">{result.certificateNo}</p>
@@ -222,7 +234,7 @@ function VerifyCertificateContent() {
                 href={result.explorerUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-6 inline-flex rounded-lg border border-indigo-200 px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50"
+                className="mt-6 inline-flex rounded-lg border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
               >
                 Open Sepolia Contract
               </a>

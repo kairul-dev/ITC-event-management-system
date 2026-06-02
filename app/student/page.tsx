@@ -47,9 +47,9 @@ type RegistrationRow = RegisteredEvent & {
 };
 
 const eventVisuals = [
-  "from-slate-950 via-indigo-900 to-violet-500",
+  "from-slate-950 via-blue-900 to-blue-500",
   "from-slate-950 via-blue-900 to-cyan-500",
-  "from-violet-950 via-purple-700 to-pink-500",
+  "from-slate-950 via-sky-800 to-blue-500",
   "from-slate-950 via-cyan-900 to-emerald-500",
 ];
 
@@ -122,7 +122,7 @@ function SummaryCard({
           <p className="text-sm font-semibold text-slate-600">{label}</p>
         </div>
       </div>
-      <p className="mt-5 text-sm font-bold text-violet-700">{action} <span aria-hidden="true">-&gt;</span></p>
+      <p className="mt-5 text-sm font-bold text-blue-700">{action} <span aria-hidden="true">-&gt;</span></p>
     </Link>
   );
 }
@@ -252,7 +252,7 @@ export default function StudentDashboard() {
   if (loading) {
     return (
       <div className="grid min-h-96 place-items-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-violet-100 border-t-violet-600" />
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-100 border-t-blue-700" />
       </div>
     );
   }
@@ -270,7 +270,7 @@ export default function StudentDashboard() {
           value={availableEvents.length}
           href="/student/events"
           action="Browse events"
-          tone="bg-violet-100 text-violet-700"
+          tone="bg-blue-100 text-blue-700"
           icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3M5 11h14M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z" />}
         />
         <SummaryCard
@@ -304,7 +304,7 @@ export default function StudentDashboard() {
           <section className="min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <div className="mb-5 flex items-center justify-between gap-3">
               <h3 className="text-lg font-black text-slate-950 sm:text-xl">Available Events</h3>
-              <Link href="/student/events" className="shrink-0 text-xs font-bold text-violet-700 hover:text-violet-600 sm:text-sm">View All Events -&gt;</Link>
+              <Link href="/student/events" className="shrink-0 text-xs font-bold text-blue-700 hover:text-blue-800 sm:text-sm">View All Events -&gt;</Link>
             </div>
             {availableEvents.length === 0 ? (
               <div className="rounded-lg border border-dashed border-slate-200 p-8 text-center text-sm font-medium text-slate-500">
@@ -347,10 +347,10 @@ export default function StudentDashboard() {
                           </span>
                         </div>
                         <div className="grid grid-cols-1 gap-2 pt-1 min-[380px]:grid-cols-2">
-                          <Link href={`/student/events/${event.id}`} className="rounded-md border border-violet-200 px-3 py-2 text-center text-xs font-bold text-violet-700 hover:bg-violet-50">
+                          <Link href={`/student/events/${event.id}`} className="rounded-md border border-blue-200 px-3 py-2 text-center text-xs font-bold text-blue-700 hover:bg-blue-50">
                             View Details
                           </Link>
-                          <Link href={`/student/events/${event.id}`} className="rounded-md bg-violet-600 px-3 py-2 text-center text-xs font-bold text-white hover:bg-violet-700">
+                          <Link href={`/student/events/${event.id}`} className="rounded-md bg-blue-700 px-3 py-2 text-center text-xs font-bold text-white hover:bg-blue-800">
                             Register Now
                           </Link>
                         </div>
@@ -365,7 +365,7 @@ export default function StudentDashboard() {
           <section className="min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <div className="mb-5 flex items-center justify-between gap-3">
               <h3 className="text-lg font-black text-slate-950 sm:text-xl">My Registrations</h3>
-              <Link href="/student/registered-events" className="shrink-0 text-xs font-bold text-violet-700 hover:text-violet-600 sm:text-sm">View All -&gt;</Link>
+              <Link href="/student/registered-events" className="shrink-0 text-xs font-bold text-blue-700 hover:text-blue-800 sm:text-sm">View All -&gt;</Link>
             </div>
             <div className="mobile-card-scroll rounded-lg border border-slate-200">
               <table className="w-full min-w-[720px] text-left text-sm">
@@ -400,7 +400,7 @@ export default function StudentDashboard() {
                         <td className="px-4 py-3 font-medium text-slate-600">{registration.events.location || "ITC venue"}</td>
                         <td className="px-4 py-3"><StatusPill status={registration.payment_status} /></td>
                         <td className="px-4 py-3">
-                          <Link href={`/student/events/${registration.events.id}`} className="rounded-md border border-violet-300 px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-50">
+                          <Link href={`/student/events/${registration.events.id}`} className="rounded-md border border-blue-300 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50">
                             View Details
                           </Link>
                         </td>
@@ -425,9 +425,9 @@ export default function StudentDashboard() {
                   const days = daysUntil(event.start_date) || 0;
                   return (
                     <div key={event.id} className="flex gap-4">
-                      <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-violet-50 text-center">
-                        <span className="block text-xl font-black leading-none text-violet-700">{date.getDate()}</span>
-                        <span className="block text-[10px] font-black uppercase text-violet-500">{date.toLocaleDateString("en-MY", { month: "short" })}</span>
+                      <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-blue-50 text-center">
+                        <span className="block text-xl font-black leading-none text-blue-700">{date.getDate()}</span>
+                        <span className="block text-[10px] font-black uppercase text-blue-500">{date.toLocaleDateString("en-MY", { month: "short" })}</span>
                       </div>
                       <div>
                         <p className="font-bold text-slate-900">{event.title}</p>
@@ -438,7 +438,7 @@ export default function StudentDashboard() {
                 })
               )}
             </div>
-            <Link href="/student/events" className="mt-5 inline-block text-sm font-bold text-violet-700 hover:text-violet-600">
+            <Link href="/student/events" className="mt-5 inline-block text-sm font-bold text-blue-700 hover:text-blue-800">
               View Calendar -&gt;
             </Link>
           </section>
@@ -452,8 +452,8 @@ export default function StudentDashboard() {
                 ["Update Profile", "/student/profile"],
                 ["My Certificates", "/student/certificates"],
               ].map(([label, href]) => (
-                <Link key={href} href={href} className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-bold text-slate-700 hover:bg-violet-50 hover:text-violet-700">
-                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-violet-100 text-violet-700">
+                <Link key={href} href={href} className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700">
+                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-blue-100 text-blue-700">
                     <Icon><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5h10M9 12h10M9 19h10M4 5h.01M4 12h.01M4 19h.01" /></Icon>
                   </span>
                   {label}
@@ -462,13 +462,13 @@ export default function StudentDashboard() {
             </div>
           </section>
 
-          <section className="rounded-lg bg-violet-50 p-5 text-center shadow-sm">
-            <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-white text-violet-700 shadow-sm">
+          <section className="rounded-lg bg-blue-50 p-5 text-center shadow-sm ring-1 ring-blue-100">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-white text-blue-700 shadow-sm">
               <Icon><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 10a6 6 0 1 0-12 0v4a3 3 0 0 0 3 3h1m8-7v7a2 2 0 0 1-2 2h-2m-2 0h2m0 0v-3" /></Icon>
             </div>
             <h3 className="mt-4 text-base font-black text-slate-950">Need Help?</h3>
             <p className="mt-2 text-sm font-medium leading-6 text-slate-600">Contact the ITC Club committee for event or certificate support.</p>
-            <Link href="/student/profile" className="mt-4 inline-flex rounded-lg bg-violet-600 px-6 py-3 text-sm font-bold text-white hover:bg-violet-700">
+            <Link href="/student/profile" className="mt-4 inline-flex rounded-lg bg-blue-700 px-6 py-3 text-sm font-bold text-white hover:bg-blue-800">
               Contact Us
             </Link>
           </section>

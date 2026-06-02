@@ -27,8 +27,8 @@ type StatCard = {
 
 const eventImages = [
   "from-slate-950 via-blue-900 to-cyan-500",
-  "from-slate-900 via-sky-800 to-indigo-500",
-  "from-indigo-950 via-violet-700 to-fuchsia-500",
+  "from-slate-900 via-sky-800 to-blue-500",
+  "from-slate-950 via-blue-800 to-sky-500",
   "from-slate-950 via-blue-800 to-emerald-500",
   "from-blue-950 via-cyan-800 to-blue-500",
 ];
@@ -263,7 +263,7 @@ export default function AdminPage() {
       value: stats.totalPaperwork,
       href: "/admin/users",
       cta: "View all events",
-      accent: "bg-violet-100 text-violet-700",
+      accent: "bg-blue-100 text-blue-700",
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 3v4m8-4v4M4 9h16M6 5h12a2 2 0 0 1 2 2v12H4V7a2 2 0 0 1 2-2Z" />,
     },
     {
@@ -295,7 +295,7 @@ export default function AdminPage() {
       value: stats.approvedPaperwork,
       href: "/admin/report",
       cta: "Publish event",
-      accent: "bg-pink-100 text-pink-700",
+      accent: "bg-slate-100 text-slate-700",
       icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm7 0v5h5M9 13h6M9 17h4" />,
     },
     {
@@ -356,7 +356,7 @@ export default function AdminPage() {
             <button className="rounded-md border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">This Month</button>
           </div>
           <div className="mb-2 flex flex-wrap justify-center gap-4 text-xs font-semibold text-slate-600 sm:gap-8">
-            <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-sm bg-indigo-600" />Registrations</span>
+            <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-sm bg-blue-600" />Registrations</span>
             <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />Events</span>
           </div>
           <div className="h-60 w-full overflow-hidden sm:h-64">
@@ -392,14 +392,14 @@ export default function AdminPage() {
           <h3 className="mb-5 text-lg font-extrabold text-slate-950">Paperwork Approval Flow</h3>
           <div className="space-y-5">
             {[
-              ["Admin Submitted", "Draft paperwork", stats.draftPaperwork, "text-indigo-600 bg-blue-100"],
+              ["Admin Submitted", "Draft paperwork", stats.draftPaperwork, "text-blue-600 bg-blue-100"],
               ["High Council Review", "Under review by high council", stats.pendingHighCouncil, "text-amber-600 bg-amber-100"],
-              ["Club Advisor Review", "Under review by club advisor", stats.pendingClubAdvisor, "text-violet-600 bg-violet-100"],
+              ["Club Advisor Review", "Under review by club advisor", stats.pendingClubAdvisor, "text-blue-600 bg-blue-100"],
               ["Admin Received Approval", "Ready to publish event", stats.approvedPaperwork, "text-emerald-600 bg-emerald-100"],
             ].map(([title, subtitle, count, badge], index) => (
               <div key={title} className="relative flex gap-3">
-                {index < 3 && <div className="absolute left-3 top-8 h-8 border-l border-indigo-300" />}
-                <div className="z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-indigo-500 bg-white text-xs font-bold text-indigo-600">{index + 1}</div>
+                {index < 3 && <div className="absolute left-3 top-8 h-8 border-l border-blue-300" />}
+                <div className="z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-blue-500 bg-white text-xs font-bold text-blue-600">{index + 1}</div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-extrabold text-slate-950">{title}</p>
                   <p className="text-xs font-medium text-slate-500">{subtitle}</p>
@@ -505,11 +505,11 @@ export default function AdminPage() {
           <h3 className="mb-5 text-lg font-extrabold text-slate-950">Quick Actions</h3>
           <div className="grid grid-cols-2 gap-4">
             {[
-              ["Manage Users", "/admin/users", "text-indigo-600", <path key="a" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v14m7-7H5M7 3v4m10-4v4M5 7h14v14H5V7Z" />],
+              ["Manage Users", "/admin/users", "text-blue-600", <path key="a" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v14m7-7H5M7 3v4m10-4v4M5 7h14v14H5V7Z" />],
               ["Card Payments", "/admin/payments", "text-emerald-600", <path key="b" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1m18-7h-6m3-3v6M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" />],
               ["System Reports", "/admin/report", "text-amber-500", <path key="c" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm7 0v5h5M9 13h6M9 17h6" />],
               ["View Reports", "/admin/report", "text-blue-600", <path key="d" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 20V9m5 11V4m5 16v-7m5 7V7M3 20h18" />],
-              ["Account Settings", "/admin/profile", "text-pink-500", <path key="e" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0" />],
+              ["Account Settings", "/admin/profile", "text-blue-500", <path key="e" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0" />],
               ["System Settings", "/admin/profile", "text-slate-500", <path key="f" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Zm8.5 4a7.9 7.9 0 0 0-.1-1l2-1.5-2-3.5-2.4 1a8 8 0 0 0-1.7-1L16 3h-4l-.4 3a8 8 0 0 0-1.7 1l-2.4-1-2 3.5 2 1.5a7.9 7.9 0 0 0 0 2l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 1.7 1l.4 3h4l.4-3a8 8 0 0 0 1.7-1l2.4 1 2-3.5-2-1.5c.1-.3.1-.7.1-1Z" />],
             ].map(([label, href, color, icon]) => (
               <Link key={`${label as string}-${href as string}`} href={href as string} className="flex min-h-28 flex-col items-center justify-center rounded-lg border border-slate-200 bg-white p-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">

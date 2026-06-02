@@ -1,1 +1,1 @@
-export { default } from "../president/layout";
+export { default } from "@/lib/ApprovalDashboardLayout";

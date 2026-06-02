@@ -219,7 +219,7 @@ export default function RoleDashboardShell({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-950 antialiased">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-blue-50 text-slate-950 antialiased">
       {!isDesktop && sidebarOpen && (
         <button
           aria-label="Close sidebar"
@@ -236,7 +236,7 @@ export default function RoleDashboardShell({
         }}
       >
         <div className="flex items-center gap-3 px-4 py-4 sm:px-6 sm:py-6">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-700 text-sm font-black text-white shadow-md shadow-violet-200 sm:h-12 sm:w-12">
+          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-blue-700 text-sm font-black text-white shadow-md shadow-blue-200 sm:h-12 sm:w-12">
             ITC
           </div>
           <div className="min-w-0 flex-1 leading-tight">
@@ -269,8 +269,8 @@ export default function RoleDashboardShell({
                 onClick={() => setSidebarOpen(false)}
                 className={`mb-1.5 flex items-center gap-3 rounded-lg px-3 py-2.5 font-bold transition sm:mb-2 sm:px-4 sm:py-3 ${
                   isActive(item.href)
-                    ? "bg-violet-100 text-violet-700 shadow-sm"
-                    : "text-slate-700 hover:bg-slate-100 hover:text-violet-700"
+                    ? "bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100"
+                    : "text-slate-700 hover:bg-slate-100 hover:text-blue-700"
                 }`}
               >
                 <Icon>{item.icon}</Icon>
@@ -281,8 +281,8 @@ export default function RoleDashboardShell({
         </nav>
 
         <div className="px-3 pb-4 sm:px-4 sm:pb-5">
-          <div className="mb-4 hidden rounded-xl bg-violet-50 p-4 text-center sm:block">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-white text-violet-700 shadow-sm">
+          <div className="mb-4 hidden rounded-lg bg-blue-50 p-4 text-center ring-1 ring-blue-100 sm:block">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-white text-blue-700 shadow-sm">
               <Icon>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3M5 11h14M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z" />
               </Icon>
@@ -308,7 +308,7 @@ export default function RoleDashboardShell({
         className="dashboard-shell-content min-w-0 transition-[padding] duration-200 print:!pl-0"
         style={{ paddingLeft: isDesktop && !desktopSidebarCollapsed ? sidebarWidth : 0 }}
       >
-        <header className="sticky top-0 z-10 flex min-h-16 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 py-2 shadow-sm shadow-slate-200/50 no-print sm:px-5 lg:h-[76px] lg:px-8 lg:py-0">
+        <header className="sticky top-0 z-10 flex min-h-16 items-center justify-between gap-2 border-b border-slate-200 bg-white/95 px-3 py-2 shadow-sm shadow-slate-200/50 backdrop-blur no-print sm:px-5 lg:h-[76px] lg:px-8 lg:py-0">
           <div className="flex min-w-0 items-center gap-2 sm:gap-4 lg:gap-5">
             <button
               onClick={() => {
@@ -448,10 +448,10 @@ export default function RoleDashboardShell({
                   <img
                     src={avatarUrl}
                     alt={`${displayName} profile`}
-                    className="h-10 w-10 rounded-full border-4 border-slate-100 object-cover shadow-sm sm:h-12 sm:w-12"
+                  className="h-10 w-10 rounded-full border-4 border-blue-50 object-cover shadow-sm sm:h-12 sm:w-12"
                   />
                 ) : (
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full border-4 border-slate-100 bg-violet-100 text-sm font-extrabold text-violet-700 shadow-sm sm:h-12 sm:w-12">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border-4 border-blue-50 bg-blue-100 text-sm font-extrabold text-blue-700 shadow-sm sm:h-12 sm:w-12">
                     {roleInitial}
                   </div>
                 )}

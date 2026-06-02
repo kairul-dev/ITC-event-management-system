@@ -1,1 +1,1 @@
-export { default } from "../president/page";
+export { default } from "@/lib/ApprovalHomePage";

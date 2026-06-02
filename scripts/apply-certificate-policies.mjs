@@ -23,8 +23,8 @@ async function applyPolicies() {
 
     // Get the raw SQL statements to execute
     const sqlStatements = [
-      `DROP POLICY IF EXISTS "Club advisors and presidents can read certificates" ON public.certificates;`,
-      `CREATE POLICY "Club advisors and presidents can read certificates"
+      `DROP POLICY IF EXISTS "Club advisors and admin can read certificates" ON public.certificates;`,
+      `CREATE POLICY "Club advisors and admin can read certificates"
 ON public.certificates
 FOR SELECT
 USING (
@@ -33,8 +33,8 @@ USING (
     WHERE role IN ('club_advisor', 'admin')
   )
 );`,
-      `DROP POLICY IF EXISTS "Club advisors and presidents can update certificates" ON public.certificates;`,
-      `CREATE POLICY "Club advisors and presidents can update certificates"
+      `DROP POLICY IF EXISTS "Club advisors and admin can update certificates" ON public.certificates;`,
+      `CREATE POLICY "Club advisors and admin can update certificates"
 ON public.certificates
 FOR UPDATE
 USING (

@@ -97,7 +97,7 @@ Use these known accounts when available:
 
 - Admin: `AI220382` / `123456aA`
 - High Council: `AI220383` / `123456aA`
-- Club Advisor: `suriawati` / `suriawati123`
+- Club Advisor: `suriawati` / password shared through secure handoff
 - Student: `AI220385` / `123456aA`
 
 Historical or older certificate-workflow test account:
@@ -438,10 +438,11 @@ Use this after any auth, RBAC, dashboard, middleware, or route protection change
 4. Confirm access is denied or redirected.
 5. Confirm locked users cannot access protected pages.
 6. Confirm only Admin can manage users and roles.
-7. Confirm only Committee can create events and certificate drafts.
-8. Confirm High Council can review/forward/reject paperwork and Club Advisor can give final approval/rejection.
-9. Confirm Students can only view their own registrations and issued certificates.
-10. Confirm Public Verifier can verify without login.
+7. In Admin user management, change a test Student to `committee`, confirm the database role updates, then change the same user back to `student`.
+8. Confirm only Committee can create events and certificate drafts.
+9. Confirm High Council can review/forward/reject paperwork and Club Advisor can give final approval/rejection.
+10. Confirm Students can only view their own registrations and issued certificates.
+11. Confirm Public Verifier can verify without login.
 
 Expected result:
 
@@ -480,7 +481,8 @@ Use this section whenever dashboard cards, nav, guards, or role redirects change
 2. Confirm Admin navigation includes user management, reports, payments/system records, profile, feedback analytics, and program calendar.
 3. Confirm system-level statistics load without exposing student-only or committee-only actions.
 4. Confirm Admin can manage user roles and account status.
-5. Confirm Admin-only pages deny Committee, High Council, Club Advisor, Student, and logged-out users.
+5. Confirm Admin can change roles among `admin`, `committee`, `high_council`, `club_advisor`, and `student`.
+6. Confirm Admin-only pages deny Committee, High Council, Club Advisor, Student, and logged-out users.
 
 ### Committee Dashboard
 
@@ -570,8 +572,8 @@ Previously verified:
 
 Credentials:
 
-- Name: `suriawati`
-- Password: `suriawati123`
+- Matrix Number: `suriawati`
+- Password: shared through secure handoff
 
 Previously verified:
 

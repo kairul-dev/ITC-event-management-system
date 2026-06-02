@@ -58,8 +58,8 @@ Recommended capture standard:
 | CAL-04 | Program Planning Calendar | Club Advisor | `/club-advisor/program-calendar` | Calendar visible to Club Advisor role. | Yes | Yes | No |
 | CAL-05 | Program Planning Calendar | Admin/Committee | `/admin/program-calendar` or `/committee/program-calendar` | Color coding evidence: Draft gray, Pending yellow, Approved green, Published blue, Completed purple, Rejected red. | Yes | Yes | Yes |
 | CAL-06 | Program Planning Calendar | Admin/Committee | Event create/edit flow | Overlapping event conflict warning shown without blocking submission. | Yes | Yes | Yes |
-| CAL-07 | Program Planning Calendar | Admin/Committee/high-council/Advisor | Program Calendar page | Dashboard statistics: events this month, pending approvals, upcoming events, completed events. | Yes | Yes | No |
-| CAL-08 | Program Planning Calendar | Admin/Committee/high-council/Advisor | Program Calendar page | Filters by month, status, and organizer. | Yes | Yes | No |
+| CAL-07 | Program Planning Calendar | Admin/Committee/High Council/Club Advisor | Program Calendar page | Dashboard statistics: events this month, pending approvals, upcoming events, completed events. | Yes | Yes | No |
+| CAL-08 | Program Planning Calendar | Admin/Committee/High Council/Club Advisor | Program Calendar page | Filters by month, status, and organizer. | Yes | Yes | No |
 | STU-01 | Student Registration | Student/Public | `/student/events` or `/events` | Event Listing visible to students. | Yes | Yes | Yes |
 | STU-02 | Student Registration | Student | `/student/events/[id]` or `/events/[id]` | Event Registration form or registration action. | Yes | Yes | Yes |
 | STU-03 | Student Registration | Student | `/student/registered-events` | Registered Events list after registration. | Yes | Yes | Yes |
@@ -89,7 +89,7 @@ Recommended capture standard:
 | VER-02 | Public Verification | Public Verifier | `/verify-certificate?certificateNo=CERT-FYP-DEMO-20260601` | Verification Success for demo certificate. | Yes | Yes | Yes |
 | VER-03 | Public Verification | Public Verifier | `/verify-certificate` | Verification Failure for invalid or unknown certificate ID. | Yes | Yes | Yes |
 | VER-04 | Public Verification | Public Verifier | QR scan result to `/verify-certificate` | QR-based verification path, if captured from certificate QR code. | Yes | Yes | Yes |
-| BC-01 | Blockchain Verification | Club Advisor/high-council | `/club-advisor/certificates` | Anchoring Success after approving/anchoring certificate. | Yes | Yes | Yes |
+| BC-01 | Blockchain Verification | Club Advisor | `/club-advisor/certificates` | Anchoring Success after approving/anchoring certificate. | Yes | Yes | Yes |
 | BC-02 | Blockchain Verification | Admin/Verifier | `/verify-certificate?certificateNo=CERT-FYP-DEMO-20260601` | Transaction Hash displayed or referenced in verification result. | Yes | Yes | Yes |
 | BC-03 | Blockchain Verification | Public Verifier | `https://sepolia.etherscan.io/tx/0x9fbad15f7ed4b426a2ffa3cce81c324e32557172bba46eb801488eefa25b1b2c` | Sepolia explorer transaction page. | Yes | Yes | Yes |
 | BC-04 | Blockchain Verification | Public Verifier | `https://sepolia.etherscan.io/address/0x837Dc6837647b28538EDa60B08f67f09f670bD5C` | Sepolia explorer contract page. | Yes | Yes | Yes |

@@ -2,11 +2,11 @@
 
 import { supabase } from "@/lib/supabase";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import RoleDashboardShell, { type RoleNavItem } from "@/lib/RoleDashboardShell";
-import ApprovalGuard from "@/lib/ApprovalGuard";
+import RoleGuard from "@/lib/RoleGuard";
 
-export default function LegacyApprovalLayout({
+export default function ApprovalDashboardLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -15,12 +15,6 @@ export default function LegacyApprovalLayout({
   const pathname = usePathname();
   const basePath = pathname.startsWith("/club-advisor") ? "/club-advisor" : "/high-council";
   const isClubAdvisor = pathname.startsWith("/club-advisor");
-
-  useEffect(() => {
-    if (pathname.startsWith("/president")) {
-      router.replace(pathname.replace(/^\/president/, "/high-council"));
-    }
-  }, [pathname, router]);
 
   const navItems = useMemo<RoleNavItem[]>(
     () => [
@@ -60,8 +54,10 @@ export default function LegacyApprovalLayout({
     router.replace("/login");
   };
 
+  const allowedRole = isClubAdvisor ? "club_advisor" : "high_council";
+
   return (
-    <ApprovalGuard>
+    <RoleGuard allowedRoles={[allowedRole]} loginRole={allowedRole}>
       <RoleDashboardShell
         title={isClubAdvisor ? "Club Advisor Dashboard" : "High Council Dashboard"}
         roleLabel={isClubAdvisor ? "Club Advisor" : "High Council"}
@@ -70,6 +66,6 @@ export default function LegacyApprovalLayout({
       >
         {children}
       </RoleDashboardShell>
-    </ApprovalGuard>
+    </RoleGuard>
   );
 }

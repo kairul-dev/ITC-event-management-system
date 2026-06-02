@@ -34,26 +34,35 @@ export default function Navbar() {
   };
 
   return (
-    <nav style={{ padding: 16, background: "#222", color: "#fff" }}>
-      <Link href="/">Home</Link>{" | "}
+    <nav className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-4 py-3 text-slate-900 shadow-sm backdrop-blur no-print">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
+        <Link href="/" className="flex items-center gap-3 text-sm font-black text-slate-950">
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-blue-700 text-white">ITC</span>
+          <span>Secure Document Verification</span>
+        </Link>
 
-      {role === "admin" && (
-        <>
-          <Link href="/admin">Admin</Link>{" | "}
-          <Link href="/admin/event">Manage Events</Link>{" | "}
-          <Link href="/admin/users">Users</Link>{" | "}
-        </>
-      )}
+        <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+          <Link href="/" className="rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-blue-700">Home</Link>
 
-      {role === "student" && (
-        <>
-          <Link href="/student">Dashboard</Link>{" | "}
-        </>
-      )}
+          {role === "admin" && (
+            <>
+              <Link href="/admin" className="rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-blue-700">Admin</Link>
+              <Link href="/admin/event" className="rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-blue-700">Manage Events</Link>
+              <Link href="/admin/users" className="rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-blue-700">Users</Link>
+            </>
+          )}
 
-      <button onClick={logout} style={{ marginLeft: 20 }}>
-        Logout
-      </button>
+          {role === "student" && (
+            <Link href="/student" className="rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-blue-700">Dashboard</Link>
+          )}
+
+          {role && (
+            <button onClick={logout} className="rounded-lg bg-slate-900 px-4 py-2 text-white hover:bg-blue-700">
+              Logout
+            </button>
+          )}
+        </div>
+      </div>
     </nav>
   );
 }
