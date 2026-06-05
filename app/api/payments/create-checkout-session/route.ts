@@ -34,6 +34,17 @@ const pickEventData = (events: RegistrationRow["events"]) => {
   return events;
 };
 
+const resolveAppOrigin = (request: Request) => {
+  const origin = request.headers.get("origin");
+  if (origin?.startsWith("http")) return origin;
+
+  const forwardedHost = request.headers.get("x-forwarded-host") || request.headers.get("host");
+  const forwardedProto = request.headers.get("x-forwarded-proto") || "https";
+  if (forwardedHost) return `${forwardedProto}://${forwardedHost}`;
+
+  return process.env.NEXT_PUBLIC_APP_URL || "https://itc-secure-document-verification-sy.vercel.app";
+};
+
 export async function POST(request: Request) {
   try {
     if (!stripeSecretKey) {
@@ -115,10 +126,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const origin =
-      request.headers.get("origin") ||
-      process.env.NEXT_PUBLIC_APP_URL ||
-      "http://localhost:3000";
+    const origin = resolveAppOrigin(request);
 
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "payment",
