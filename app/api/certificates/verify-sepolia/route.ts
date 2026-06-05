@@ -65,7 +65,7 @@ export async function POST(request: Request) {
 
     if (certificate) {
       const [{ data: user }, { data: event }] = await Promise.all([
-        supabaseAdmin.from("users").select("name").eq("id", certificate.user_id).single(),
+        supabaseAdmin.from("users").select("name, matrix_number").eq("id", certificate.user_id).single(),
         supabaseAdmin.from("events").select("title").eq("id", certificate.event_id).single(),
       ]);
 
@@ -83,6 +83,7 @@ export async function POST(request: Request) {
         id: certificate.id,
         certificateNo: certificate.certificate_no,
         studentName,
+        matricNumber: user?.matrix_number || null,
         eventTitle,
         issuedAt: certificate.issued_at,
         status: certificate.status,
@@ -99,9 +100,9 @@ export async function POST(request: Request) {
         network: "ethereum-sepolia",
         contractAddress,
         localCertificate,
-      localHash,
-      transactionHash: certificate?.transaction_hash || null,
-      message: "Sepolia is not configured. Add SEPOLIA_RPC_URL to .env.local.",
+        localHash,
+        transactionHash: certificate?.transaction_hash || null,
+        message: "Sepolia is not configured. Add SEPOLIA_RPC_URL to .env.local.",
       });
     }
 

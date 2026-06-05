@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, Suspense, useEffect, useState } from "react";
+import { FormEvent, Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 type VerifyResult = {
@@ -21,6 +21,7 @@ type VerifyResult = {
   localCertificate?: {
     certificateNo: string;
     studentName: string;
+    matricNumber?: string | null;
     eventTitle: string;
     issuedAt: string;
     status: string;
@@ -55,17 +56,23 @@ function formatStudentName(name?: string) {
     .join(" ");
 }
 
+function shortValue(value?: string | null) {
+  if (!value) return "-";
+  if (value.length <= 16) return value;
+  return `${value.slice(0, 6)}...${value.slice(-4)}`;
+}
+
 function StatusBadge({ result }: { result: VerifyResult }) {
   if (!result.configured) {
     return <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800">Sepolia not configured</span>;
   }
 
-  if (!result.foundOnChain) {
-    return <span className="rounded-full bg-red-100 px-3 py-1 text-sm font-semibold text-red-700">Not found on Sepolia</span>;
+  if (!result.foundLocal) {
+    return <span className="rounded-full bg-red-100 px-3 py-1 text-sm font-semibold text-red-700">Certificate Not Found</span>;
   }
 
-  if (!result.foundLocal) {
-    return <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700">Found on Sepolia only</span>;
+  if (!result.foundOnChain) {
+    return <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800">Not found on Sepolia</span>;
   }
 
   if (result.hashMatches) {
@@ -79,7 +86,16 @@ function VerificationMessage({ result }: { result: VerifyResult }) {
   if (!result.foundLocal) {
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-red-800">
-        <p className="text-lg font-black">✗ Certificate does not exist.</p>
+        <p className="text-lg font-black">Certificate does not exist.</p>
+      </div>
+    );
+  }
+
+  if (result.foundLocal && !result.foundOnChain) {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-amber-800">
+        <p className="text-lg font-black">Blockchain status: Not found on Sepolia.</p>
+        <p className="mt-1 text-sm font-medium">The certificate exists in the system, but no matching Sepolia record was found.</p>
       </div>
     );
   }
@@ -87,7 +103,7 @@ function VerificationMessage({ result }: { result: VerifyResult }) {
   if (result.valid && result.hashMatches) {
     return (
       <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800">
-        <p className="text-lg font-black">✓ Certificate is authentic.</p>
+        <p className="text-lg font-black">Certificate is authentic.</p>
         <p className="mt-1 text-sm font-medium">The blockchain record matches the issued certificate.</p>
       </div>
     );
@@ -95,18 +111,43 @@ function VerificationMessage({ result }: { result: VerifyResult }) {
 
   return (
     <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-red-800">
-      <p className="text-lg font-black">✗ Certificate verification failed.</p>
+      <p className="text-lg font-black">Certificate verification failed.</p>
       <p className="mt-1 text-sm font-medium">The blockchain record does not match the certificate.</p>
     </div>
   );
 }
 
-function InfoRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+function InfoRow({
+  label,
+  value,
+  mono = false,
+  copyValue,
+  copied,
+  onCopy,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  copyValue?: string;
+  copied?: boolean;
+  onCopy?: (value: string) => void;
+}) {
   return (
     <div className="border-b border-slate-100 py-3 last:border-0">
       <dt className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{label}</dt>
-      <dd className={`mt-1 break-all text-sm text-slate-950 ${mono ? "font-mono leading-6" : "font-semibold"}`}>
-        {value || "-"}
+      <dd className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <span className={`break-all text-sm text-slate-950 ${mono ? "font-mono leading-6" : "font-semibold"}`}>
+          {value || "-"}
+        </span>
+        {copyValue && onCopy && (
+          <button
+            type="button"
+            onClick={() => onCopy(copyValue)}
+            className="w-fit rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+          >
+            {copied ? "Copied" : "Copy"}
+          </button>
+        )}
       </dd>
     </div>
   );
@@ -119,14 +160,27 @@ function VerifyCertificateContent() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<VerifyResult | null>(null);
   const [error, setError] = useState("");
+  const [copiedValue, setCopiedValue] = useState("");
 
-  const verifyCertificateNumber = async (value: string) => {
+  const copyToClipboard = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedValue(value);
+      window.setTimeout(() => setCopiedValue(""), 1600);
+    } catch (err) {
+      console.error("Unable to copy value:", err);
+      alert("Unable to copy. Please copy the value manually.");
+    }
+  };
+
+  const verifyCertificateNumber = useCallback(async (value: string) => {
     const nextCertificateNo = value.trim();
     if (!nextCertificateNo) return;
 
     setLoading(true);
     setError("");
     setResult(null);
+    setCopiedValue("");
 
     try {
       const response = await fetch("/api/certificates/verify-sepolia", {
@@ -146,14 +200,14 @@ function VerifyCertificateContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const initialCertificateNo = searchParams.get("certificateNo") || searchParams.get("certificateId") || "";
     if (initialCertificateNo) {
       void verifyCertificateNumber(initialCertificateNo);
     }
-  }, []);
+  }, [searchParams, verifyCertificateNumber]);
 
   const verifyCertificate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -181,37 +235,38 @@ function VerifyCertificateContent() {
               </a>
             </div>
           </div>
+
           <div className="p-6 md:p-8">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <h2 className="text-xl font-black text-slate-950">Enter Certificate ID</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                Enter the certificate number to check the certificate stored in this system against the hash saved in the Ethereum Sepolia smart contract.
-              </p>
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <h2 className="text-xl font-black text-slate-950">Enter Certificate ID</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                  Enter the certificate number to check the certificate stored in this system against the hash saved in the Ethereum Sepolia smart contract.
+                </p>
+              </div>
             </div>
-          </div>
 
-          <form onSubmit={verifyCertificate} className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <input
-              value={certificateNo}
-              onChange={(event) => setCertificateNo(event.target.value)}
-              placeholder="Example: CERT-1779247771947-2YGI90"
-              className="min-h-12 flex-1 rounded-lg border border-slate-300 px-4 font-mono text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
-            <button
-              type="submit"
-              disabled={loading || !certificateNo.trim()}
-              className="min-h-12 rounded-lg bg-blue-700 px-6 font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loading ? "Verifying..." : "Verify"}
-            </button>
-          </form>
+            <form onSubmit={verifyCertificate} className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <input
+                value={certificateNo}
+                onChange={(event) => setCertificateNo(event.target.value)}
+                placeholder="Example: CERT-FYP-DEMO-20260601"
+                className="min-h-12 flex-1 rounded-lg border border-slate-300 px-4 font-mono text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+              <button
+                type="submit"
+                disabled={loading || !certificateNo.trim()}
+                className="min-h-12 rounded-lg bg-blue-700 px-6 font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? "Verifying..." : "Verify"}
+              </button>
+            </form>
 
-          {error && (
-            <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
-              {error}
-            </div>
-          )}
+            {error && (
+              <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+                {error}
+              </div>
+            )}
           </div>
         </section>
 
@@ -235,59 +290,98 @@ function VerifyCertificateContent() {
               <VerificationMessage result={result} />
             </div>
 
-            <div className="mt-6 grid gap-4 lg:grid-cols-2">
-              <div className="rounded-xl border border-slate-200 p-5">
-                <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-slate-500">Certificate Information</h3>
-                {result.localCertificate ? (
-                  <dl className="mt-4">
-                    <InfoRow label="Certificate ID" value={result.localCertificate.certificateNo || result.certificateNo} mono />
-                    <InfoRow label="Student Name" value={formatStudentName(result.localCertificate.studentName)} />
-                    <InfoRow label="Event Name" value={result.localCertificate.eventTitle} />
-                    <InfoRow
-                      label="Issue Date"
-                      value={new Date(result.localCertificate.issuedAt).toLocaleString("en-MY")}
-                    />
-                  </dl>
-                ) : (
-                  <p className="mt-4 text-sm text-slate-600">✗ Certificate does not exist.</p>
-                )}
-              </div>
+            {result.foundLocal && result.localCertificate && (
+              <>
+                <div className="mt-6 grid gap-4 lg:grid-cols-2">
+                  <div className="rounded-xl border border-slate-200 p-5">
+                    <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-slate-500">Certificate Information</h3>
+                    <dl className="mt-4">
+                      <InfoRow label="Certificate ID" value={result.localCertificate.certificateNo || result.certificateNo} mono />
+                      <InfoRow label="Student Name" value={formatStudentName(result.localCertificate.studentName)} />
+                      <InfoRow label="Matric Number" value={result.localCertificate.matricNumber || "Not provided"} mono />
+                      <InfoRow label="Event Name" value={result.localCertificate.eventTitle} />
+                      <InfoRow
+                        label="Issue Date"
+                        value={new Date(result.localCertificate.issuedAt).toLocaleString("en-MY")}
+                      />
+                    </dl>
+                  </div>
 
-              <div className="rounded-xl border border-slate-200 p-5">
-                <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-slate-500">Blockchain Information</h3>
-                <dl className="mt-4">
-                  <InfoRow
-                    label="Certificate Hash"
-                    value={formatHash(result.onChainCertificate?.hash || result.localCertificate?.hash || "")}
-                    mono
-                  />
-                  <InfoRow label="Contract Address" value={result.contractAddress} mono />
-                  <InfoRow label="Transaction Hash" value={result.transactionHash || result.localCertificate?.transactionHash || "Not recorded"} mono />
-                  <InfoRow label="Network" value={NETWORK_LABEL} />
-                </dl>
-              </div>
-            </div>
+                  <div className="rounded-xl border border-slate-200 p-5">
+                    <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-slate-500">
+                      {result.foundOnChain ? "Blockchain Information" : "Blockchain Status"}
+                    </h3>
+                    {result.foundOnChain ? (
+                      <dl className="mt-4">
+                        <InfoRow
+                          label="Certificate Hash"
+                          value={formatHash(result.onChainCertificate?.hash || result.localCertificate.hash || "")}
+                          mono
+                          copyValue={result.onChainCertificate?.hash || result.localCertificate.hash || ""}
+                          copied={copiedValue === (result.onChainCertificate?.hash || result.localCertificate.hash || "")}
+                          onCopy={copyToClipboard}
+                        />
+                        <InfoRow
+                          label="Contract Address"
+                          value={shortValue(result.contractAddress)}
+                          mono
+                          copyValue={result.contractAddress}
+                          copied={copiedValue === result.contractAddress}
+                          onCopy={copyToClipboard}
+                        />
+                        {(result.transactionHash || result.localCertificate.transactionHash) && (
+                          <InfoRow
+                            label="Transaction Hash"
+                            value={shortValue(result.transactionHash || result.localCertificate.transactionHash)}
+                            mono
+                            copyValue={result.transactionHash || result.localCertificate.transactionHash || ""}
+                            copied={copiedValue === (result.transactionHash || result.localCertificate.transactionHash)}
+                            onCopy={copyToClipboard}
+                          />
+                        )}
+                        <InfoRow label="Network" value={NETWORK_LABEL} />
+                      </dl>
+                    ) : (
+                      <dl className="mt-4">
+                        <InfoRow label="Status" value="Not found on Sepolia" />
+                        <InfoRow
+                          label="Contract Address"
+                          value={shortValue(result.contractAddress)}
+                          mono
+                          copyValue={result.contractAddress}
+                          copied={copiedValue === result.contractAddress}
+                          onCopy={copyToClipboard}
+                        />
+                        <InfoRow label="Network" value={NETWORK_LABEL} />
+                      </dl>
+                    )}
+                  </div>
+                </div>
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              {(result.transactionUrl || result.transactionHash) && (
-                <a
-                  href={result.transactionUrl || `https://sepolia.etherscan.io/tx/${result.transactionHash}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex justify-center rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
-                >
-                  View Transaction on Etherscan
-                </a>
-              )}
-              <a
-                href={result.contractUrl || result.explorerUrl || `https://sepolia.etherscan.io/address/${result.contractAddress}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex justify-center rounded-lg border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
-              >
-                View Smart Contract on Etherscan
-              </a>
-            </div>
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                  {result.foundOnChain && (result.transactionUrl || result.transactionHash) && (
+                    <a
+                      href={result.transactionUrl || `https://sepolia.etherscan.io/tx/${result.transactionHash}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex justify-center rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
+                    >
+                      View Transaction on Etherscan
+                    </a>
+                  )}
+                  {(result.foundOnChain || result.foundLocal) && (
+                    <a
+                      href={result.contractUrl || result.explorerUrl || `https://sepolia.etherscan.io/address/${result.contractAddress}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex justify-center rounded-lg border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+                    >
+                      View Smart Contract on Etherscan
+                    </a>
+                  )}
+                </div>
+              </>
+            )}
           </section>
         )}
       </div>
