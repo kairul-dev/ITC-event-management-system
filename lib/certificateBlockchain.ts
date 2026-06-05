@@ -6,6 +6,14 @@ export type CertificateBlockchainPayload = {
   issuedAt: string;
 };
 
+function normalizeIssuedAt(issuedAt: string) {
+  const value = issuedAt.trim();
+  const hasTimezone = /(?:z|[+-]\d{2}:?\d{2})$/i.test(value);
+  const normalizedValue = hasTimezone ? value : `${value}+08:00`;
+
+  return new Date(normalizedValue).toISOString();
+}
+
 export function buildCertificateBlockchainPayload(payload: CertificateBlockchainPayload) {
   return [
     "ITC-CERTIFICATE-BLOCKCHAIN-V1",
@@ -13,7 +21,7 @@ export function buildCertificateBlockchainPayload(payload: CertificateBlockchain
     payload.certificateNo,
     payload.studentName.trim().toUpperCase(),
     payload.eventTitle.trim().toUpperCase(),
-    new Date(payload.issuedAt).toISOString(),
+    normalizeIssuedAt(payload.issuedAt),
   ].join("|");
 }
 
