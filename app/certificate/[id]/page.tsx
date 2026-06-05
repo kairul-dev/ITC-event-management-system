@@ -10,8 +10,12 @@ type CertificateDetail = {
   id: string;
   certificate_no: string;
   student_name: string;
+  matric_number: string;
   event_title: string;
+  event_date: string;
   issued_at: string;
+  issued_date: string;
+  approved_by_name: string;
   status: string;
   blockchain_hash: string;
   transaction_hash: string | null;
@@ -30,7 +34,7 @@ type Html2PdfWorker = {
 };
 
 const BLOCKCHAIN_NETWORK = "Ethereum Sepolia";
-const SMART_CONTRACT_ADDRESS = "0x837Dc6837647b28538EDa60B08f67f09f670bD5C";
+const DEFAULT_PUBLIC_ORIGIN = "https://itc-secure-document-verification-sy.vercel.app";
 
 function formatStudentName(name: string) {
   return name
@@ -41,6 +45,30 @@ function formatStudentName(name: string) {
     .join(" ") || "Student";
 }
 
+function formatCertificateName(name: string) {
+  return formatStudentName(name).toUpperCase();
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return "Not provided";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not provided";
+  return date.toLocaleDateString("en-MY", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatEventPeriod(startDate?: string | null, endDate?: string | null) {
+  const start = formatDate(startDate);
+  const end = formatDate(endDate);
+
+  if (start === "Not provided") return "Not provided";
+  if (end === "Not provided" || start === end) return start;
+  return `${start} - ${end}`;
+}
+
 export default function CertificatePage() {
   const params = useParams();
   const router = useRouter();
@@ -49,6 +77,11 @@ export default function CertificatePage() {
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [copiedValue, setCopiedValue] = useState("");
+  const [publicOrigin, setPublicOrigin] = useState(DEFAULT_PUBLIC_ORIGIN);
+
+  useEffect(() => {
+    setPublicOrigin(window.location.origin || DEFAULT_PUBLIC_ORIGIN);
+  }, []);
 
   useEffect(() => {
     const loadCertificate = async () => {
@@ -64,7 +97,7 @@ export default function CertificatePage() {
 
         const { data, error } = await supabase
           .from("certificates")
-          .select("id, certificate_no, issued_at, status, user_id, event_id, certificate_hash, transaction_hash")
+          .select("id, certificate_no, issued_at, status, approved_by, user_id, event_id, certificate_hash, transaction_hash")
           .eq("id", params.id)
           .eq("user_id", user.id)
           .eq("status", "issued")
@@ -85,19 +118,28 @@ export default function CertificatePage() {
         // Fetch user data
         const { data: userData, error: userError } = await supabase
           .from("users")
-          .select("name")
+          .select("name, matrix_number")
           .eq("id", data.user_id)
           .single();
 
         // Fetch event data
         const { data: eventData, error: eventError } = await supabase
           .from("events")
-          .select("title")
+          .select("title, start_date, end_date")
           .eq("id", data.event_id)
           .single();
 
+        const { data: approverData, error: approverError } = data.approved_by
+          ? await supabase
+              .from("users")
+              .select("name")
+              .eq("id", data.approved_by)
+              .maybeSingle()
+          : { data: null, error: null };
+
         if (userError) console.error("Error loading user:", userError.message);
         if (eventError) console.error("Error loading event:", eventError.message);
+        if (approverError) console.error("Error loading approver:", approverError.message);
 
         const { data: feedbackData, error: feedbackError } = await supabase
           .from("event_feedback")
@@ -131,9 +173,13 @@ export default function CertificatePage() {
         setCertificate({
           id: data.id,
           certificate_no: data.certificate_no,
-          student_name: formatStudentName(userData?.name || "Student"),
+          student_name: formatCertificateName(userData?.name || "Student"),
+          matric_number: (userData?.matrix_number || "Not provided").toUpperCase(),
           event_title: eventData?.title || "Event",
+          event_date: formatEventPeriod(eventData?.start_date, eventData?.end_date),
           issued_at: data.issued_at,
+          issued_date: formatDate(data.issued_at),
+          approved_by_name: formatStudentName(approverData?.name || "Club Advisor"),
           status: data.status || "issued",
           blockchain_hash: data.certificate_hash || computedBlockchainHash,
           transaction_hash: data.transaction_hash || null,
@@ -200,9 +246,13 @@ export default function CertificatePage() {
       onClick={() => copyToClipboard(label, value)}
       className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
     >
-      {copiedValue === label ? "Copied" : "Copy"}
+      {copiedValue === label ? "Copied" : label === "Blockchain Hash" ? "Copy Hash" : "Copy"}
     </button>
   );
+
+  const verificationUrl = certificate
+    ? `${publicOrigin}/verify-certificate?certificateNo=${encodeURIComponent(certificate.certificate_no)}`
+    : "";
 
   if (loading) {
     return (
@@ -269,10 +319,19 @@ export default function CertificatePage() {
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-blue-700">Issued Certificate</p>
             <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">Certificate of Achievement</h1>
             <p className="mt-3 text-slate-600">
-              <span className="font-medium">Student:</span> {certificate.student_name}
+              <span className="font-medium">Student Name:</span> {certificate.student_name}
+            </p>
+            <p className="text-slate-600">
+              <span className="font-medium">Matric Number:</span> {certificate.matric_number}
             </p>
             <p className="text-slate-600">
               <span className="font-medium">Event:</span> {certificate.event_title}
+            </p>
+            <p className="text-slate-600">
+              <span className="font-medium">Event Date:</span> {certificate.event_date}
+            </p>
+            <p className="text-slate-600">
+              <span className="font-medium">Issue Date:</span> {certificate.issued_date}
             </p>
             <div className="mt-4 grid gap-3 text-sm">
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
@@ -293,13 +352,13 @@ export default function CertificatePage() {
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="font-semibold text-slate-600">Smart Contract Address</span>
-                  <CopyButton label="Contract Address" value={SMART_CONTRACT_ADDRESS} />
+                  <span className="font-semibold text-slate-600">Verification URL</span>
+                  <CopyButton label="Verification URL" value={verificationUrl} />
                 </div>
-                <p className="mt-2 break-all font-mono text-xs text-slate-700">{SMART_CONTRACT_ADDRESS}</p>
+                <p className="mt-2 break-all font-mono text-xs text-slate-700">{verificationUrl}</p>
               </div>
               <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
-                <span className="font-semibold text-blue-800">Blockchain Network</span>
+                <span className="font-semibold text-blue-800">Blockchain Verified</span>
                 <p className="mt-1 font-bold text-blue-950">{BLOCKCHAIN_NETWORK}</p>
               </div>
             </div>
@@ -346,16 +405,6 @@ export default function CertificatePage() {
             >
               Verify Certificate
             </a>
-            {certificate.transaction_hash && (
-              <a
-                href={`https://sepolia.etherscan.io/tx/${certificate.transaction_hash}`}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-lg border border-emerald-200 bg-white px-6 py-3 text-center font-bold text-emerald-700 transition hover:bg-emerald-50"
-              >
-                View Transaction
-              </a>
-            )}
           </div>
         </div>
       </div>
@@ -366,14 +415,16 @@ export default function CertificatePage() {
           <CertificateTemplate
             data={{
               studentName: certificate.student_name,
+              matricNumber: certificate.matric_number,
               eventTitle: certificate.event_title,
+              eventDate: certificate.event_date,
               certificateNo: certificate.certificate_no,
-              issuedDate: new Date(certificate.issued_at).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              }),
-              issuerName: "ITC",
+              issuedDate: certificate.issued_date,
+              verificationUrl,
+              approvedBy: certificate.approved_by_name,
+              approverRole: "Club Advisor",
+              certificateType: "Certificate of Participation",
+              issuerName: "ITC Secure Document Verification System",
               blockchainHash: formatBlockchainHash(certificate.blockchain_hash),
             }}
           />
