@@ -72,12 +72,15 @@ export async function POST(request: Request) {
       );
     }
 
+    const persistedNextStatus =
+      role === "club_advisor" && nextStatus === "Approved" ? "Published" : nextStatus;
+
     const { data: updatedEvent, error: updateError } = await supabaseAdmin
       .from("events")
       .update({
-        status: nextStatus,
+        status: persistedNextStatus,
         rejection_reason: nextStatus === "Rejected" ? rejectionReason : null,
-        approved_by: nextStatus === "Approved" || nextStatus === "Pending Club Advisor Approval" ? roleCheck.userId : null,
+        approved_by: persistedNextStatus === "Published" || persistedNextStatus === "Pending Club Advisor Approval" ? roleCheck.userId : null,
         approved_at: new Date().toISOString(),
       })
       .eq("id", eventId)
@@ -95,7 +98,7 @@ export async function POST(request: Request) {
       actor_id: roleCheck.userId,
       actor_role: role,
       from_status: currentStatus,
-      to_status: nextStatus,
+      to_status: persistedNextStatus,
       comments: rejectionReason,
     });
 

@@ -23,6 +23,33 @@ type CheckoutSessionPayload = {
   } | null;
 };
 
+const getAuthenticatedUserId = async (request: Request) => {
+  if (!supabaseUrl || !supabaseAnonKey) return null;
+
+  const authHeader = request.headers.get("authorization") || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+
+  if (!token) return null;
+
+  const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+
+  const {
+    data: { user },
+  } = await supabaseAuth.auth.getUser(token);
+
+  return user?.id || null;
+};
+
 const updatePaymentStatus = async (
   registrationId: string,
   payload: {
@@ -57,34 +84,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const authHeader = request.headers.get("authorization") || "";
-    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
-
-    if (!token) {
-      return NextResponse.json({ error: "Missing auth token." }, { status: 401 });
-    }
-
-    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    });
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAuth.auth.getUser(token);
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
     const body = (await request.json()) as ConfirmRequest;
     const sessionId = body.sessionId?.trim();
 
@@ -102,7 +101,8 @@ export async function POST(request: Request) {
       );
     }
 
-    if (checkoutSession.metadata.user_id && checkoutSession.metadata.user_id !== user.id) {
+    const authenticatedUserId = await getAuthenticatedUserId(request);
+    if (authenticatedUserId && checkoutSession.metadata.user_id && checkoutSession.metadata.user_id !== authenticatedUserId) {
       return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }
 

@@ -141,7 +141,7 @@ export async function POST(request: Request) {
         event_id: row.event_id,
         user_id: user.id,
       },
-      success_url: `${origin}/student/registered-events?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${origin}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/student/registered-events?payment=cancel`,
     });
 
