@@ -56,7 +56,7 @@ export async function POST(request: Request) {
 
     const { data: certificate } = await supabaseAdmin
       .from("certificates")
-      .select("id, certificate_no, issued_at, status, user_id, event_id")
+      .select("id, certificate_no, issued_at, status, user_id, event_id, certificate_hash, transaction_hash")
       .eq("certificate_no", certificateNo)
       .maybeSingle();
 
@@ -86,7 +86,9 @@ export async function POST(request: Request) {
         eventTitle,
         issuedAt: certificate.issued_at,
         status: certificate.status,
-        hash: localHash,
+        hash: certificate.certificate_hash || localHash,
+        calculatedHash: localHash,
+        transactionHash: certificate.transaction_hash,
       };
     }
 
@@ -97,8 +99,9 @@ export async function POST(request: Request) {
         network: "ethereum-sepolia",
         contractAddress,
         localCertificate,
-        localHash,
-        message: "Sepolia is not configured. Add SEPOLIA_RPC_URL to .env.local.",
+      localHash,
+      transactionHash: certificate?.transaction_hash || null,
+      message: "Sepolia is not configured. Add SEPOLIA_RPC_URL to .env.local.",
       });
     }
 
@@ -135,6 +138,11 @@ export async function POST(request: Request) {
       chainId: SEPOLIA_CHAIN_ID,
       contractAddress,
       explorerUrl: `https://sepolia.etherscan.io/address/${contractAddress}`,
+      transactionHash: certificate?.transaction_hash || null,
+      transactionUrl: certificate?.transaction_hash
+        ? `https://sepolia.etherscan.io/tx/${certificate.transaction_hash}`
+        : null,
+      contractUrl: `https://sepolia.etherscan.io/address/${contractAddress}`,
       localCertificate,
       onChainCertificate,
       foundLocal: Boolean(localCertificate),

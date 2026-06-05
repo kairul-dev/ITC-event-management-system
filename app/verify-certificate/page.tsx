@@ -10,9 +10,13 @@ type VerifyResult = {
   chainId?: number;
   contractAddress: string;
   explorerUrl?: string;
+  contractUrl?: string;
+  transactionHash?: string | null;
+  transactionUrl?: string | null;
   foundLocal?: boolean;
   foundOnChain?: boolean;
   hashMatches?: boolean;
+  valid?: boolean;
   message?: string;
   localCertificate?: {
     certificateNo: string;
@@ -21,6 +25,8 @@ type VerifyResult = {
     issuedAt: string;
     status: string;
     hash: string;
+    calculatedHash?: string;
+    transactionHash?: string | null;
   } | null;
   onChainCertificate?: {
     studentName: string;
@@ -32,9 +38,21 @@ type VerifyResult = {
   error?: string;
 };
 
+const NETWORK_LABEL = "Ethereum Sepolia";
+
 function formatHash(hash?: string) {
   if (!hash) return "-";
   return hash.match(/.{1,8}/g)?.join(" ") || hash;
+}
+
+function formatStudentName(name?: string) {
+  if (!name) return "-";
+  return name
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function StatusBadge({ result }: { result: VerifyResult }) {
@@ -51,15 +69,53 @@ function StatusBadge({ result }: { result: VerifyResult }) {
   }
 
   if (result.hashMatches) {
-    return <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">Verified and matched</span>;
+    return <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">Verified and Matched</span>;
   }
 
   return <span className="rounded-full bg-red-100 px-3 py-1 text-sm font-semibold text-red-700">Hash mismatch</span>;
 }
 
+function VerificationMessage({ result }: { result: VerifyResult }) {
+  if (!result.foundLocal) {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-red-800">
+        <p className="text-lg font-black">✗ Certificate does not exist.</p>
+      </div>
+    );
+  }
+
+  if (result.valid && result.hashMatches) {
+    return (
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800">
+        <p className="text-lg font-black">✓ Certificate is authentic.</p>
+        <p className="mt-1 text-sm font-medium">The blockchain record matches the issued certificate.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-red-800">
+      <p className="text-lg font-black">✗ Certificate verification failed.</p>
+      <p className="mt-1 text-sm font-medium">The blockchain record does not match the certificate.</p>
+    </div>
+  );
+}
+
+function InfoRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="border-b border-slate-100 py-3 last:border-0">
+      <dt className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{label}</dt>
+      <dd className={`mt-1 break-all text-sm text-slate-950 ${mono ? "font-mono leading-6" : "font-semibold"}`}>
+        {value || "-"}
+      </dd>
+    </div>
+  );
+}
+
 function VerifyCertificateContent() {
   const searchParams = useSearchParams();
-  const [certificateNo, setCertificateNo] = useState(searchParams.get("certificateNo") || "");
+  const initialSearchValue = searchParams.get("certificateNo") || searchParams.get("certificateId") || "";
+  const [certificateNo, setCertificateNo] = useState(initialSearchValue);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<VerifyResult | null>(null);
   const [error, setError] = useState("");
@@ -93,7 +149,7 @@ function VerifyCertificateContent() {
   };
 
   useEffect(() => {
-    const initialCertificateNo = searchParams.get("certificateNo") || "";
+    const initialCertificateNo = searchParams.get("certificateNo") || searchParams.get("certificateId") || "";
     if (initialCertificateNo) {
       void verifyCertificateNumber(initialCertificateNo);
     }
@@ -175,70 +231,63 @@ function VerifyCertificateContent() {
               </div>
             )}
 
+            <div className="mt-6">
+              <VerificationMessage result={result} />
+            </div>
+
             <div className="mt-6 grid gap-4 lg:grid-cols-2">
               <div className="rounded-xl border border-slate-200 p-5">
-                <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-slate-500">System Record</h3>
+                <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-slate-500">Certificate Information</h3>
                 {result.localCertificate ? (
-                  <dl className="mt-4 space-y-3 text-sm">
-                    <div>
-                      <dt className="font-semibold text-slate-500">Student</dt>
-                      <dd className="mt-1 text-slate-950">{result.localCertificate.studentName}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-semibold text-slate-500">Event</dt>
-                      <dd className="mt-1 text-slate-950">{result.localCertificate.eventTitle}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-semibold text-slate-500">Issued</dt>
-                      <dd className="mt-1 text-slate-950">{new Date(result.localCertificate.issuedAt).toLocaleString("en-MY")}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-semibold text-slate-500">Hash</dt>
-                      <dd className="mt-1 break-all font-mono text-xs text-slate-700">{formatHash(result.localCertificate.hash)}</dd>
-                    </div>
+                  <dl className="mt-4">
+                    <InfoRow label="Certificate ID" value={result.localCertificate.certificateNo || result.certificateNo} mono />
+                    <InfoRow label="Student Name" value={formatStudentName(result.localCertificate.studentName)} />
+                    <InfoRow label="Event Name" value={result.localCertificate.eventTitle} />
+                    <InfoRow
+                      label="Issue Date"
+                      value={new Date(result.localCertificate.issuedAt).toLocaleString("en-MY")}
+                    />
                   </dl>
                 ) : (
-                  <p className="mt-4 text-sm text-slate-600">No matching certificate was found in this system.</p>
+                  <p className="mt-4 text-sm text-slate-600">✗ Certificate does not exist.</p>
                 )}
               </div>
 
               <div className="rounded-xl border border-slate-200 p-5">
-                <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-slate-500">Sepolia Record</h3>
-                {result.foundOnChain && result.onChainCertificate ? (
-                  <dl className="mt-4 space-y-3 text-sm">
-                    <div>
-                      <dt className="font-semibold text-slate-500">Student</dt>
-                      <dd className="mt-1 text-slate-950">{result.onChainCertificate.studentName || "-"}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-semibold text-slate-500">Event</dt>
-                      <dd className="mt-1 text-slate-950">{result.onChainCertificate.eventTitle || "-"}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-semibold text-slate-500">Blockchain Issue Date</dt>
-                      <dd className="mt-1 text-slate-950">{result.onChainCertificate.issueDateText || "-"}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-semibold text-slate-500">Hash</dt>
-                      <dd className="mt-1 break-all font-mono text-xs text-slate-700">{formatHash(result.onChainCertificate.hash)}</dd>
-                    </div>
-                  </dl>
-                ) : (
-                  <p className="mt-4 text-sm text-slate-600">No matching certificate was found on the Sepolia contract.</p>
-                )}
+                <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-slate-500">Blockchain Information</h3>
+                <dl className="mt-4">
+                  <InfoRow
+                    label="Certificate Hash"
+                    value={formatHash(result.onChainCertificate?.hash || result.localCertificate?.hash || "")}
+                    mono
+                  />
+                  <InfoRow label="Contract Address" value={result.contractAddress} mono />
+                  <InfoRow label="Transaction Hash" value={result.transactionHash || result.localCertificate?.transactionHash || "Not recorded"} mono />
+                  <InfoRow label="Network" value={NETWORK_LABEL} />
+                </dl>
               </div>
             </div>
 
-            {result.explorerUrl && (
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              {(result.transactionUrl || result.transactionHash) && (
+                <a
+                  href={result.transactionUrl || `https://sepolia.etherscan.io/tx/${result.transactionHash}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex justify-center rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
+                >
+                  View Transaction on Etherscan
+                </a>
+              )}
               <a
-                href={result.explorerUrl}
+                href={result.contractUrl || result.explorerUrl || `https://sepolia.etherscan.io/address/${result.contractAddress}`}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-6 inline-flex rounded-lg border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+                className="inline-flex justify-center rounded-lg border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
               >
-                Open Sepolia Contract
+                View Smart Contract on Etherscan
               </a>
-            )}
+            </div>
           </section>
         )}
       </div>

@@ -105,7 +105,10 @@ export async function POST(request: Request) {
 
     await supabaseAdmin
       .from("certificates")
-      .update({ certificate_hash: certificateHash })
+      .update({
+        certificate_hash: certificateHash,
+        transaction_hash: transaction.hash,
+      })
       .eq("id", certificateId);
 
     return Response.json({

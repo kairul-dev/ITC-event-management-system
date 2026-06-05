@@ -14,6 +14,7 @@ type CertificateDetail = {
   issued_at: string;
   status: string;
   blockchain_hash: string;
+  transaction_hash: string | null;
 };
 
 type LockedCertificate = {
@@ -28,6 +29,18 @@ type Html2PdfWorker = {
   save(): Promise<void>;
 };
 
+const BLOCKCHAIN_NETWORK = "Ethereum Sepolia";
+const SMART_CONTRACT_ADDRESS = "0x837Dc6837647b28538EDa60B08f67f09f670bD5C";
+
+function formatStudentName(name: string) {
+  return name
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ") || "Student";
+}
+
 export default function CertificatePage() {
   const params = useParams();
   const router = useRouter();
@@ -35,6 +48,7 @@ export default function CertificatePage() {
   const [lockedCertificate, setLockedCertificate] = useState<LockedCertificate | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
+  const [copiedValue, setCopiedValue] = useState("");
 
   useEffect(() => {
     const loadCertificate = async () => {
@@ -50,7 +64,7 @@ export default function CertificatePage() {
 
         const { data, error } = await supabase
           .from("certificates")
-          .select("id, certificate_no, issued_at, status, user_id, event_id")
+          .select("id, certificate_no, issued_at, status, user_id, event_id, certificate_hash, transaction_hash")
           .eq("id", params.id)
           .eq("user_id", user.id)
           .eq("status", "issued")
@@ -106,7 +120,7 @@ export default function CertificatePage() {
           return;
         }
 
-        const blockchainHash = await createCertificateBlockchainHash({
+        const computedBlockchainHash = await createCertificateBlockchainHash({
           certificateId: data.id,
           certificateNo: data.certificate_no,
           studentName: userData?.name || "Student",
@@ -117,11 +131,12 @@ export default function CertificatePage() {
         setCertificate({
           id: data.id,
           certificate_no: data.certificate_no,
-          student_name: userData?.name || "Student",
+          student_name: formatStudentName(userData?.name || "Student"),
           event_title: eventData?.title || "Event",
           issued_at: data.issued_at,
           status: data.status || "issued",
-          blockchain_hash: blockchainHash,
+          blockchain_hash: data.certificate_hash || computedBlockchainHash,
+          transaction_hash: data.transaction_hash || null,
         });
         setLockedCertificate(null);
         setLoading(false);
@@ -167,6 +182,27 @@ export default function CertificatePage() {
       setDownloading(false);
     }
   };
+
+  const copyToClipboard = async (label: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedValue(label);
+      window.setTimeout(() => setCopiedValue(""), 1600);
+    } catch (err) {
+      console.error("Unable to copy value:", err);
+      alert("Unable to copy. Please copy the value manually.");
+    }
+  };
+
+  const CopyButton = ({ label, value }: { label: string; value: string }) => (
+    <button
+      type="button"
+      onClick={() => copyToClipboard(label, value)}
+      className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+    >
+      {copiedValue === label ? "Copied" : "Copy"}
+    </button>
+  );
 
   if (loading) {
     return (
@@ -238,13 +274,35 @@ export default function CertificatePage() {
             <p className="text-slate-600">
               <span className="font-medium">Event:</span> {certificate.event_title}
             </p>
-            <p className="text-slate-600">
-              <span className="font-medium">Certificate No:</span> {certificate.certificate_no}
-            </p>
-            <p className="mt-3 max-w-3xl break-all rounded-lg border border-slate-200 bg-slate-50 p-3 font-mono text-xs text-slate-600">
-              <span className="font-sans font-medium">Blockchain Hash:</span>{" "}
-              {formatBlockchainHash(certificate.blockchain_hash)}
-            </p>
+            <div className="mt-4 grid gap-3 text-sm">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="font-semibold text-slate-600">Certificate ID</span>
+                  <CopyButton label="Certificate ID" value={certificate.certificate_no} />
+                </div>
+                <p className="mt-2 break-all font-mono text-sm font-semibold text-slate-950">{certificate.certificate_no}</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="font-semibold text-slate-600">Blockchain Hash</span>
+                  <CopyButton label="Blockchain Hash" value={certificate.blockchain_hash} />
+                </div>
+                <p className="mt-2 whitespace-pre-wrap break-all font-mono text-xs leading-6 text-slate-700">
+                  {formatBlockchainHash(certificate.blockchain_hash)}
+                </p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="font-semibold text-slate-600">Smart Contract Address</span>
+                  <CopyButton label="Contract Address" value={SMART_CONTRACT_ADDRESS} />
+                </div>
+                <p className="mt-2 break-all font-mono text-xs text-slate-700">{SMART_CONTRACT_ADDRESS}</p>
+              </div>
+              <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
+                <span className="font-semibold text-blue-800">Blockchain Network</span>
+                <p className="mt-1 font-bold text-blue-950">{BLOCKCHAIN_NETWORK}</p>
+              </div>
+            </div>
             <div className="mt-3">
               <span
                 className={`inline-block rounded-full px-3 py-1 text-sm font-bold ${
@@ -286,8 +344,18 @@ export default function CertificatePage() {
               href={`/verify-certificate?certificateNo=${encodeURIComponent(certificate.certificate_no)}`}
               className="rounded-lg border border-blue-200 bg-white px-6 py-3 text-center font-bold text-blue-700 transition hover:bg-blue-50"
             >
-              Verify Hash
+              Verify Certificate
             </a>
+            {certificate.transaction_hash && (
+              <a
+                href={`https://sepolia.etherscan.io/tx/${certificate.transaction_hash}`}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-lg border border-emerald-200 bg-white px-6 py-3 text-center font-bold text-emerald-700 transition hover:bg-emerald-50"
+              >
+                View Transaction
+              </a>
+            )}
           </div>
         </div>
       </div>
@@ -316,7 +384,7 @@ export default function CertificatePage() {
       <div className="max-w-6xl mx-auto mt-8">
         <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
           <p className="text-sm text-blue-800">
-            <span className="font-semibold">Note:</span> This certificate uses a free SHA-256 blockchain-style verification hash. If the certificate number, student, event, issue date, or ID changes, the hash will no longer match.
+            <span className="font-semibold">Blockchain proof:</span> This certificate is verified by comparing the issued certificate hash with the record anchored on the Ethereum Sepolia smart contract.
           </p>
         </div>
       </div>
