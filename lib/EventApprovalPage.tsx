@@ -954,35 +954,6 @@ export default function EventApprovalPage() {
               </div>
             </section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="text-sm font-black text-slate-950">Workflow Progress</h3>
-              <div className="mt-4 space-y-3">
-                {[
-                  ["Submitted by Club Committee", "done"],
-                  ["High Council Review", "current"],
-                  ["Awaiting Club Advisor Approval", "pending"],
-                  ["Event Published", "pending"],
-                ].map(([label, state], index) => (
-                  <div key={label} className="flex gap-3">
-                    <div className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-black ${
-                      state === "done"
-                        ? "bg-emerald-600 text-white"
-                        : state === "current"
-                          ? "bg-blue-700 text-white"
-                          : "border border-slate-300 bg-white text-slate-500"
-                    }`}>
-                      {state === "done" ? "OK" : index + 1}
-                    </div>
-                    <div>
-                      <p className="text-sm font-black text-slate-950">{label}</p>
-                      <p className="text-xs font-semibold text-slate-500">
-                        {state === "done" ? formatDateTime(selectedEvent.created_at) : state === "current" ? "Current Step" : "Pending"}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
           </main>
 
           <aside className="min-w-0 space-y-4 xl:w-3/5 xl:shrink-0">
@@ -999,7 +970,7 @@ export default function EventApprovalPage() {
                 <span className="text-sm font-bold text-slate-500">{attachmentRows.length || 1} file</span>
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+              <div className="grid gap-4 lg:grid-cols-[230px_minmax(0,1fr)]">
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-2">
                   <p className="px-2 py-2 text-xs font-black uppercase tracking-wide text-slate-500">File List</p>
                   {uploadedPaperworkFile ? (
@@ -1054,9 +1025,9 @@ export default function EventApprovalPage() {
                     </div>
                   </div>
                   {previewAttachment?.url && previewAttachment.name.toLowerCase().endsWith(".pdf") ? (
-                    <iframe title={previewAttachment.name} src={previewAttachment.url} className="h-[220px] w-full bg-white" />
+                    <iframe title={previewAttachment.name} src={previewAttachment.url} className="h-[520px] w-full bg-white" />
                   ) : (
-                    <div className="grid h-[220px] place-items-center bg-white px-6 text-center">
+                    <div className="grid h-[520px] place-items-center bg-white px-6 text-center">
                       <div>
                         <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-blue-50 text-blue-700">
                           <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1098,16 +1069,7 @@ export default function EventApprovalPage() {
 
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg shadow-slate-200/70">
               <h2 className="text-lg font-black text-slate-950">Take Action</h2>
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <button
-                  type="button"
-                  onClick={() => updateStatus(selectedEvent.id, "Rejected", rejectReason)}
-                  disabled={processingId === selectedEvent.id}
-                  className="rounded-xl border border-orange-300 bg-orange-50 px-3 py-4 text-sm font-black text-orange-700 transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Request Revision
-                  <span className="mt-1 block text-xs font-semibold text-orange-600">Send back for correction</span>
-                </button>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <button
                   type="button"
                   onClick={() => updateStatus(selectedEvent.id, "Rejected", rejectReason)}
