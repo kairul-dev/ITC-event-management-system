@@ -73,22 +73,6 @@ function formatRole(role?: string | null) {
   return role || "System";
 }
 
-function timelineState(event: Event, step: string, history: ApprovalHistory[]) {
-  const status = event.status;
-  if (step === "Draft Created") return "done";
-  if (step === "Submitted to High Council") return status === "Draft" ? "pending" : "done";
-  if (step === "High Council Review") {
-    if (history.some((item) => item.actor_role === "high_council")) return "done";
-    return ["Pending Approval", "Pending High Council Approval"].includes(status) ? "current" : "pending";
-  }
-  if (step === "Club Advisor Review") {
-    if (history.some((item) => item.actor_role === "club_advisor")) return "done";
-    return status === "Pending Club Advisor Approval" ? "current" : "pending";
-  }
-  if (step === "Published") return ["Published", "Completed", "Closed"].includes(status) ? "done" : "pending";
-  return "pending";
-}
-
 function parsePaperworkSections(...values: Array<string | undefined>) {
   const text = values
     .filter(Boolean)
@@ -210,35 +194,6 @@ function SummaryCard({
         </div>
       </div>
       <p className="mt-4 text-3xl font-black tracking-tight text-slate-950">{value}</p>
-    </div>
-  );
-}
-
-function UploadedPaperworkCard({
-  file,
-  onOpen,
-}: {
-  file: UploadedPaperworkFile;
-  onOpen: () => void;
-}) {
-  return (
-    <div className="rounded-xl border border-blue-100 bg-blue-50/80 p-4">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="text-xs font-black uppercase tracking-wide text-blue-700">Attachment</p>
-          <h3 className="mt-1 break-all text-sm font-black text-slate-950 sm:text-base">{file.name}</h3>
-          <p className="mt-1 text-sm font-medium text-slate-600">
-            {formatFileSize(file.size)} uploaded on {formatDateTime(file.uploadedAt)}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onOpen}
-          className="rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-800"
-        >
-          Open Attachment
-        </button>
-      </div>
     </div>
   );
 }
@@ -1247,46 +1202,8 @@ export default function EventApprovalPage() {
                   </div>
                 </div>
 
-                <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+                <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
                   <main className="min-w-0 space-y-5">
-                    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <h3 className="text-lg font-black text-slate-950">Workflow Timeline</h3>
-                          <p className="text-sm font-semibold text-slate-500">Current approval stage and next handoff.</p>
-                        </div>
-                      </div>
-                      <div className="mt-5 grid gap-3 md:grid-cols-5">
-                        {["Draft Created", "Submitted to High Council", "High Council Review", "Club Advisor Review", "Published"].map((step) => {
-                          const state = timelineState(selectedEvent, step, selectedHistory);
-                          return (
-                            <div
-                              key={step}
-                              className={`rounded-xl border p-3 ${
-                                state === "done"
-                                  ? "border-emerald-200 bg-emerald-50"
-                                  : state === "current"
-                                    ? "border-blue-200 bg-blue-50 ring-2 ring-blue-100"
-                                    : "border-slate-200 bg-slate-50"
-                              }`}
-                            >
-                              <div className={`grid h-8 w-8 place-items-center rounded-full text-xs font-black ${
-                                state === "done"
-                                  ? "bg-emerald-600 text-white"
-                                  : state === "current"
-                                    ? "bg-blue-700 text-white"
-                                    : "bg-slate-200 text-slate-500"
-                              }`}>
-                                {state === "done" ? "OK" : state === "current" ? "Now" : ""}
-                              </div>
-                              <p className="mt-3 text-sm font-black text-slate-950">{step}</p>
-                              <p className="mt-1 text-xs font-semibold capitalize text-slate-500">{state}</p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </section>
-
                     <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
@@ -1334,50 +1251,103 @@ export default function EventApprovalPage() {
                     </section>
 
                     <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                      <h3 className="text-lg font-black text-slate-950">Attachment Viewer</h3>
-                      <p className="mt-1 text-sm font-semibold text-slate-500">Open the submitted file or inspect the generated Word-format preview.</p>
-                      <div className="mt-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <h3 className="text-lg font-black text-slate-950">Attachment Viewer</h3>
+                          <p className="mt-1 text-sm font-semibold text-slate-500">Review the submitted paperwork in the enlarged document workspace.</p>
+                        </div>
                         {uploadedPaperworkFile ? (
-                          <UploadedPaperworkCard
-                            file={uploadedPaperworkFile}
-                            onOpen={() => openUploadedPaperworkFile(uploadedPaperworkFile)}
-                          />
+                          <button
+                            type="button"
+                            onClick={() => openUploadedPaperworkFile(uploadedPaperworkFile)}
+                            className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-black text-white hover:bg-blue-800"
+                          >
+                            Open Attachment
+                          </button>
                         ) : (
-                          <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                              <div>
-                                <p className="text-sm font-black text-blue-950">Generated Paperwork Preview</p>
-                                <p className="mt-1 text-sm font-semibold text-blue-700">No uploaded file is attached. Review the generated paperwork format.</p>
+                          <button
+                            type="button"
+                            onClick={() => setShowWordPreview(true)}
+                            className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-black text-white hover:bg-blue-800"
+                          >
+                            Open Preview
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="mt-4 grid gap-4 xl:grid-cols-[230px_minmax(0,1fr)]">
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                          <p className="text-xs font-black uppercase tracking-wide text-slate-500">File List</p>
+                          {uploadedPaperworkFile ? (
+                            <div className="mt-3 rounded-xl border border-blue-200 bg-white p-3 shadow-sm">
+                              <p className="break-all text-sm font-black text-slate-950">{uploadedPaperworkFile.name}</p>
+                              <p className="mt-1 text-xs font-semibold text-slate-500">
+                                {formatFileSize(uploadedPaperworkFile.size)} uploaded on {formatDateTime(uploadedPaperworkFile.uploadedAt)}
+                              </p>
+                              <div className="mt-3 grid gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => previewUploadedPaperworkFile(uploadedPaperworkFile)}
+                                  className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 hover:bg-blue-100"
+                                >
+                                  Preview
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openUploadedPaperworkFile(uploadedPaperworkFile)}
+                                  className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-black text-white hover:bg-blue-800"
+                                >
+                                  Open Attachment
+                                </button>
                               </div>
+                            </div>
+                          ) : (
+                            <div className="mt-3 rounded-xl border border-blue-200 bg-white p-3 shadow-sm">
+                              <p className="text-sm font-black text-slate-950">Generated Paperwork Preview</p>
+                              <p className="mt-1 text-xs font-semibold text-slate-500">Built from submitted event details.</p>
                               <button
                                 type="button"
                                 onClick={() => setShowWordPreview(true)}
-                                className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-black text-white hover:bg-blue-800"
+                                className="mt-3 rounded-lg bg-blue-700 px-3 py-2 text-xs font-black text-white hover:bg-blue-800"
                               >
                                 Open Preview
                               </button>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    </section>
+                          )}
+                        </div>
 
-                    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                      <h3 className="text-lg font-black text-slate-950">Paperwork Sections</h3>
-                      <div className="mt-4 grid gap-3">
-                        {paperworkSections.slice(0, 4).map((section, index) => (
-                          <details key={`${section.title}-${index}`} className="rounded-xl border border-slate-200 bg-slate-50 p-4" open={index === 0}>
-                            <summary className="cursor-pointer text-sm font-black uppercase tracking-wide text-slate-700">{section.title}</summary>
-                            <p className="mt-3 max-h-40 overflow-y-auto whitespace-pre-line text-sm leading-6 text-slate-700">
-                              {section.body || "-"}
+                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                          <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+                            <p className="truncate text-sm font-black text-slate-950">
+                              {previewAttachment?.name || uploadedPaperworkFile?.name || "Generated Paperwork Preview"}
                             </p>
-                          </details>
-                        ))}
-                        {paperworkSections.length > 4 && (
-                          <p className="text-xs font-semibold text-slate-500">
-                            Showing 4 of {paperworkSections.length} sections. Open the attachment or Word preview for the full paperwork.
-                          </p>
-                        )}
+                            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-700">Document Review</span>
+                          </div>
+                          {previewAttachment?.url && previewAttachment.name.toLowerCase().endsWith(".pdf") ? (
+                            <iframe title={previewAttachment.name} src={previewAttachment.url} className="h-[680px] w-full bg-white" />
+                          ) : (
+                            <div className="h-[680px] overflow-y-auto bg-white p-6">
+                              <div className="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                                <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-700">Paperwork Preview</p>
+                                <h4 className="mt-3 text-2xl font-black text-slate-950">{selectedEvent.title}</h4>
+                                <p className="mt-2 text-sm font-semibold text-slate-500">
+                                  {formatShortDate(selectedEvent.start_date)} - {formatShortDate(selectedEvent.end_date)} | {selectedEvent.location || "Venue not set"}
+                                </p>
+                                <div className="mt-6 space-y-5">
+                                  {paperworkSections.slice(0, 5).map((section, index) => (
+                                    <div key={`${section.title}-${index}`} className="border-t border-slate-100 pt-4 first:border-t-0 first:pt-0">
+                                      <p className="text-sm font-black text-slate-950">{section.title}</p>
+                                      <p className="mt-2 whitespace-pre-line text-sm leading-7 text-slate-700">{section.body || "-"}</p>
+                                    </div>
+                                  ))}
+                                  {paperworkSections.length === 0 && (
+                                    <p className="text-sm leading-7 text-slate-700">No generated paperwork content is available for preview.</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </section>
                   </main>
