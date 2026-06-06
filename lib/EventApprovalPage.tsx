@@ -20,6 +20,13 @@ type Event = {
   purpose?: string;
   objective?: string;
   rejection_reason?: string;
+  organizer?: string;
+  club?: string;
+  club_name?: string;
+  created_by?: string;
+  submitted_by?: string;
+  poster_url?: string;
+  image_url?: string;
 };
 
 type ApprovalHistory = {
@@ -129,6 +136,84 @@ function DetailCard({ label, value }: { label: string; value: React.ReactNode })
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
       <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
       <div className="mt-1 text-sm font-semibold text-slate-900">{value || "-"}</div>
+    </div>
+  );
+}
+
+function formatCurrency(value?: number) {
+  if (typeof value !== "number" || Number.isNaN(value)) return "RM 0";
+  return `RM ${value.toLocaleString("en-MY", { maximumFractionDigits: 0 })}`;
+}
+
+function getOrganizer(event?: Event | null) {
+  return event?.organizer || event?.club_name || event?.club || "ITC Club";
+}
+
+function getSubmittedBy(event?: Event | null) {
+  return event?.submitted_by || event?.created_by || "Club Committee";
+}
+
+function getEventPoster(event: Event) {
+  return event.poster_url || event.image_url || "";
+}
+
+function normalizeReviewStatus(status: string) {
+  if (status === "Pending Approval" || status === "Pending High Council Approval") return "Pending High Council Review";
+  if (status === "Pending Club Advisor Approval") return "Forwarded to Club Advisor";
+  return status;
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const label = normalizeReviewStatus(status);
+  const className = label.includes("Pending")
+    ? "border-amber-200 bg-amber-50 text-amber-700"
+    : label.includes("Forwarded")
+      ? "border-blue-200 bg-blue-50 text-blue-700"
+      : label.includes("Rejected")
+        ? "border-rose-200 bg-rose-50 text-rose-700"
+        : label.includes("Published") || label.includes("Approved")
+          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+          : "border-slate-200 bg-slate-100 text-slate-600";
+
+  return (
+    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-black ${className}`}>
+      {label}
+    </span>
+  );
+}
+
+function SummaryCard({
+  label,
+  value,
+  tone,
+  description,
+}: {
+  label: string;
+  value: number;
+  tone: "amber" | "blue" | "rose" | "emerald";
+  description: string;
+}) {
+  const tones = {
+    amber: "bg-amber-50 text-amber-700 border-amber-100",
+    blue: "bg-blue-50 text-blue-700 border-blue-100",
+    rose: "bg-rose-50 text-rose-700 border-rose-100",
+    emerald: "bg-emerald-50 text-emerald-700 border-emerald-100",
+  };
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-black text-slate-950">{label}</p>
+          <p className="mt-1 text-xs font-semibold text-slate-500">{description}</p>
+        </div>
+        <div className={`grid h-10 w-10 place-items-center rounded-xl border ${tones[tone]}`}>
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6M8 4h8l3 3v13H5V4h3z" />
+          </svg>
+        </div>
+      </div>
+      <p className="mt-4 text-3xl font-black tracking-tight text-slate-950">{value}</p>
     </div>
   );
 }
@@ -354,12 +439,19 @@ export default function EventApprovalPage() {
     [isClubAdvisor],
   );
   const [events, setEvents] = useState<Event[]>([]);
+  const [statusCounts, setStatusCounts] = useState({
+    pending: 0,
+    forwarded: 0,
+    rejected: 0,
+    published: 0,
+  });
   const [approvalHistory, setApprovalHistory] = useState<ApprovalHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [showWordPreview, setShowWordPreview] = useState(false);
+  const [previewAttachment, setPreviewAttachment] = useState<{ name: string; url: string } | null>(null);
 
   const loadEvents = useCallback(async () => {
     setLoading(true);
@@ -376,6 +468,20 @@ export default function EventApprovalPage() {
       } else {
         const eventRows = (data || []) as Event[];
         setEvents(eventRows);
+
+        const { data: countRows, error: countError } = await supabase
+          .from("events")
+          .select("id,status");
+
+        if (!countError) {
+          const statuses = (countRows || []) as Pick<Event, "id" | "status">[];
+          setStatusCounts({
+            pending: statuses.filter((event) => reviewConfig.queueStatuses.includes(event.status)).length,
+            forwarded: statuses.filter((event) => event.status === "Pending Club Advisor Approval").length,
+            rejected: statuses.filter((event) => event.status === "Rejected").length,
+            published: statuses.filter((event) => event.status === "Published").length,
+          });
+        }
 
         if (eventRows.length > 0) {
           const { data: historyRows, error: historyError } = await supabase
@@ -432,12 +538,16 @@ export default function EventApprovalPage() {
     }
 
     const exists = events.some((event) => event.id === selectedEventId);
+    if (!isClubAdvisor && !selectedEventId) {
+      return;
+    }
+
     if (!selectedEventId || !exists) {
       setSelectedEventId(events[0].id);
       setRejectReason("");
       setShowWordPreview(false);
     }
-  }, [events, selectedEventId]);
+  }, [events, isClubAdvisor, selectedEventId]);
 
   const updateStatus = async (
     id: string,
@@ -484,6 +594,8 @@ export default function EventApprovalPage() {
         }
 
         setEvents((prev) => prev.filter((e) => e.id !== id));
+        setSelectedEventId(null);
+        setPreviewAttachment(null);
         setRejectReason("");
         setProcessingId(null);
       } catch (error) {
@@ -526,6 +638,8 @@ export default function EventApprovalPage() {
       }
 
       setEvents((prev) => prev.filter((e) => e.id !== id));
+      setSelectedEventId(null);
+      setPreviewAttachment(null);
       setRejectReason("");
       setProcessingId(null);
     } catch (error) {
@@ -563,10 +677,513 @@ export default function EventApprovalPage() {
     window.open(payload.url, "_blank", "noopener,noreferrer");
   };
 
+  const previewUploadedPaperworkFile = async (file: UploadedPaperworkFile) => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      alert("Please log in again to preview the paperwork file.");
+      return;
+    }
+
+    const response = await fetch("/api/paperwork/signed-url", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ path: file.path }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok || !payload.url) {
+      alert(payload.error || "Unable to preview paperwork file.");
+      return;
+    }
+
+    setPreviewAttachment({ name: file.name, url: payload.url });
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-blue-700"></div>
+      </div>
+    );
+  }
+
+  if (!isClubAdvisor) {
+    if (!selectedEvent) {
+      return (
+        <div className="space-y-6">
+          <header className="flex flex-col gap-3">
+            <div>
+              <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Review Paperwork</h1>
+              <p className="mt-2 max-w-2xl text-sm font-medium text-slate-500">
+                Review submitted event proposals and forward approved events to the Club Advisor.
+              </p>
+            </div>
+          </header>
+
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <SummaryCard label="Pending Review" value={statusCounts.pending} tone="amber" description="Awaiting High Council action" />
+            <SummaryCard label="Forwarded" value={statusCounts.forwarded} tone="blue" description="Sent to Club Advisor" />
+            <SummaryCard label="Rejected" value={statusCounts.rejected} tone="rose" description="Returned for correction" />
+            <SummaryCard label="Published" value={statusCounts.published} tone="emerald" description="Approved and live" />
+          </section>
+
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 px-5 py-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-lg font-black text-slate-950">Paperwork Queue</h2>
+                  <p className="mt-1 text-sm font-semibold text-slate-500">
+                    {events.length} event{events.length === 1 ? "" : "s"} waiting for High Council review.
+                  </p>
+                </div>
+                <span className="w-fit rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-700">
+                  Pending High Council Review
+                </span>
+              </div>
+            </div>
+
+            {events.length === 0 ? (
+              <div className="p-12 text-center">
+                <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-emerald-50 text-emerald-600">
+                  <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="mt-4 text-lg font-black text-slate-950">No paperwork is waiting for High Council review.</h3>
+                <p className="mt-2 text-sm font-semibold text-slate-500">All submitted event proposals have been reviewed.</p>
+              </div>
+            ) : (
+              <>
+                <div className="hidden overflow-x-auto lg:block">
+                  <table className="min-w-full divide-y divide-slate-200">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        {["Event Name", "Club / Organizer", "Submission Date", "Event Date", "Budget", "Status", "Action"].map((heading) => (
+                          <th key={heading} className="px-5 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-500">
+                            {heading}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {events.map((event) => (
+                        <tr key={event.id} className="transition hover:bg-blue-50/40">
+                          <td className="px-5 py-4">
+                            <p className="font-black text-slate-950">{event.title}</p>
+                            <p className="mt-1 text-xs font-semibold text-slate-500">ID: {event.id.slice(0, 8)}</p>
+                          </td>
+                          <td className="px-5 py-4 text-sm font-semibold text-slate-700">{getOrganizer(event)}</td>
+                          <td className="px-5 py-4 text-sm font-semibold text-slate-600">{formatShortDate(event.created_at)}</td>
+                          <td className="px-5 py-4 text-sm font-semibold text-slate-600">{formatShortDate(event.start_date)}</td>
+                          <td className="px-5 py-4 text-sm font-black text-slate-900">{formatCurrency(event.budget)}</td>
+                          <td className="px-5 py-4"><StatusBadge status={event.status} /></td>
+                          <td className="px-5 py-4">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedEventId(event.id);
+                                setRejectReason("");
+                                setPreviewAttachment(null);
+                              }}
+                              className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-black text-white shadow-sm shadow-blue-900/10 transition hover:bg-blue-800"
+                            >
+                              Review
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="space-y-3 p-4 lg:hidden">
+                  {events.map((event) => (
+                    <article key={event.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="text-base font-black text-slate-950">{event.title}</h3>
+                          <p className="mt-1 text-sm font-semibold text-slate-500">{getOrganizer(event)}</p>
+                        </div>
+                        <StatusBadge status={event.status} />
+                      </div>
+                      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                        <DetailCard label="Submitted" value={formatShortDate(event.created_at)} />
+                        <DetailCard label="Event Date" value={formatShortDate(event.start_date)} />
+                        <DetailCard label="Budget" value={formatCurrency(event.budget)} />
+                        <DetailCard label="Venue" value={event.location || "Not set"} />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedEventId(event.id);
+                          setRejectReason("");
+                          setPreviewAttachment(null);
+                        }}
+                        className="mt-4 w-full rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-black text-white hover:bg-blue-800"
+                      >
+                        Review
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
+        </div>
+      );
+    }
+
+    const poster = getEventPoster(selectedEvent);
+    const purposeText = stripPaperworkFileMarker(selectedEvent.purpose) || "No purpose has been provided for this event.";
+    const objectiveText = stripPaperworkFileMarker(selectedEvent.objective) || "No objectives have been provided for this event.";
+    const attachmentRows = uploadedPaperworkFile ? [uploadedPaperworkFile] : [];
+
+    return (
+      <div className="space-y-5">
+        <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <nav className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-500">
+              <span>Home</span>
+              <span className="text-slate-300">/</span>
+              <span>High Council</span>
+              <span className="text-slate-300">/</span>
+              <span>Review Paperwork</span>
+              <span className="text-slate-300">/</span>
+              <span className="text-slate-900">{selectedEvent.title}</span>
+            </nav>
+            <h1 className="mt-4 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Review Event Paperwork</h1>
+            <p className="mt-2 text-sm font-medium text-slate-500">
+              Carefully review the event details and attached documents before taking action.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedEventId(null);
+              setRejectReason("");
+              setPreviewAttachment(null);
+            }}
+            className="inline-flex w-fit items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:border-blue-200 hover:text-blue-700"
+          >
+            <span aria-hidden="true">&larr;</span>
+            Back to Pending List
+          </button>
+        </header>
+
+        <div className="grid gap-5 lg:grid-cols-5">
+          <main className="min-w-0 space-y-5 lg:col-span-3">
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-4 flex items-center gap-2">
+                <div className="grid h-8 w-8 place-items-center rounded-lg bg-blue-50 text-blue-700">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-8 8h10a2 2 0 002-2V7l-4-4H7a2 2 0 00-2 2v13a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <h2 className="text-lg font-black text-slate-950">Event Summary</h2>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-[155px_minmax(0,1fr)] 2xl:grid-cols-[155px_minmax(0,1fr)_235px]">
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-900">
+                  {poster ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={poster} alt={`${selectedEvent.title} poster`} className="h-52 w-full object-cover lg:h-full" />
+                  ) : (
+                    <div className="flex h-52 flex-col justify-between bg-gradient-to-br from-slate-950 via-blue-950 to-blue-700 p-4 text-white lg:h-full">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-wide text-blue-200">Event Proposal</p>
+                        <h3 className="mt-3 text-xl font-black leading-tight">{selectedEvent.title}</h3>
+                      </div>
+                      <p className="text-xs font-semibold text-blue-100">High Council Review</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <DetailCard label="Event Name" value={selectedEvent.title} />
+                  <DetailCard label="Club / Organizer" value={getOrganizer(selectedEvent)} />
+                  <DetailCard label="Submitted By" value={getSubmittedBy(selectedEvent)} />
+                  <DetailCard label="Submission Date" value={formatDateTime(selectedEvent.created_at)} />
+                  <DetailCard label="Current Status" value={<StatusBadge status={selectedEvent.status} />} />
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:col-span-2 2xl:col-span-1">
+                  <h3 className="text-sm font-black text-slate-950">Workflow Progress</h3>
+                  <div className="mt-4 space-y-3">
+                    {[
+                      ["Submitted by Club Committee", "done"],
+                      ["High Council Review", "current"],
+                      ["Awaiting Club Advisor Approval", "pending"],
+                      ["Event Published", "pending"],
+                    ].map(([label, state], index) => (
+                      <div key={label} className="flex gap-3">
+                        <div className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-black ${
+                          state === "done"
+                            ? "bg-emerald-600 text-white"
+                            : state === "current"
+                              ? "bg-blue-700 text-white"
+                              : "border border-slate-300 bg-white text-slate-500"
+                        }`}>
+                          {state === "done" ? "OK" : index + 1}
+                        </div>
+                        <div>
+                          <p className="text-sm font-black text-slate-950">{label}</p>
+                          <p className="text-xs font-semibold text-slate-500">
+                            {state === "done" ? formatDateTime(selectedEvent.created_at) : state === "current" ? "In progress" : "Pending"}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <div className="grid gap-5 lg:grid-cols-2">
+              <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="mb-4 flex items-center gap-2">
+                  <div className="grid h-8 w-8 place-items-center rounded-lg bg-indigo-50 text-indigo-700">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h10M4 18h16" />
+                    </svg>
+                  </div>
+                  <h2 className="text-lg font-black text-slate-950">Program Details</h2>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm font-black text-slate-950">Purpose</p>
+                    <p className="mt-2 line-clamp-4 whitespace-pre-line text-sm leading-6 text-slate-700">{purposeText}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-slate-950">Objectives</p>
+                    <div className="mt-2 space-y-2">
+                      {objectiveText.split(/\n|\*|-/).map((item) => item.trim()).filter(Boolean).slice(0, 5).map((item, index) => (
+                        <div key={`${item}-${index}`} className="flex gap-2 text-sm leading-6 text-slate-700">
+                          <span className="mt-1 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-emerald-100 text-[9px] font-black text-emerald-700">OK</span>
+                          <span>{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-slate-950">Expected Outcome</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">
+                      Participants will gain knowledge and practical experience from the proposed programme activities.
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="mb-4 flex items-center gap-2">
+                  <div className="grid h-8 w-8 place-items-center rounded-lg bg-blue-50 text-blue-700">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v14H4V6a1 1 0 011-1z" />
+                    </svg>
+                  </div>
+                  <h2 className="text-lg font-black text-slate-950">Logistics & Budget</h2>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {[
+                    ["Start Date", formatShortDate(selectedEvent.start_date)],
+                    ["End Date", formatShortDate(selectedEvent.end_date)],
+                    ["Time", `${new Date(selectedEvent.start_date).toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" })} - ${new Date(selectedEvent.end_date).toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" })}`],
+                    ["Location", selectedEvent.location || "Not provided"],
+                    ["Expected Participants", `${selectedEvent.max_students || 0} Participants`],
+                    ["Estimated Budget", formatCurrency(selectedEvent.budget)],
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex items-center justify-between gap-4 py-2.5 text-sm">
+                      <span className="font-semibold text-slate-600">{label}</span>
+                      <span className={`text-right font-black ${label === "Estimated Budget" ? "text-emerald-700" : "text-slate-900"}`}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-4 flex items-center gap-2">
+                <div className="grid h-8 w-8 place-items-center rounded-lg bg-blue-50 text-blue-700">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h10M7 16h6M6 3h9l3 3v15H6V3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-slate-950">Review Notes <span className="font-semibold text-slate-500">(Optional)</span></h2>
+                  <p className="text-xs font-semibold text-slate-500">Notes are visible to the Club Committee when sent with a rejection or revision request.</p>
+                </div>
+              </div>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                rows={3}
+                placeholder="Write your review notes here..."
+                className="min-h-20 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+              <p className="mt-2 text-right text-xs font-semibold text-slate-500">{rejectReason.length} / 1000 characters</p>
+            </section>
+          </main>
+
+          <aside className="space-y-4 lg:col-span-2">
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="grid h-8 w-8 place-items-center rounded-lg bg-violet-50 text-violet-700">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828L18 9.828a4 4 0 10-5.657-5.657L5.757 10.757a6 6 0 108.486 8.486L20 13.485" />
+                    </svg>
+                  </div>
+                  <h2 className="text-lg font-black text-slate-950">Attached Documents</h2>
+                </div>
+                <span className="text-sm font-bold text-slate-500">{attachmentRows.length || 1} file</span>
+              </div>
+
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+                  <p className="truncate text-sm font-black text-slate-950">
+                    {previewAttachment?.name || uploadedPaperworkFile?.name || "Generated Paperwork Preview"}
+                  </p>
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                    <span>Preview</span>
+                    <span>100%</span>
+                  </div>
+                </div>
+                {previewAttachment?.url && previewAttachment.name.toLowerCase().endsWith(".pdf") ? (
+                  <iframe title={previewAttachment.name} src={previewAttachment.url} className="h-[285px] w-full bg-white" />
+                ) : (
+                  <div className="grid h-[285px] place-items-center bg-white px-6 text-center">
+                    <div>
+                      <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-blue-50 text-blue-700">
+                        <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h10M7 16h6M6 3h9l3 3v15H6V3z" />
+                        </svg>
+                      </div>
+                      <h3 className="mt-4 text-base font-black text-slate-950">Document preview ready</h3>
+                      <p className="mt-2 text-sm font-semibold text-slate-500">
+                        Use Preview to open the submitted document, or open the generated paperwork preview when no file is attached.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-3 space-y-2">
+                {uploadedPaperworkFile ? (
+                  <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black text-slate-950">{uploadedPaperworkFile.name}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">{formatFileSize(uploadedPaperworkFile.size)}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => previewUploadedPaperworkFile(uploadedPaperworkFile)}
+                        className="rounded-lg border border-blue-200 px-3 py-2 text-xs font-black text-blue-700 hover:bg-blue-50"
+                      >
+                        Preview
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openUploadedPaperworkFile(uploadedPaperworkFile)}
+                        className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-black text-white hover:bg-blue-800"
+                      >
+                        Download
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-black text-slate-950">Generated Paperwork Preview</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">Built from submitted event fields</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowWordPreview(true)}
+                      className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-black text-white hover:bg-blue-800"
+                    >
+                      Preview
+                    </button>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className="sticky bottom-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg shadow-slate-200/70">
+              <h2 className="text-lg font-black text-slate-950">Take Action</h2>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <button
+                  type="button"
+                  onClick={() => updateStatus(selectedEvent.id, "Rejected", rejectReason)}
+                  disabled={processingId === selectedEvent.id}
+                  className="rounded-xl border border-orange-300 bg-orange-50 px-3 py-4 text-sm font-black text-orange-700 transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Request Revision
+                  <span className="mt-1 block text-xs font-semibold text-orange-600">Send back for correction</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateStatus(selectedEvent.id, "Rejected", rejectReason)}
+                  disabled={processingId === selectedEvent.id}
+                  className="rounded-xl border border-rose-300 bg-rose-50 px-3 py-4 text-sm font-black text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Reject
+                  <span className="mt-1 block text-xs font-semibold text-rose-600">Do not approve this event</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateStatus(selectedEvent.id, "Pending Club Advisor Approval")}
+                  disabled={processingId === selectedEvent.id}
+                  className="rounded-xl bg-emerald-600 px-3 py-4 text-sm font-black text-white shadow-sm shadow-emerald-900/20 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {processingId === selectedEvent.id ? "Processing..." : "Approve & Forward"}
+                  <span className="mt-1 block text-xs font-semibold text-emerald-50">Send to Club Advisor</span>
+                </button>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h2 className="text-lg font-black text-slate-950">Approval History</h2>
+              <div className="mt-4 space-y-3">
+                {selectedHistory.length === 0 ? (
+                  <p className="rounded-xl border border-dashed border-slate-200 p-4 text-sm font-semibold text-slate-500">
+                    No approval history recorded yet.
+                  </p>
+                ) : (
+                  selectedHistory.map((item) => (
+                    <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-black capitalize text-slate-950">{item.action || "reviewed"}</p>
+                        <span className="rounded-full bg-slate-200 px-2 py-1 text-[11px] font-black text-slate-600">
+                          {formatRole(item.actor_role)}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">{formatDateTime(item.created_at || undefined)}</p>
+                      <p className="mt-2 text-xs font-semibold leading-5 text-slate-600">
+                        {item.from_status || "Not provided"} -&gt; {item.to_status || "Not provided"}
+                      </p>
+                      {item.comments && <p className="mt-2 text-sm leading-6 text-slate-700">{item.comments}</p>}
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+          </aside>
+        </div>
+
+        {showWordPreview && !uploadedPaperworkFile && (
+          <WordPaperworkPreview
+            event={selectedEvent}
+            sections={paperworkSections}
+            onClose={() => setShowWordPreview(false)}
+          />
+        )}
       </div>
     );
   }
