@@ -44,9 +44,12 @@ UI/layout change only for the High Council Review Paperwork detail workspace.
 ## Deployment
 
 - Commit message: `Simplify High Council review workspace`
-- Commit hash: Confirmed after commit and push.
-- Vercel deployment URL: Confirmed after production deployment.
-- Production test result: Confirmed after production deployment.
+- UI change commit hash: `73109442f93c310a1635e8210beb571222f24174`
+- Vercel deployment ID: `dpl_9YQLpctuBb25bctHV9bpB1C2Ms2o`
+- Vercel deployment URL: `https://itc-secure-document-verification-system-aydw74cuh.vercel.app`
+- Production URL: `https://itc-secure-document-verification-sy.vercel.app/high-council/events`
+- Vercel status: READY
+- Production test result: `/high-council/events` returned HTTP 200.
 
 ## Remaining Issues
 
