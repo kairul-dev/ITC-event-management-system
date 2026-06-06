@@ -153,10 +153,6 @@ function getSubmittedBy(event?: Event | null) {
   return event?.submitted_by || event?.created_by || "Club Committee";
 }
 
-function getEventPoster(event: Event) {
-  return event.poster_url || event.image_url || "";
-}
-
 function normalizeReviewStatus(status: string) {
   if (status === "Pending Approval" || status === "Pending High Council Approval") return "Pending High Council Review";
   if (status === "Pending Club Advisor Approval") return "Forwarded to Club Advisor";
@@ -840,7 +836,6 @@ export default function EventApprovalPage() {
       );
     }
 
-    const poster = getEventPoster(selectedEvent);
     const purposeText = stripPaperworkFileMarker(selectedEvent.purpose) || "No purpose has been provided for this event.";
     const objectiveText = stripPaperworkFileMarker(selectedEvent.objective) || "No objectives have been provided for this event.";
     const attachmentRows = uploadedPaperworkFile ? [uploadedPaperworkFile] : [];
@@ -877,8 +872,8 @@ export default function EventApprovalPage() {
           </button>
         </header>
 
-        <div className="grid gap-5 lg:grid-cols-5">
-          <main className="min-w-0 space-y-5 lg:col-span-3">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start">
+          <main className="min-w-0 space-y-4 xl:w-2/5 xl:shrink-0">
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="mb-4 flex items-center gap-2">
                 <div className="grid h-8 w-8 place-items-center rounded-lg bg-blue-50 text-blue-700">
@@ -888,124 +883,196 @@ export default function EventApprovalPage() {
                 </div>
                 <h2 className="text-lg font-black text-slate-950">Event Summary</h2>
               </div>
-
-              <div className="grid gap-4 md:grid-cols-[155px_minmax(0,1fr)] 2xl:grid-cols-[155px_minmax(0,1fr)_235px]">
-                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-900">
-                  {poster ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={poster} alt={`${selectedEvent.title} poster`} className="h-52 w-full object-cover lg:h-full" />
-                  ) : (
-                    <div className="flex h-52 flex-col justify-between bg-gradient-to-br from-slate-950 via-blue-950 to-blue-700 p-4 text-white lg:h-full">
-                      <div>
-                        <p className="text-xs font-black uppercase tracking-wide text-blue-200">Event Proposal</p>
-                        <h3 className="mt-3 text-xl font-black leading-tight">{selectedEvent.title}</h3>
-                      </div>
-                      <p className="text-xs font-semibold text-blue-100">High Council Review</p>
-                    </div>
-                  )}
-                </div>
-
+              <div className="space-y-3">
+                <DetailCard label="Event Name" value={selectedEvent.title} />
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <DetailCard label="Event Name" value={selectedEvent.title} />
-                  <DetailCard label="Club / Organizer" value={getOrganizer(selectedEvent)} />
+                  <DetailCard label="Club" value={getOrganizer(selectedEvent)} />
                   <DetailCard label="Submitted By" value={getSubmittedBy(selectedEvent)} />
                   <DetailCard label="Submission Date" value={formatDateTime(selectedEvent.created_at)} />
-                  <DetailCard label="Current Status" value={<StatusBadge status={selectedEvent.status} />} />
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:col-span-2 2xl:col-span-1">
-                  <h3 className="text-sm font-black text-slate-950">Workflow Progress</h3>
-                  <div className="mt-4 space-y-3">
-                    {[
-                      ["Submitted by Club Committee", "done"],
-                      ["High Council Review", "current"],
-                      ["Awaiting Club Advisor Approval", "pending"],
-                      ["Event Published", "pending"],
-                    ].map(([label, state], index) => (
-                      <div key={label} className="flex gap-3">
-                        <div className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-black ${
-                          state === "done"
-                            ? "bg-emerald-600 text-white"
-                            : state === "current"
-                              ? "bg-blue-700 text-white"
-                              : "border border-slate-300 bg-white text-slate-500"
-                        }`}>
-                          {state === "done" ? "OK" : index + 1}
-                        </div>
-                        <div>
-                          <p className="text-sm font-black text-slate-950">{label}</p>
-                          <p className="text-xs font-semibold text-slate-500">
-                            {state === "done" ? formatDateTime(selectedEvent.created_at) : state === "current" ? "In progress" : "Pending"}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <DetailCard label="Status" value={<StatusBadge status={selectedEvent.status} />} />
                 </div>
               </div>
             </section>
 
-            <div className="grid gap-5 lg:grid-cols-2">
-              <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="mb-4 flex items-center gap-2">
-                  <div className="grid h-8 w-8 place-items-center rounded-lg bg-indigo-50 text-indigo-700">
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h10M4 18h16" />
-                    </svg>
-                  </div>
-                  <h2 className="text-lg font-black text-slate-950">Program Details</h2>
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-4 flex items-center gap-2">
+                <div className="grid h-8 w-8 place-items-center rounded-lg bg-indigo-50 text-indigo-700">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h10M4 18h16" />
+                  </svg>
                 </div>
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm font-black text-slate-950">Purpose</p>
-                    <p className="mt-2 line-clamp-4 whitespace-pre-line text-sm leading-6 text-slate-700">{purposeText}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-black text-slate-950">Objectives</p>
-                    <div className="mt-2 space-y-2">
-                      {objectiveText.split(/\n|\*|-/).map((item) => item.trim()).filter(Boolean).slice(0, 5).map((item, index) => (
-                        <div key={`${item}-${index}`} className="flex gap-2 text-sm leading-6 text-slate-700">
-                          <span className="mt-1 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-emerald-100 text-[9px] font-black text-emerald-700">OK</span>
-                          <span>{item}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-sm font-black text-slate-950">Expected Outcome</p>
-                    <p className="mt-2 text-sm leading-6 text-slate-700">
-                      Participants will gain knowledge and practical experience from the proposed programme activities.
-                    </p>
+                <h2 className="text-lg font-black text-slate-950">Program Details</h2>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm font-black text-slate-950">Purpose</p>
+                  <p className="mt-2 line-clamp-4 whitespace-pre-line text-sm leading-6 text-slate-700">{purposeText}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-black text-slate-950">Objectives</p>
+                  <div className="mt-2 space-y-2">
+                    {objectiveText.split(/\n|\*|-/).map((item) => item.trim()).filter(Boolean).slice(0, 4).map((item, index) => (
+                      <div key={`${item}-${index}`} className="flex gap-2 text-sm leading-6 text-slate-700">
+                        <span className="mt-1 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-emerald-100 text-[9px] font-black text-emerald-700">OK</span>
+                        <span>{item}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </section>
+                <div>
+                  <p className="text-sm font-black text-slate-950">Expected Outcome</p>
+                  <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-700">
+                    Participants will gain knowledge and practical experience from the proposed programme activities.
+                  </p>
+                </div>
+              </div>
+            </section>
 
-              <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="mb-4 flex items-center gap-2">
-                  <div className="grid h-8 w-8 place-items-center rounded-lg bg-blue-50 text-blue-700">
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-4 flex items-center gap-2">
+                <div className="grid h-8 w-8 place-items-center rounded-lg bg-blue-50 text-blue-700">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v14H4V6a1 1 0 011-1z" />
+                  </svg>
+                </div>
+                <h2 className="text-lg font-black text-slate-950">Logistics & Budget</h2>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {[
+                  ["Start Date", formatShortDate(selectedEvent.start_date)],
+                  ["End Date", formatShortDate(selectedEvent.end_date)],
+                  ["Time", `${new Date(selectedEvent.start_date).toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" })} - ${new Date(selectedEvent.end_date).toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" })}`],
+                  ["Location", selectedEvent.location || "Not provided"],
+                  ["Expected Participants", `${selectedEvent.max_students || 0} Participants`],
+                  ["Estimated Budget", formatCurrency(selectedEvent.budget)],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex items-center justify-between gap-4 py-2.5 text-sm">
+                    <span className="font-semibold text-slate-600">{label}</span>
+                    <span className={`text-right font-black ${label === "Estimated Budget" ? "text-emerald-700" : "text-slate-900"}`}>{value}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h3 className="text-sm font-black text-slate-950">Workflow Progress</h3>
+              <div className="mt-4 space-y-3">
+                {[
+                  ["Submitted by Club Committee", "done"],
+                  ["High Council Review", "current"],
+                  ["Awaiting Club Advisor Approval", "pending"],
+                  ["Event Published", "pending"],
+                ].map(([label, state], index) => (
+                  <div key={label} className="flex gap-3">
+                    <div className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-black ${
+                      state === "done"
+                        ? "bg-emerald-600 text-white"
+                        : state === "current"
+                          ? "bg-blue-700 text-white"
+                          : "border border-slate-300 bg-white text-slate-500"
+                    }`}>
+                      {state === "done" ? "OK" : index + 1}
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-slate-950">{label}</p>
+                      <p className="text-xs font-semibold text-slate-500">
+                        {state === "done" ? formatDateTime(selectedEvent.created_at) : state === "current" ? "Current Step" : "Pending"}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </main>
+
+          <aside className="min-w-0 space-y-4 xl:w-3/5 xl:shrink-0">
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="grid h-8 w-8 place-items-center rounded-lg bg-violet-50 text-violet-700">
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v14H4V6a1 1 0 011-1z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828L18 9.828a4 4 0 10-5.657-5.657L5.757 10.757a6 6 0 108.486 8.486L20 13.485" />
                     </svg>
                   </div>
-                  <h2 className="text-lg font-black text-slate-950">Logistics & Budget</h2>
+                  <h2 className="text-lg font-black text-slate-950">Attached Documents</h2>
                 </div>
-                <div className="divide-y divide-slate-100">
-                  {[
-                    ["Start Date", formatShortDate(selectedEvent.start_date)],
-                    ["End Date", formatShortDate(selectedEvent.end_date)],
-                    ["Time", `${new Date(selectedEvent.start_date).toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" })} - ${new Date(selectedEvent.end_date).toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" })}`],
-                    ["Location", selectedEvent.location || "Not provided"],
-                    ["Expected Participants", `${selectedEvent.max_students || 0} Participants`],
-                    ["Estimated Budget", formatCurrency(selectedEvent.budget)],
-                  ].map(([label, value]) => (
-                    <div key={label} className="flex items-center justify-between gap-4 py-2.5 text-sm">
-                      <span className="font-semibold text-slate-600">{label}</span>
-                      <span className={`text-right font-black ${label === "Estimated Budget" ? "text-emerald-700" : "text-slate-900"}`}>{value}</span>
+                <span className="text-sm font-bold text-slate-500">{attachmentRows.length || 1} file</span>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-2">
+                  <p className="px-2 py-2 text-xs font-black uppercase tracking-wide text-slate-500">File List</p>
+                  {uploadedPaperworkFile ? (
+                    <button
+                      type="button"
+                      onClick={() => previewUploadedPaperworkFile(uploadedPaperworkFile)}
+                      className="w-full rounded-lg border border-blue-200 bg-white p-3 text-left shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
+                    >
+                      <p className="truncate text-sm font-black text-slate-950">{uploadedPaperworkFile.name}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">{formatFileSize(uploadedPaperworkFile.size)}</p>
+                      <span className="mt-3 inline-flex rounded-full bg-blue-100 px-2 py-1 text-[11px] font-black text-blue-700">Selected</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowWordPreview(true)}
+                      className="w-full rounded-lg border border-blue-200 bg-white p-3 text-left shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
+                    >
+                      <p className="text-sm font-black text-slate-950">Generated Paperwork Preview</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">Built from submitted event fields</p>
+                      <span className="mt-3 inline-flex rounded-full bg-blue-100 px-2 py-1 text-[11px] font-black text-blue-700">Preview available</span>
+                    </button>
+                  )}
+                  {uploadedPaperworkFile && (
+                    <div className="mt-3 grid gap-2">
+                      <button
+                        type="button"
+                        onClick={() => previewUploadedPaperworkFile(uploadedPaperworkFile)}
+                        className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-black text-blue-700 hover:bg-blue-50"
+                      >
+                        Preview
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openUploadedPaperworkFile(uploadedPaperworkFile)}
+                        className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-black text-white hover:bg-blue-800"
+                      >
+                        Download
+                      </button>
                     </div>
-                  ))}
+                  )}
                 </div>
-              </section>
-            </div>
+
+                <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                  <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+                    <p className="truncate text-sm font-black text-slate-950">
+                      {previewAttachment?.name || uploadedPaperworkFile?.name || "Generated Paperwork Preview"}
+                    </p>
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                      <span>Preview</span>
+                      <span>100%</span>
+                    </div>
+                  </div>
+                  {previewAttachment?.url && previewAttachment.name.toLowerCase().endsWith(".pdf") ? (
+                    <iframe title={previewAttachment.name} src={previewAttachment.url} className="h-[220px] w-full bg-white" />
+                  ) : (
+                    <div className="grid h-[220px] place-items-center bg-white px-6 text-center">
+                      <div>
+                        <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-blue-50 text-blue-700">
+                          <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h10M7 16h6M6 3h9l3 3v15H6V3z" />
+                          </svg>
+                        </div>
+                        <h3 className="mt-4 text-base font-black text-slate-950">Document preview ready</h3>
+                        <p className="mt-2 text-sm font-semibold text-slate-500">
+                          Select a file from the list to preview the submitted paperwork in this document viewer.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
 
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="mb-4 flex items-center gap-2">
@@ -1022,100 +1089,14 @@ export default function EventApprovalPage() {
               <textarea
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
-                rows={3}
+                rows={2}
                 placeholder="Write your review notes here..."
-                className="min-h-20 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                className="min-h-16 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
               <p className="mt-2 text-right text-xs font-semibold text-slate-500">{rejectReason.length} / 1000 characters</p>
             </section>
-          </main>
 
-          <aside className="space-y-4 lg:col-span-2">
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <div className="grid h-8 w-8 place-items-center rounded-lg bg-violet-50 text-violet-700">
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828L18 9.828a4 4 0 10-5.657-5.657L5.757 10.757a6 6 0 108.486 8.486L20 13.485" />
-                    </svg>
-                  </div>
-                  <h2 className="text-lg font-black text-slate-950">Attached Documents</h2>
-                </div>
-                <span className="text-sm font-bold text-slate-500">{attachmentRows.length || 1} file</span>
-              </div>
-
-              <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-                <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
-                  <p className="truncate text-sm font-black text-slate-950">
-                    {previewAttachment?.name || uploadedPaperworkFile?.name || "Generated Paperwork Preview"}
-                  </p>
-                  <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
-                    <span>Preview</span>
-                    <span>100%</span>
-                  </div>
-                </div>
-                {previewAttachment?.url && previewAttachment.name.toLowerCase().endsWith(".pdf") ? (
-                  <iframe title={previewAttachment.name} src={previewAttachment.url} className="h-[285px] w-full bg-white" />
-                ) : (
-                  <div className="grid h-[285px] place-items-center bg-white px-6 text-center">
-                    <div>
-                      <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-blue-50 text-blue-700">
-                        <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h10M7 16h6M6 3h9l3 3v15H6V3z" />
-                        </svg>
-                      </div>
-                      <h3 className="mt-4 text-base font-black text-slate-950">Document preview ready</h3>
-                      <p className="mt-2 text-sm font-semibold text-slate-500">
-                        Use Preview to open the submitted document, or open the generated paperwork preview when no file is attached.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-3 space-y-2">
-                {uploadedPaperworkFile ? (
-                  <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-black text-slate-950">{uploadedPaperworkFile.name}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">{formatFileSize(uploadedPaperworkFile.size)}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => previewUploadedPaperworkFile(uploadedPaperworkFile)}
-                        className="rounded-lg border border-blue-200 px-3 py-2 text-xs font-black text-blue-700 hover:bg-blue-50"
-                      >
-                        Preview
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openUploadedPaperworkFile(uploadedPaperworkFile)}
-                        className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-black text-white hover:bg-blue-800"
-                      >
-                        Download
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-sm font-black text-slate-950">Generated Paperwork Preview</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">Built from submitted event fields</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowWordPreview(true)}
-                      className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-black text-white hover:bg-blue-800"
-                    >
-                      Preview
-                    </button>
-                  </div>
-                )}
-              </div>
-            </section>
-
-            <section className="sticky bottom-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg shadow-slate-200/70">
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg shadow-slate-200/70">
               <h2 className="text-lg font-black text-slate-950">Take Action</h2>
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 <button
