@@ -76,8 +76,20 @@ Note: The first post-edit build attempt was blocked by a Windows file lock on a 
 
 ## Production Deployment
 
-- Production deployment URL: Pending deployment.
-- Vercel status: Pending deployment.
+- Production deployment URL: `https://itc-secure-document-verification-system-9gwlrzu1x.vercel.app`
+- Production alias tested: `https://itc-secure-document-verification-sy.vercel.app/high-council/events`
+- Vercel deployment ID: `dpl_U4jZoAaKXW4akX1ewBhuWZjneXqf`
+- Vercel status: READY.
+- Commit deployed: `6dfa686c89dc266fc1509445a373492e4a9ca437`
+
+Production checks completed:
+
+- High Council queue page loads on production: Passed.
+- Queue shows review items and `Review` actions: Passed.
+- Selecting a review item opens the redesigned workspace: Passed.
+- Document preview appears near the top-right at 1536px desktop viewport: Passed.
+- Take Action card appears below Attached Documents and is visible in the first viewport: Passed.
+- Production mobile overflow at 390px width: Passed.
 
 ## Remaining UI Issues
 
