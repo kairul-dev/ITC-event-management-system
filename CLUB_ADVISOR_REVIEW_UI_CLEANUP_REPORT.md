@@ -45,9 +45,12 @@ UI cleanup only for the Club Advisor Review Paperwork workspace.
 ## Deployment
 
 - Commit message: `Simplify Club Advisor review workspace`
-- Commit hash: Confirmed after commit and push.
-- Vercel deployment URL: Confirmed after production deployment.
-- Production verification result: Confirmed after production deployment.
+- UI cleanup commit hash: `495baec55200904f4f920328afa6acc9553631b1`
+- Vercel deployment ID: `dpl_CjWdz9AHAbMDq7MMbr7jZpcjKGco`
+- Vercel deployment URL: `https://itc-secure-document-verification-system-rbotso9no.vercel.app`
+- Production URL: `https://itc-secure-document-verification-sy.vercel.app/club-advisor/events`
+- Vercel status: READY
+- Production verification result: `/club-advisor/events` returned HTTP 200.
 
 ## Remaining Issues
 
