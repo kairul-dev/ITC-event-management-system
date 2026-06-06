@@ -13,6 +13,10 @@ type ReviewEvent = {
   status?: string | null;
 };
 
+const HIGH_COUNCIL_QUEUE_STATUSES = ["Pending Approval", "Pending High Council Approval"];
+const CLUB_ADVISOR_QUEUE_STATUSES = ["Pending Club Advisor Approval"];
+const PUBLISHED_STATUSES = ["Published"];
+
 function Icon({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <svg className={`h-5 w-5 ${className}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -61,6 +65,14 @@ function SummaryCard({
   );
 }
 
+function formatStatusLabel(status?: string | null) {
+  if (status === "Pending Approval" || status === "Pending High Council Approval") {
+    return "Pending High Council";
+  }
+  if (status === "Pending Club Advisor Approval") return "Pending Club Advisor";
+  return status || "Pending";
+}
+
 export default function HighCouncilHomePage() {
   const [stats, setStats] = useState({
     pendingEvents: 0,
@@ -77,20 +89,19 @@ export default function HighCouncilHomePage() {
       setLoading(true);
 
       const [pending, forwarded, rejected, published, pendingRows, forwardedRows] = await Promise.all([
-        supabase.from("events").select("*", { count: "exact", head: true }).eq("status", "Pending High Council Approval"),
-        supabase.from("events").select("*", { count: "exact", head: true }).eq("status", "Pending Club Advisor Approval"),
+        supabase.from("events").select("*", { count: "exact", head: true }).in("status", HIGH_COUNCIL_QUEUE_STATUSES),
+        supabase.from("events").select("*", { count: "exact", head: true }).in("status", CLUB_ADVISOR_QUEUE_STATUSES),
         supabase.from("events").select("*", { count: "exact", head: true }).eq("status", "Rejected"),
-        supabase.from("events").select("*", { count: "exact", head: true }).eq("status", "Published"),
+        supabase.from("events").select("*", { count: "exact", head: true }).in("status", PUBLISHED_STATUSES),
         supabase
           .from("events")
           .select("id,title,start_date,created_at,location,status")
-          .eq("status", "Pending High Council Approval")
-          .order("created_at", { ascending: false })
-          .limit(5),
+          .in("status", HIGH_COUNCIL_QUEUE_STATUSES)
+          .order("created_at", { ascending: false }),
         supabase
           .from("events")
           .select("id,title,start_date,created_at,location,status")
-          .eq("status", "Pending Club Advisor Approval")
+          .in("status", CLUB_ADVISOR_QUEUE_STATUSES)
           .order("created_at", { ascending: false })
           .limit(5),
       ]);
@@ -224,7 +235,9 @@ export default function HighCouncilHomePage() {
                       <td className="px-4 py-3 font-medium text-slate-600">{formatDate(event.created_at)}</td>
                       <td className="px-4 py-3 font-medium text-slate-600">{event.location || "Not set"}</td>
                       <td className="px-4 py-3">
-                        <span className="rounded-md bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">Pending</span>
+                        <span className="rounded-md bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">
+                          {formatStatusLabel(event.status)}
+                        </span>
                       </td>
                       <td className="px-4 py-3">
                         <Link href="/high-council/events" className="rounded-md border border-violet-300 px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-50">

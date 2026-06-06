@@ -22,6 +22,17 @@ type Event = {
   rejection_reason?: string;
 };
 
+type ApprovalHistory = {
+  id: string;
+  entity_id: string;
+  action?: string | null;
+  actor_role?: string | null;
+  from_status?: string | null;
+  to_status?: string | null;
+  comments?: string | null;
+  created_at?: string | null;
+};
+
 type PaperworkSection = {
   title: string;
   body: string;
@@ -36,6 +47,39 @@ function formatDateTime(value?: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatShortDate(value?: string) {
+  if (!value) return "-";
+  return new Date(value).toLocaleDateString("en-MY", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatRole(role?: string | null) {
+  if (role === "high_council") return "High Council";
+  if (role === "club_advisor") return "Club Advisor";
+  if (role === "committee") return "Club Committee";
+  if (role === "admin") return "Admin";
+  return role || "System";
+}
+
+function timelineState(event: Event, step: string, history: ApprovalHistory[]) {
+  const status = event.status;
+  if (step === "Draft Created") return "done";
+  if (step === "Submitted to High Council") return status === "Draft" ? "pending" : "done";
+  if (step === "High Council Review") {
+    if (history.some((item) => item.actor_role === "high_council")) return "done";
+    return ["Pending Approval", "Pending High Council Approval"].includes(status) ? "current" : "pending";
+  }
+  if (step === "Club Advisor Review") {
+    if (history.some((item) => item.actor_role === "club_advisor")) return "done";
+    return status === "Pending Club Advisor Approval" ? "current" : "pending";
+  }
+  if (step === "Published") return ["Published", "Completed", "Closed"].includes(status) ? "done" : "pending";
+  return "pending";
 }
 
 function parsePaperworkSections(...values: Array<string | undefined>) {
@@ -97,11 +141,11 @@ function UploadedPaperworkCard({
   onOpen: () => void;
 }) {
   return (
-    <div className="rounded-lg border border-blue-200 bg-blue-50 p-5">
+    <div className="rounded-xl border border-blue-100 bg-blue-50/80 p-4">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-xs font-black uppercase tracking-wide text-blue-700">Uploaded Paperwork File</p>
-          <h3 className="mt-1 text-lg font-black text-slate-950">{file.name}</h3>
+          <p className="text-xs font-black uppercase tracking-wide text-blue-700">Attachment</p>
+          <h3 className="mt-1 break-all text-sm font-black text-slate-950 sm:text-base">{file.name}</h3>
           <p className="mt-1 text-sm font-medium text-slate-600">
             {formatFileSize(file.size)} uploaded on {formatDateTime(file.uploadedAt)}
           </p>
@@ -109,14 +153,11 @@ function UploadedPaperworkCard({
         <button
           type="button"
           onClick={onOpen}
-          className="rounded-lg bg-blue-700 px-5 py-3 text-sm font-bold text-white hover:bg-blue-800"
+          className="rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-800"
         >
-          Open Paperwork File
+          Open Attachment
         </button>
       </div>
-      <p className="mt-4 text-sm font-medium text-blue-800">
-        Review this completed Word/PDF document, then approve or reject using the buttons below.
-      </p>
     </div>
   );
 }
@@ -313,6 +354,7 @@ export default function EventApprovalPage() {
     [isClubAdvisor],
   );
   const [events, setEvents] = useState<Event[]>([]);
+  const [approvalHistory, setApprovalHistory] = useState<ApprovalHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -332,7 +374,26 @@ export default function EventApprovalPage() {
         console.error("Error loading events:", error);
         alert("Error loading events: " + error.message);
       } else {
-        setEvents(data || []);
+        const eventRows = (data || []) as Event[];
+        setEvents(eventRows);
+
+        if (eventRows.length > 0) {
+          const { data: historyRows, error: historyError } = await supabase
+            .from("approval_history")
+            .select("id,entity_id,action,actor_role,from_status,to_status,comments,created_at")
+            .eq("entity_type", "event")
+            .in("entity_id", eventRows.map((event) => event.id))
+            .order("created_at", { ascending: false });
+
+          if (historyError) {
+            console.error("Error loading approval history:", historyError.message);
+            setApprovalHistory([]);
+          } else {
+            setApprovalHistory((historyRows || []) as ApprovalHistory[]);
+          }
+        } else {
+          setApprovalHistory([]);
+        }
       }
     } catch (error) {
       console.error("Error:", error);
@@ -348,6 +409,10 @@ export default function EventApprovalPage() {
   const selectedEvent = useMemo(
     () => events.find((event) => event.id === selectedEventId) ?? null,
     [events, selectedEventId],
+  );
+  const selectedHistory = useMemo(
+    () => approvalHistory.filter((item) => item.entity_id === selectedEventId),
+    [approvalHistory, selectedEventId],
   );
   const paperworkSections = useMemo(
     () => parsePaperworkSections(selectedEvent?.purpose, selectedEvent?.objective),
@@ -507,19 +572,23 @@ export default function EventApprovalPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900">{reviewConfig.title}</h1>
-        <p className="text-sm text-slate-600">{reviewConfig.description}</p>
-      </div>
-
-      <div className="ds-card p-5 flex items-center justify-between">
-        <div>
-          <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide">{reviewConfig.countLabel}</p>
-          <p className="text-3xl font-bold text-slate-900 mt-1">{events.length}</p>
+    <div className="space-y-5">
+      <header className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-blue-700">Approval Workspace</p>
+            <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">{reviewConfig.title}</h1>
+            <p className="mt-2 text-sm font-medium text-slate-500">{reviewConfig.description}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:flex sm:items-center">
+            <div className="rounded-lg border border-amber-100 bg-amber-50 px-4 py-3">
+              <p className="text-xs font-black uppercase text-amber-700">{reviewConfig.countLabel}</p>
+              <p className="mt-1 text-2xl font-black text-amber-950">{events.length}</p>
+            </div>
+            <span className="self-center rounded-full bg-emerald-100 px-4 py-2 text-sm font-black text-emerald-700">Queue Open</span>
+          </div>
         </div>
-        <span className="ds-badge-pending">Queue Open</span>
-      </div>
+      </header>
 
       {events.length === 0 ? (
         <div className="ds-card p-12 text-center">
@@ -530,10 +599,16 @@ export default function EventApprovalPage() {
           <p className="text-slate-500">{reviewConfig.emptyDescription}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-          <aside className="xl:col-span-4 ds-card p-4">
-            <h2 className="text-lg font-semibold text-slate-900 mb-3">{reviewConfig.countLabel}</h2>
-            <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
+        <div className="grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
+          <aside className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-black text-slate-950">Paperwork Queue</h2>
+                <p className="text-xs font-semibold text-slate-500">{events.length} awaiting action</p>
+              </div>
+              <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-black text-blue-700">{events.length}</span>
+            </div>
+            <div className="max-h-[58vh] space-y-2 overflow-y-auto pr-1">
               {events.map((event) => {
                 const isActive = selectedEventId === event.id;
                 return (
@@ -543,27 +618,17 @@ export default function EventApprovalPage() {
                       setSelectedEventId(event.id);
                       setRejectReason("");
                     }}
-                    className={`w-full text-left p-3 rounded-xl border transition ${
+                    className={`w-full text-left rounded-xl border p-3 transition ${
                       isActive
-                        ? "border-slate-900 bg-slate-900 text-white"
+                        ? "border-blue-700 bg-blue-700 text-white shadow-md shadow-blue-900/10"
                         : "border-slate-200 bg-white hover:bg-slate-50"
                     }`}
                   >
-                    <p className={`font-semibold ${isActive ? "text-white" : "text-slate-900"}`}>{event.title}</p>
+                    <p className={`line-clamp-2 text-sm font-black ${isActive ? "text-white" : "text-slate-900"}`}>{event.title}</p>
                     <p className={`text-xs mt-1 ${isActive ? "text-slate-200" : "text-slate-500"}`}>
-                      {new Date(event.start_date).toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })}
-                      {" - "}
-                      {new Date(event.end_date).toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })}
+                      {formatShortDate(event.start_date)} to {formatShortDate(event.end_date)}
                     </p>
-                    <span className={`mt-2 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${isActive ? "bg-slate-100 text-slate-900" : "bg-amber-100 text-amber-800"}`}>
+                    <span className={`mt-2 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-black ${isActive ? "bg-white/95 text-blue-800" : "bg-amber-100 text-amber-800"}`}>
                       {reviewConfig.queueBadge}
                     </span>
                   </button>
@@ -572,131 +637,254 @@ export default function EventApprovalPage() {
             </div>
           </aside>
 
-          <section className="xl:col-span-8 ds-card flex h-[calc(100vh-220px)] min-h-[620px] flex-col overflow-hidden p-6">
+          <section className="min-w-0">
             {!selectedEvent ? (
-              <div className="flex-1 flex items-center justify-center text-slate-500">Select an event to review.</div>
+              <div className="grid min-h-96 place-items-center rounded-xl border border-dashed border-slate-300 bg-white text-slate-500">Select an event to review.</div>
             ) : (
-              <>
-                <div className="min-h-0 flex-1 overflow-y-auto pr-2">
-                  <div className="mb-4 flex items-start justify-between gap-3">
+              <div className="space-y-5">
+                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                     <div>
-                      <h2 className="text-2xl font-semibold text-slate-900">{selectedEvent.title}</h2>
-                      <p className="text-sm text-slate-600 mt-1">Submitted on {new Date(selectedEvent.created_at).toLocaleDateString()}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-700">{reviewConfig.queueBadge}</span>
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">{selectedEvent.status}</span>
+                      </div>
+                      <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-950">{selectedEvent.title}</h2>
+                      <p className="mt-1 text-sm font-semibold text-slate-500">
+                        Submitted {formatDateTime(selectedEvent.created_at)} | {selectedEvent.location || "Venue not set"}
+                      </p>
                     </div>
-                    <div className="flex shrink-0 flex-col items-end gap-2">
-                      <span className="ds-badge-pending">{reviewConfig.queueBadge}</span>
-                      {uploadedPaperworkFile ? (
-                        <button
-                          type="button"
-                          onClick={() => openUploadedPaperworkFile(uploadedPaperworkFile)}
-                          className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100"
-                        >
-                          Open File
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setShowWordPreview(true)}
-                          className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100"
-                        >
-                          View Word Format
-                        </button>
-                      )}
+                    <div className="flex flex-col gap-2 sm:flex-row xl:justify-end">
+                      <button
+                        type="button"
+                        onClick={() => updateStatus(selectedEvent.id, "Rejected", rejectReason)}
+                        disabled={processingId === selectedEvent.id}
+                        className="rounded-lg bg-rose-700 px-4 py-2.5 text-sm font-black text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {processingId === selectedEvent.id ? "Processing..." : reviewConfig.rejectLabel}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateStatus(
+                            selectedEvent.id,
+                            reviewConfig.approveStatus as "Approved" | "Pending Club Advisor Approval",
+                          )
+                        }
+                        disabled={processingId === selectedEvent.id}
+                        className="rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-black text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {processingId === selectedEvent.id ? "Processing..." : reviewConfig.approveLabel}
+                      </button>
                     </div>
                   </div>
 
-                  <div className="mb-6 grid grid-cols-1 gap-4 text-sm md:grid-cols-2 xl:grid-cols-3">
-                    <DetailCard label="Start Date" value={formatDateTime(selectedEvent.start_date)} />
-                    <DetailCard label="End Date" value={formatDateTime(selectedEvent.end_date)} />
-                    <DetailCard label="Submitted" value={formatDateTime(selectedEvent.created_at)} />
-                    <DetailCard
-                      label="Total Budget"
-                      value={typeof selectedEvent.budget === "number" ? `RM ${selectedEvent.budget.toLocaleString()}` : "-"}
-                    />
-                    <DetailCard
-                      label="Student Fee"
-                      value={typeof selectedEvent.fee_amount === "number" ? `RM ${Number(selectedEvent.fee_amount).toFixed(2)}` : "RM 0.00"}
-                    />
+                  <div className="mt-5 grid gap-3 md:grid-cols-4">
+                    <DetailCard label="Event Date" value={`${formatShortDate(selectedEvent.start_date)} - ${formatShortDate(selectedEvent.end_date)}`} />
+                    <DetailCard label="Venue" value={selectedEvent.location || "Not set"} />
                     <DetailCard label="Capacity" value={`${selectedEvent.max_students || 0} students`} />
-                    <div className="md:col-span-2 xl:col-span-3">
-                      <DetailCard label="Location" value={selectedEvent.location || "-"} />
-                    </div>
+                    <DetailCard label="Student Fee" value={typeof selectedEvent.fee_amount === "number" ? `RM ${Number(selectedEvent.fee_amount).toFixed(2)}` : "RM 0.00"} />
                   </div>
+                </div>
 
-                  <div className="space-y-4 pb-4">
-                    {uploadedPaperworkFile ? (
-                      <>
-                        <UploadedPaperworkCard
-                          file={uploadedPaperworkFile}
-                          onOpen={() => openUploadedPaperworkFile(uploadedPaperworkFile)}
-                        />
-                        {(selectedEvent.purpose || selectedEvent.objective) && (
-                          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                            <h3 className="text-sm font-black uppercase tracking-wide text-slate-700">Event Summary</h3>
-                            <p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-700">
-                              {stripPaperworkFileMarker(selectedEvent.purpose) || "-"}
-                            </p>
-                            {stripPaperworkFileMarker(selectedEvent.objective) && (
-                              <p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-700">
-                                {stripPaperworkFileMarker(selectedEvent.objective)}
-                              </p>
-                            )}
-                          </section>
+                <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+                  <main className="min-w-0 space-y-5">
+                    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <h3 className="text-lg font-black text-slate-950">Workflow Timeline</h3>
+                          <p className="text-sm font-semibold text-slate-500">Current approval stage and next handoff.</p>
+                        </div>
+                      </div>
+                      <div className="mt-5 grid gap-3 md:grid-cols-5">
+                        {["Draft Created", "Submitted to High Council", "High Council Review", "Club Advisor Review", "Published"].map((step) => {
+                          const state = timelineState(selectedEvent, step, selectedHistory);
+                          return (
+                            <div
+                              key={step}
+                              className={`rounded-xl border p-3 ${
+                                state === "done"
+                                  ? "border-emerald-200 bg-emerald-50"
+                                  : state === "current"
+                                    ? "border-blue-200 bg-blue-50 ring-2 ring-blue-100"
+                                    : "border-slate-200 bg-slate-50"
+                              }`}
+                            >
+                              <div className={`grid h-8 w-8 place-items-center rounded-full text-xs font-black ${
+                                state === "done"
+                                  ? "bg-emerald-600 text-white"
+                                  : state === "current"
+                                    ? "bg-blue-700 text-white"
+                                    : "bg-slate-200 text-slate-500"
+                              }`}>
+                                {state === "done" ? "OK" : state === "current" ? "Now" : ""}
+                              </div>
+                              <p className="mt-3 text-sm font-black text-slate-950">{step}</p>
+                              <p className="mt-1 text-xs font-semibold capitalize text-slate-500">{state}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </section>
+
+                    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <h3 className="text-lg font-black text-slate-950">Event Summary</h3>
+                          <p className="text-sm font-semibold text-slate-500">Key details needed for approval decision.</p>
+                        </div>
+                        {uploadedPaperworkFile ? (
+                          <button
+                            type="button"
+                            onClick={() => openUploadedPaperworkFile(uploadedPaperworkFile)}
+                            className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-black text-blue-700 hover:bg-blue-100"
+                          >
+                            Open Attachment
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setShowWordPreview(true)}
+                            className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-black text-blue-700 hover:bg-blue-100"
+                          >
+                            View Word Format
+                          </button>
                         )}
-                      </>
-                    ) : (
-                      <>
-                        <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
-                          <h3 className="text-sm font-black uppercase tracking-wide text-blue-800">Full Paperwork Preview</h3>
-                          <p className="mt-1 text-sm font-medium text-blue-700">
-                            Review all submitted paperwork sections before approving or rejecting.
+                      </div>
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        <DetailCard label="Start" value={formatDateTime(selectedEvent.start_date)} />
+                        <DetailCard label="End" value={formatDateTime(selectedEvent.end_date)} />
+                        <DetailCard label="Submitted" value={formatDateTime(selectedEvent.created_at)} />
+                        <DetailCard label="Budget" value={typeof selectedEvent.budget === "number" ? `RM ${selectedEvent.budget.toLocaleString()}` : "-"} />
+                      </div>
+                      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <h4 className="text-xs font-black uppercase tracking-wide text-slate-500">Purpose</h4>
+                          <p className="mt-2 line-clamp-6 whitespace-pre-line text-sm leading-6 text-slate-700">
+                            {stripPaperworkFileMarker(selectedEvent.purpose) || "No purpose summary provided."}
                           </p>
                         </div>
-                        {paperworkSections.map((section, index) => (
-                          <section key={`${section.title}-${index}`} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                            <h3 className="text-sm font-black uppercase tracking-wide text-slate-700">{section.title}</h3>
-                            <p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-700">
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <h4 className="text-xs font-black uppercase tracking-wide text-slate-500">Objective</h4>
+                          <p className="mt-2 line-clamp-6 whitespace-pre-line text-sm leading-6 text-slate-700">
+                            {stripPaperworkFileMarker(selectedEvent.objective) || "No objective summary provided."}
+                          </p>
+                        </div>
+                      </div>
+                    </section>
+
+                    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <h3 className="text-lg font-black text-slate-950">Attachment Viewer</h3>
+                      <p className="mt-1 text-sm font-semibold text-slate-500">Open the submitted file or inspect the generated Word-format preview.</p>
+                      <div className="mt-4">
+                        {uploadedPaperworkFile ? (
+                          <UploadedPaperworkCard
+                            file={uploadedPaperworkFile}
+                            onOpen={() => openUploadedPaperworkFile(uploadedPaperworkFile)}
+                          />
+                        ) : (
+                          <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                              <div>
+                                <p className="text-sm font-black text-blue-950">Generated Paperwork Preview</p>
+                                <p className="mt-1 text-sm font-semibold text-blue-700">No uploaded file is attached. Review the generated paperwork format.</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setShowWordPreview(true)}
+                                className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-black text-white hover:bg-blue-800"
+                              >
+                                Open Preview
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </section>
+
+                    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <h3 className="text-lg font-black text-slate-950">Paperwork Sections</h3>
+                      <div className="mt-4 grid gap-3">
+                        {paperworkSections.slice(0, 4).map((section, index) => (
+                          <details key={`${section.title}-${index}`} className="rounded-xl border border-slate-200 bg-slate-50 p-4" open={index === 0}>
+                            <summary className="cursor-pointer text-sm font-black uppercase tracking-wide text-slate-700">{section.title}</summary>
+                            <p className="mt-3 max-h-40 overflow-y-auto whitespace-pre-line text-sm leading-6 text-slate-700">
                               {section.body || "-"}
                             </p>
-                          </section>
+                          </details>
                         ))}
-                      </>
-                    )}
-                  </div>
-                </div>
+                        {paperworkSections.length > 4 && (
+                          <p className="text-xs font-semibold text-slate-500">
+                            Showing 4 of {paperworkSections.length} sections. Open the attachment or Word preview for the full paperwork.
+                          </p>
+                        )}
+                      </div>
+                    </section>
+                  </main>
 
-                <div className="shrink-0 border-t border-slate-200 bg-white pt-4">
-                  <label className="ds-label">Rejection Reason (required to reject)</label>
-                  <textarea
-                    value={rejectReason}
-                    onChange={(e) => setRejectReason(e.target.value)}
-                    rows={3}
-                    placeholder="State why this submission does not meet approval criteria..."
-                    className="ds-textarea"
-                  />
-                  <div className="flex flex-col sm:flex-row gap-3 sm:justify-end mt-3">
-                    <button
-                      onClick={() => updateStatus(selectedEvent.id, "Rejected", rejectReason)}
-                      disabled={processingId === selectedEvent.id}
-                      className="px-5 py-2.5 rounded-xl text-white font-semibold bg-rose-700 hover:bg-rose-800 disabled:opacity-50"
-                    >
-                      {processingId === selectedEvent.id ? "Processing..." : reviewConfig.rejectLabel}
-                    </button>
-                    <button
-                      onClick={() =>
-                        updateStatus(
-                          selectedEvent.id,
-                          reviewConfig.approveStatus as "Approved" | "Pending Club Advisor Approval",
-                        )
-                      }
-                      disabled={processingId === selectedEvent.id}
-                      className="ds-btn-primary"
-                    >
-                      {processingId === selectedEvent.id ? "Processing..." : reviewConfig.approveLabel}
-                    </button>
-                  </div>
+                  <aside className="space-y-5">
+                    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <h3 className="text-lg font-black text-slate-950">Review Notes</h3>
+                      <p className="mt-1 text-sm font-semibold text-slate-500">Required only when rejecting paperwork.</p>
+                      <textarea
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                        rows={6}
+                        placeholder="State why this submission does not meet approval criteria..."
+                        className="mt-4 min-h-36 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      />
+                    </section>
+
+                    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <h3 className="text-lg font-black text-slate-950">Decision</h3>
+                      <div className="mt-4 space-y-3">
+                        <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                          <p className="text-sm font-black text-emerald-900">{reviewConfig.approveLabel}</p>
+                          <p className="mt-1 text-xs font-semibold leading-5 text-emerald-700">
+                            Approving moves this paperwork to the next configured workflow stage.
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-rose-100 bg-rose-50 p-4">
+                          <p className="text-sm font-black text-rose-900">{reviewConfig.rejectLabel}</p>
+                          <p className="mt-1 text-xs font-semibold leading-5 text-rose-700">
+                            Rejection keeps the paperwork out of the next stage and requires a clear note.
+                          </p>
+                        </div>
+                        <p className="text-xs font-semibold leading-5 text-slate-500">
+                          Use the approval actions in the page header after completing your review.
+                        </p>
+                      </div>
+                    </section>
+
+                    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <h3 className="text-lg font-black text-slate-950">Approval History</h3>
+                      <div className="mt-4 space-y-3">
+                        {selectedHistory.length === 0 ? (
+                          <p className="rounded-lg border border-dashed border-slate-200 p-4 text-sm font-semibold text-slate-500">
+                            No approval history recorded yet.
+                          </p>
+                        ) : (
+                          selectedHistory.map((item) => (
+                            <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                              <div className="flex items-center justify-between gap-3">
+                                <p className="text-sm font-black capitalize text-slate-950">{item.action || "reviewed"}</p>
+                                <span className="rounded-full bg-slate-200 px-2 py-1 text-[11px] font-black text-slate-600">
+                                  {formatRole(item.actor_role)}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-xs font-semibold text-slate-500">{formatDateTime(item.created_at || undefined)}</p>
+                              <p className="mt-2 text-xs font-semibold leading-5 text-slate-600">
+                                {item.from_status || "Not provided"} -&gt; {item.to_status || "Not provided"}
+                              </p>
+                              {item.comments && <p className="mt-2 text-sm leading-6 text-slate-700">{item.comments}</p>}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </section>
+                  </aside>
                 </div>
-              </>
+              </div>
             )}
           </section>
         </div>
