@@ -1,0 +1,156 @@
+:root {
+  color-scheme: dark;
+  --background: #101413;
+  --panel: #18201d;
+  --panel-border: #2b3832;
+  --text: #f4f7f5;
+  --muted: #a7b4ad;
+  --accent: #49d19f;
+  --accent-strong: #89f2c7;
+  --danger: #ff6b6b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+  background: var(--background);
+  color: var(--text);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+button {
+  font: inherit;
+}
+
+.page {
+  min-height: 100vh;
+  padding: 40px 24px;
+}
+
+.dashboard {
+  width: min(960px, 100%);
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+.title {
+  margin: 0 0 8px;
+  font-size: clamp(2rem, 6vw, 4.5rem);
+  line-height: 1;
+  font-weight: 760;
+}
+
+.subtitle {
+  max-width: 640px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.statusPill {
+  flex: 0 0 auto;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: var(--accent-strong);
+  background: #12251e;
+  font-size: 0.9rem;
+}
+
+.panel {
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 24px;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.testButton {
+  min-height: 40px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 14px;
+  background: var(--accent);
+  color: #08110e;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.testButton:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.statusBox {
+  min-height: 128px;
+  border-radius: 6px;
+  border: 1px solid #314039;
+  background: #0f1714;
+  padding: 16px;
+}
+
+.statusLabel {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.statusValue {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.statusDetail {
+  margin: 12px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.error {
+  color: var(--danger);
+}
+
+@media (max-width: 720px) {
+  .page {
+    padding: 28px 16px;
+  }
+
+  .header,
+  .panelHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .statusPill {
+    width: fit-content;
+  }
+}
