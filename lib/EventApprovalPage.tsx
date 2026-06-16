@@ -1157,160 +1157,149 @@ export default function EventApprovalPage() {
               <div className="grid min-h-96 place-items-center rounded-xl border border-dashed border-slate-300 bg-white text-slate-500">Select an event to review.</div>
             ) : (
               <div className="space-y-5">
-                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-700">{reviewConfig.queueBadge}</span>
-                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">{selectedEvent.status}</span>
+                <div className="flex flex-col gap-5 xl:flex-row xl:items-start">
+                  <main className="min-w-0 space-y-4 xl:w-2/5 xl:shrink-0">
+                    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                      <div className="mb-4 flex items-center gap-2">
+                        <div className="grid h-8 w-8 place-items-center rounded-lg bg-blue-50 text-blue-700">
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-8 8h10a2 2 0 002-2V7l-4-4H7a2 2 0 00-2 2v13a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <h2 className="text-lg font-black text-slate-950">Event Summary</h2>
                       </div>
-                      <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-950">{selectedEvent.title}</h2>
-                      <p className="mt-1 text-sm font-semibold text-slate-500">
-                        Submitted {formatDateTime(selectedEvent.created_at)} | {selectedEvent.location || "Venue not set"}
-                      </p>
-                    </div>
-                    <div className="flex flex-col gap-2 sm:flex-row xl:justify-end">
-                      <button
-                        type="button"
-                        onClick={() => updateStatus(selectedEvent.id, "Rejected", rejectReason)}
-                        disabled={processingId === selectedEvent.id}
-                        className="rounded-lg bg-rose-700 px-4 py-2.5 text-sm font-black text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {processingId === selectedEvent.id ? "Processing..." : reviewConfig.rejectLabel}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateStatus(
-                            selectedEvent.id,
-                            reviewConfig.approveStatus as "Approved" | "Pending Club Advisor Approval",
-                          )
-                        }
-                        disabled={processingId === selectedEvent.id}
-                        className="rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-black text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {processingId === selectedEvent.id ? "Processing..." : reviewConfig.approveLabel}
-                      </button>
-                    </div>
-                  </div>
+                      <div className="space-y-3">
+                        <DetailCard label="Event Name" value={selectedEvent.title} />
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <DetailCard label="Club / Organizer" value={getOrganizer(selectedEvent)} />
+                          <DetailCard label="Submitted By" value={getSubmittedBy(selectedEvent)} />
+                          <DetailCard label="Submission Date" value={formatDateTime(selectedEvent.created_at)} />
+                          <DetailCard label="Status" value={<StatusBadge status={selectedEvent.status} />} />
+                        </div>
+                      </div>
+                    </section>
 
-                  <div className="mt-5 grid gap-3 md:grid-cols-4">
-                    <DetailCard label="Event Date" value={`${formatShortDate(selectedEvent.start_date)} - ${formatShortDate(selectedEvent.end_date)}`} />
-                    <DetailCard label="Venue" value={selectedEvent.location || "Not set"} />
-                    <DetailCard label="Capacity" value={`${selectedEvent.max_students || 0} students`} />
-                    <DetailCard label="Student Fee" value={typeof selectedEvent.fee_amount === "number" ? `RM ${Number(selectedEvent.fee_amount).toFixed(2)}` : "RM 0.00"} />
-                  </div>
-                </div>
-
-                <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-                  <main className="min-w-0 space-y-5">
-                    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                      <div className="mb-4 flex items-center gap-2">
+                        <div className="grid h-8 w-8 place-items-center rounded-lg bg-indigo-50 text-indigo-700">
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h10M4 18h16" />
+                          </svg>
+                        </div>
+                        <h2 className="text-lg font-black text-slate-950">Program Details</h2>
+                      </div>
+                      <div className="space-y-4">
                         <div>
-                          <h3 className="text-lg font-black text-slate-950">Event Summary</h3>
-                          <p className="text-sm font-semibold text-slate-500">Key details needed for approval decision.</p>
+                          <p className="text-sm font-black text-slate-950">Purpose</p>
+                  <p className="mt-2 line-clamp-4 whitespace-pre-line text-sm leading-6 text-slate-700">
+                    {stripPaperworkFileMarker(selectedEvent.purpose) || "No purpose has been provided for this event."}
+                  </p>
                         </div>
-                        {uploadedPaperworkFile ? (
-                          <button
-                            type="button"
-                            onClick={() => openUploadedPaperworkFile(uploadedPaperworkFile)}
-                            className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-black text-blue-700 hover:bg-blue-100"
-                          >
-                            Open Attachment
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setShowWordPreview(true)}
-                            className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-black text-blue-700 hover:bg-blue-100"
-                          >
-                            View Word Format
-                          </button>
-                        )}
-                      </div>
-                      <div className="mt-4 grid gap-3 md:grid-cols-2">
-                        <DetailCard label="Start" value={formatDateTime(selectedEvent.start_date)} />
-                        <DetailCard label="End" value={formatDateTime(selectedEvent.end_date)} />
-                        <DetailCard label="Submitted" value={formatDateTime(selectedEvent.created_at)} />
-                        <DetailCard label="Budget" value={typeof selectedEvent.budget === "number" ? `RM ${selectedEvent.budget.toLocaleString()}` : "-"} />
-                      </div>
-                      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                          <h4 className="text-xs font-black uppercase tracking-wide text-slate-500">Purpose</h4>
-                          <p className="mt-2 line-clamp-6 whitespace-pre-line text-sm leading-6 text-slate-700">
-                            {stripPaperworkFileMarker(selectedEvent.purpose) || "No purpose summary provided."}
-                          </p>
+                        <div>
+                          <p className="text-sm font-black text-slate-950">Objectives</p>
+                          <div className="mt-2 space-y-2">
+                    {stripPaperworkFileMarker(selectedEvent.objective)
+                      .split(/\n|\*|-/)
+                      .map((item) => item.trim())
+                      .filter(Boolean)
+                      .slice(0, 4)
+                      .map((item, index) => (
+                              <div key={`${item}-${index}`} className="flex gap-2 text-sm leading-6 text-slate-700">
+                                <span className="mt-1 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-emerald-100 text-[9px] font-black text-emerald-700">OK</span>
+                                <span>{item}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                          <h4 className="text-xs font-black uppercase tracking-wide text-slate-500">Objective</h4>
-                          <p className="mt-2 line-clamp-6 whitespace-pre-line text-sm leading-6 text-slate-700">
-                            {stripPaperworkFileMarker(selectedEvent.objective) || "No objective summary provided."}
+                        <div>
+                          <p className="text-sm font-black text-slate-950">Expected Outcome</p>
+                          <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-700">
+                            Participants will gain knowledge and practical experience from the proposed programme activities.
                           </p>
                         </div>
                       </div>
                     </section>
 
-                    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <h3 className="text-lg font-black text-slate-950">Attachment Viewer</h3>
-                          <p className="mt-1 text-sm font-semibold text-slate-500">Review the submitted paperwork in the enlarged document workspace.</p>
+                    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                      <div className="mb-4 flex items-center gap-2">
+                        <div className="grid h-8 w-8 place-items-center rounded-lg bg-blue-50 text-blue-700">
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v14H4V6a1 1 0 011-1z" />
+                          </svg>
                         </div>
-                        {uploadedPaperworkFile ? (
-                          <button
-                            type="button"
-                            onClick={() => openUploadedPaperworkFile(uploadedPaperworkFile)}
-                            className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-black text-white hover:bg-blue-800"
-                          >
-                            Open Attachment
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setShowWordPreview(true)}
-                            className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-black text-white hover:bg-blue-800"
-                          >
-                            Open Preview
-                          </button>
-                        )}
+                        <h2 className="text-lg font-black text-slate-950">Logistics & Budget</h2>
+                      </div>
+                      <div className="divide-y divide-slate-100">
+                        {[
+                          ["Start Date", formatShortDate(selectedEvent.start_date)],
+                          ["End Date", formatShortDate(selectedEvent.end_date)],
+                          ["Time", `${new Date(selectedEvent.start_date).toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" })} - ${new Date(selectedEvent.end_date).toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" })}`],
+                          ["Location", selectedEvent.location || "Not provided"],
+                          ["Expected Participants", `${selectedEvent.max_students || 0} Participants`],
+                          ["Estimated Budget", formatCurrency(selectedEvent.budget)],
+                        ].map(([label, value]) => (
+                          <div key={label} className="flex items-center justify-between gap-4 py-2.5 text-sm">
+                            <span className="font-semibold text-slate-600">{label}</span>
+                            <span className={`text-right font-black ${label === "Estimated Budget" ? "text-emerald-700" : "text-slate-900"}`}>{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  </main>
+
+                  <aside className="min-w-0 space-y-4 xl:w-3/5 xl:shrink-0">
+                    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <div className="grid h-8 w-8 place-items-center rounded-lg bg-violet-50 text-violet-700">
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828L18 9.828a4 4 0 10-5.657-5.657L5.757 10.757a6 6 0 108.486 8.486L20 13.485" />
+                            </svg>
+                          </div>
+                          <h2 className="text-lg font-black text-slate-950">Attached Documents</h2>
+                        </div>
+                        <span className="text-sm font-bold text-slate-500">{(uploadedPaperworkFile ? 1 : 0) || 1} file</span>
                       </div>
 
-                      <div className="mt-4 grid gap-4 xl:grid-cols-[230px_minmax(0,1fr)]">
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                          <p className="text-xs font-black uppercase tracking-wide text-slate-500">File List</p>
+                      <div className="grid gap-4 lg:grid-cols-[230px_minmax(0,1fr)]">
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-2">
+                          <p className="px-2 py-2 text-xs font-black uppercase tracking-wide text-slate-500">File List</p>
                           {uploadedPaperworkFile ? (
-                            <div className="mt-3 rounded-xl border border-blue-200 bg-white p-3 shadow-sm">
-                              <p className="break-all text-sm font-black text-slate-950">{uploadedPaperworkFile.name}</p>
-                              <p className="mt-1 text-xs font-semibold text-slate-500">
-                                {formatFileSize(uploadedPaperworkFile.size)} uploaded on {formatDateTime(uploadedPaperworkFile.uploadedAt)}
-                              </p>
-                              <div className="mt-3 grid gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => previewUploadedPaperworkFile(uploadedPaperworkFile)}
-                                  className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 hover:bg-blue-100"
-                                >
-                                  Preview
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => openUploadedPaperworkFile(uploadedPaperworkFile)}
-                                  className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-black text-white hover:bg-blue-800"
-                                >
-                                  Open Attachment
-                                </button>
-                              </div>
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => previewUploadedPaperworkFile(uploadedPaperworkFile)}
+                              className="w-full rounded-lg border border-blue-200 bg-white p-3 text-left shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
+                            >
+                              <p className="truncate text-sm font-black text-slate-950">{uploadedPaperworkFile.name}</p>
+                              <p className="mt-1 text-xs font-semibold text-slate-500">{formatFileSize(uploadedPaperworkFile.size)}</p>
+                              <span className="mt-3 inline-flex rounded-full bg-blue-100 px-2 py-1 text-[11px] font-black text-blue-700">Selected</span>
+                            </button>
                           ) : (
-                            <div className="mt-3 rounded-xl border border-blue-200 bg-white p-3 shadow-sm">
+                            <button
+                              type="button"
+                              onClick={() => setShowWordPreview(true)}
+                              className="w-full rounded-lg border border-blue-200 bg-white p-3 text-left shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
+                            >
                               <p className="text-sm font-black text-slate-950">Generated Paperwork Preview</p>
-                              <p className="mt-1 text-xs font-semibold text-slate-500">Built from submitted event details.</p>
+                              <p className="mt-1 text-xs font-semibold text-slate-500">Built from submitted event fields</p>
+                              <span className="mt-3 inline-flex rounded-full bg-blue-100 px-2 py-1 text-[11px] font-black text-blue-700">Preview available</span>
+                            </button>
+                          )}
+                          {uploadedPaperworkFile && (
+                            <div className="mt-3 grid gap-2">
                               <button
                                 type="button"
-                                onClick={() => setShowWordPreview(true)}
-                                className="mt-3 rounded-lg bg-blue-700 px-3 py-2 text-xs font-black text-white hover:bg-blue-800"
+                                onClick={() => previewUploadedPaperworkFile(uploadedPaperworkFile)}
+                                className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-black text-blue-700 hover:bg-blue-50"
                               >
-                                Open Preview
+                                Preview
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openUploadedPaperworkFile(uploadedPaperworkFile)}
+                                className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-black text-white hover:bg-blue-800"
+                              >
+                                Open Attachment
                               </button>
                             </div>
                           )}
@@ -1321,101 +1310,113 @@ export default function EventApprovalPage() {
                             <p className="truncate text-sm font-black text-slate-950">
                               {previewAttachment?.name || uploadedPaperworkFile?.name || "Generated Paperwork Preview"}
                             </p>
-                            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-700">Document Review</span>
+                            <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                              <span>Preview</span>
+                              <span>100%</span>
+                            </div>
                           </div>
                           {previewAttachment?.url && previewAttachment.name.toLowerCase().endsWith(".pdf") ? (
-                            <iframe title={previewAttachment.name} src={previewAttachment.url} className="h-[680px] w-full bg-white" />
+                            <iframe title={previewAttachment.name} src={previewAttachment.url} className="h-[620px] w-full bg-white" />
                           ) : (
-                            <div className="h-[680px] overflow-y-auto bg-white p-6">
-                              <div className="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                                <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-700">Paperwork Preview</p>
-                                <h4 className="mt-3 text-2xl font-black text-slate-950">{selectedEvent.title}</h4>
-                                <p className="mt-2 text-sm font-semibold text-slate-500">
-                                  {formatShortDate(selectedEvent.start_date)} - {formatShortDate(selectedEvent.end_date)} | {selectedEvent.location || "Venue not set"}
-                                </p>
-                                <div className="mt-6 space-y-5">
-                                  {paperworkSections.slice(0, 5).map((section, index) => (
-                                    <div key={`${section.title}-${index}`} className="border-t border-slate-100 pt-4 first:border-t-0 first:pt-0">
-                                      <p className="text-sm font-black text-slate-950">{section.title}</p>
-                                      <p className="mt-2 whitespace-pre-line text-sm leading-7 text-slate-700">{section.body || "-"}</p>
-                                    </div>
-                                  ))}
-                                  {paperworkSections.length === 0 && (
-                                    <p className="text-sm leading-7 text-slate-700">No generated paperwork content is available for preview.</p>
-                                  )}
+                            <div className="grid h-[620px] place-items-center bg-white px-6 text-center">
+                              <div>
+                                <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-blue-50 text-blue-700">
+                                  <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h10M7 16h6M6 3h9l3 3v15H6V3z" />
+                                  </svg>
                                 </div>
+                                <h3 className="mt-4 text-base font-black text-slate-950">Document preview ready</h3>
+                                <p className="mt-2 text-sm font-semibold text-slate-500">
+                                  Select a file from the list to preview the submitted paperwork in this document viewer.
+                                </p>
                               </div>
                             </div>
                           )}
                         </div>
                       </div>
                     </section>
-                  </main>
 
-                  <aside className="space-y-5">
-                    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                      <h3 className="text-lg font-black text-slate-950">Review Notes</h3>
-                      <p className="mt-1 text-sm font-semibold text-slate-500">Required only when rejecting paperwork.</p>
+                    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                      <div className="mb-4 flex items-center gap-2">
+                        <div className="grid h-8 w-8 place-items-center rounded-lg bg-blue-50 text-blue-700">
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h10M7 16h6M6 3h9l3 3v15H6V3z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-black text-slate-950">Review Notes <span className="font-semibold text-slate-500">(Optional)</span></h2>
+                          <p className="text-xs font-semibold text-slate-500">Notes are visible to the Club Committee when sent with a rejection.</p>
+                        </div>
+                      </div>
                       <textarea
                         value={rejectReason}
                         onChange={(e) => setRejectReason(e.target.value)}
-                        rows={6}
-                        placeholder="State why this submission does not meet approval criteria..."
-                        className="mt-4 min-h-36 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        rows={2}
+                        placeholder="Write your review notes here..."
+                        className="min-h-16 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                       />
+                      <p className="mt-2 text-right text-xs font-semibold text-slate-500">{rejectReason.length} / 1000 characters</p>
                     </section>
 
-                    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                      <h3 className="text-lg font-black text-slate-950">Decision</h3>
-                      <div className="mt-4 space-y-3">
-                        <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-                          <p className="text-sm font-black text-emerald-900">{reviewConfig.approveLabel}</p>
-                          <p className="mt-1 text-xs font-semibold leading-5 text-emerald-700">
-                            Approving moves this paperwork to the next configured workflow stage.
-                          </p>
-                        </div>
-                        <div className="rounded-xl border border-rose-100 bg-rose-50 p-4">
-                          <p className="text-sm font-black text-rose-900">{reviewConfig.rejectLabel}</p>
-                          <p className="mt-1 text-xs font-semibold leading-5 text-rose-700">
-                            Rejection keeps the paperwork out of the next stage and requires a clear note.
-                          </p>
-                        </div>
-                        <p className="text-xs font-semibold leading-5 text-slate-500">
-                          Use the approval actions in the page header after completing your review.
-                        </p>
-                      </div>
-                    </section>
-
-                    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                      <h3 className="text-lg font-black text-slate-950">Approval History</h3>
-                      <div className="mt-4 space-y-3">
-                        {selectedHistory.length === 0 ? (
-                          <p className="rounded-lg border border-dashed border-slate-200 p-4 text-sm font-semibold text-slate-500">
-                            No approval history recorded yet.
-                          </p>
-                        ) : (
-                          selectedHistory.map((item) => (
-                            <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                              <div className="flex items-center justify-between gap-3">
-                                <p className="text-sm font-black capitalize text-slate-950">{item.action || "reviewed"}</p>
-                                <span className="rounded-full bg-slate-200 px-2 py-1 text-[11px] font-black text-slate-600">
-                                  {formatRole(item.actor_role)}
-                                </span>
-                              </div>
-                              <p className="mt-1 text-xs font-semibold text-slate-500">{formatDateTime(item.created_at || undefined)}</p>
-                              <p className="mt-2 text-xs font-semibold leading-5 text-slate-600">
-                                {item.from_status || "Not provided"} -&gt; {item.to_status || "Not provided"}
-                              </p>
-                              {item.comments && <p className="mt-2 text-sm leading-6 text-slate-700">{item.comments}</p>}
-                            </div>
-                          ))
-                        )}
+                    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg shadow-slate-200/70">
+                      <h2 className="text-lg font-black text-slate-950">Take Action</h2>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={() => updateStatus(selectedEvent.id, "Rejected", rejectReason)}
+                          disabled={processingId === selectedEvent.id}
+                          className="rounded-xl border border-rose-300 bg-rose-50 px-3 py-4 text-sm font-black text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Reject
+                          <span className="mt-1 block text-xs font-semibold text-rose-600">Do not approve this event</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateStatus(
+                              selectedEvent.id,
+                              reviewConfig.approveStatus as "Approved" | "Pending Club Advisor Approval",
+                            )
+                          }
+                          disabled={processingId === selectedEvent.id}
+                          className="rounded-xl bg-emerald-600 px-3 py-4 text-sm font-black text-white shadow-sm shadow-emerald-900/20 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {processingId === selectedEvent.id ? "Processing..." : "Final Approve / Publish"}
+                          <span className="mt-1 block text-xs font-semibold text-emerald-50">Publish the event</span>
+                        </button>
                       </div>
                     </section>
                   </aside>
                 </div>
-              </div>
-            )}
+
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <h2 className="text-lg font-black text-slate-950">Approval History</h2>
+                  <div className="mt-4 space-y-3">
+                    {selectedHistory.length === 0 ? (
+                      <p className="rounded-xl border border-dashed border-slate-200 p-4 text-sm font-semibold text-slate-500">
+                        No approval history recorded yet.
+                      </p>
+                    ) : (
+                      selectedHistory.map((item) => (
+                        <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-black capitalize text-slate-950">{item.action || "reviewed"}</p>
+                            <span className="rounded-full bg-slate-200 px-2 py-1 text-[11px] font-black text-slate-600">
+                              {formatRole(item.actor_role)}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-xs font-semibold text-slate-500">{formatDateTime(item.created_at || undefined)}</p>
+                          <p className="mt-2 text-xs font-semibold leading-5 text-slate-600">
+                            {item.from_status || "Not provided"} -&gt; {item.to_status || "Not provided"}
+                          </p>
+                          {item.comments && <p className="mt-2 text-sm leading-6 text-slate-700">{item.comments}</p>}
+                        </div>
+                      ))
+                    )}
+                   </div>
+               </section>
+             </div>
+           )}
           </section>
         </div>
       )}
