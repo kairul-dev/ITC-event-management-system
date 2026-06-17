@@ -74,7 +74,7 @@ gantt
 
 1. **Step 1: Committee Login**
    * **URL:** `/login` (Select **Club Committee** card)
-   * **Action:** Login using Matrix Number: `AI220384` (Password: `student` or `Student@12345`).
+   * **Action:** Login using Matrix Number: `AI220384` (Password: `123456aA`).
    * **Expected Output:** Redirects to `/club-committee`. Displays event creation statistics.
 
 2. **Step 2: Proposing a New Event & Overlap Detection**
@@ -90,13 +90,13 @@ gantt
 
 1. **Step 1: High Council Validation**
    * **URL:** `/login` (Select **High Council** card)
-   * **Action:** Login using Matrix: `AI220383` (Password: `akmal` or `Student@12345`). Go to `/high-council/events`.
+   * **Action:** Login using Matrix: `AI220383` (Password: `123456aA`). Go to `/high-council/events`.
    * **Expected Output:** Review page shows events pending High Council review. Locate *UI/UX Design Mini Workshop* and approve.
    * **Audit Log:** Under the event card, point out the **Approval History Logs** displaying who submitted it and when.
 
 2. **Step 2: Club Advisor Final Sign-Off**
    * **URL:** `/login` (Select **Club Advisor** card)
-   * **Action:** Login using Matrix: `suriawati` (Password: `suriawati` or `Student@12345`). Go to `/club-advisor/events`.
+   * **Action:** Login using Matrix: `suriawati` (Password: `123456aA`). Go to `/club-advisor/events`.
    * **Expected Output:** Advisor dashboard displays event and certificate approvals. Approve the proposed *UI/UX Design Mini Workshop* and review the event approvals logs.
 
 ---

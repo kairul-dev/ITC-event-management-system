@@ -21,14 +21,14 @@ All seeded student accounts use a common demo password.
 ---
 
 ## 2. Staff, Approver & Admin Accounts
-The standard demo staff credentials are listed below. Contact system administrator for passwords.
+The standard demo staff credentials are listed below:
 
-| Role | Username (Matrix Number) | Email Address | Name | Login Destination |
-| --- | --- | --- | --- | --- |
-| **Admin** | `AI220382` | `khairul512003@gmail.com` | khairul | `/admin` |
-| **Club Committee** | `AI220384` | `kh@gmail.com` | student | `/club-committee` |
-| **High Council** | `AI220383` | `k@gmail.com` | akmal | `/high-council` |
-| **Club Advisor** | `suriawati` | `suriawati@itc.local` | suriawati | `/club-advisor` |
+| Role | Username (Matrix Number) | Email Address | Password | Name | Login Destination |
+| --- | --- | --- | --- | --- | --- |
+| **Admin** | `AI220382` | `khairul512003@gmail.com` | `123456aA` | khairul | `/admin` |
+| **Club Committee** | `AI220384` | `kh@gmail.com` | `123456aA` | student | `/club-committee` |
+| **High Council** | `AI220383` | `k@gmail.com` | `123456aA` | akmal | `/high-council` |
+| **Club Advisor** | `suriawati` | `suriawati@itc.local` | `123456aA` | suriawati | `/club-advisor` |
 
 ---
 
