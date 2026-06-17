@@ -74,8 +74,8 @@ const fallbackVisual: EventVisual = {
   type: "Event",
   image:
     "https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=900&q=80",
-  color: "from-[#1f5f8b] to-[#1f7a8c]",
-  outline: "border-sky-300 text-sky-700 hover:bg-sky-50",
+  color: "from-violet-600 to-indigo-600",
+  outline: "border-violet-300 text-violet-700 hover:bg-violet-50",
 };
 
 const formatDate = (date: string) =>
@@ -138,60 +138,110 @@ export default function PublicEventsPage() {
   const freeEvents = events.filter((event) => !event.fee_amount || event.fee_amount === 0).length;
 
   return (
-    <main className="min-h-screen bg-[#f7f5f0] text-slate-950">
-      <header className="border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 sm:px-8 lg:px-10">
-          <Link href="/" className="flex items-center gap-3 font-black text-slate-950">
-            <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#0b2e4a] text-xs text-white">
-              ITC
-            </span>
-            <span>ITC FSKTM</span>
-          </Link>
-          <Link href="/login" className="rounded-md border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50">
-            Login
-          </Link>
-        </div>
-      </header>
-
-      <section className="relative overflow-hidden bg-[#0b2e4a] text-white">
+    <main className="min-h-screen bg-slate-50 text-slate-950">
+      <section className="relative overflow-hidden bg-slate-950 text-white">
         <div
-          className="absolute inset-0 bg-cover bg-center opacity-35"
+          className="absolute inset-0 bg-cover bg-center opacity-45"
           style={{
             backgroundImage:
               "url('https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1800&q=85')",
           }}
         />
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(11,46,74,0.98)_0%,rgba(15,61,94,0.88)_50%,rgba(31,122,140,0.58)_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_26%,rgba(124,58,237,0.42),transparent_28%),linear-gradient(90deg,rgba(2,6,23,0.96)_0%,rgba(15,23,42,0.86)_45%,rgba(2,6,23,0.48)_100%)]" />
 
-        <div className="relative mx-auto grid max-w-7xl gap-8 px-5 py-14 sm:px-8 md:py-20 lg:grid-cols-[1fr_360px] lg:px-10">
+        <header className="relative z-10 border-b border-white/10">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 sm:px-8 lg:px-10">
+            <Link href="/" className="flex items-center gap-3 font-bold">
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-500 via-fuchsia-500 to-orange-400 shadow-lg shadow-violet-950/30">
+                <span className="h-3 w-3 rounded-sm bg-slate-950" />
+              </span>
+              <span className="text-lg">ITC FSKTM</span>
+            </Link>
+
+            <nav className="hidden items-center gap-9 text-sm font-semibold text-white/80 lg:flex">
+              <Link href="/" className="transition hover:text-white">
+                Home
+              </Link>
+              <Link href="/events" className="border-b-2 border-violet-400 pb-2 text-violet-300">
+                Events
+              </Link>
+              <Link href="/#about" className="transition hover:text-white">
+                About ITC
+              </Link>
+              <Link
+                href="/login?role=student&next=%2Fstudent%2Fregistered-events"
+                className="transition hover:text-white"
+              >
+                My Events
+              </Link>
+              <Link href="/verify-certificate" className="transition hover:text-white">
+                Verify Certificate
+              </Link>
+              <Link href="/#contact" className="transition hover:text-white">
+                Contact
+              </Link>
+            </nav>
+
+            <Link
+              href="/login"
+              className="rounded-md border border-white/30 px-4 py-2 text-sm font-semibold transition hover:bg-white/10"
+            >
+              Login
+            </Link>
+          </div>
+        </header>
+
+        <div className="relative z-10 mx-auto grid max-w-7xl gap-10 px-5 pb-24 pt-16 sm:px-8 md:pb-28 md:pt-20 lg:grid-cols-[1fr_320px] lg:px-10">
           <div className="max-w-3xl">
-            <p className="text-sm font-bold uppercase text-amber-300">
-              ITC Event Directory
+            <p className="inline-flex rounded-md bg-violet-500 px-3 py-2 text-xs font-bold uppercase text-white shadow-lg shadow-violet-950/30">
+              Information Technology Club
             </p>
-            <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-6xl">
-              Choose the next event for your IT journey.
+            <h1 className="mt-7 text-5xl font-black leading-[1.03] tracking-tight text-white sm:text-6xl lg:text-7xl">
+              Explore Every <span className="text-violet-400">ITC Event</span>
+              <span className="text-orange-400">.</span>
             </h1>
-            <p className="mt-5 max-w-2xl text-base leading-8 text-slate-100">
+            <p className="mt-6 max-w-2xl text-base leading-8 text-slate-200 sm:text-lg">
               Explore published workshops, talks, competitions, and showcases.
               Open an event to see the full details before registering with
               your student account.
             </p>
           </div>
 
-          <div className="grid content-end gap-3 sm:grid-cols-3 lg:grid-cols-1">
-            <div className="rounded-lg border border-white/15 bg-white/10 p-5 backdrop-blur">
-              <p className="text-3xl font-black">{events.length}</p>
-              <p className="mt-1 text-sm text-slate-100">Approved events</p>
+          <div className="grid content-center gap-4 sm:grid-cols-3 lg:grid-cols-1">
+            <div className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/10 p-4 shadow-2xl shadow-slate-950/20 backdrop-blur-md">
+              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600">
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3M5 11h14M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </span>
+              <span>
+                <strong className="block text-2xl font-black">{events.length}</strong>
+                <span className="text-sm text-slate-200">Approved Events</span>
+              </span>
             </div>
-            <div className="rounded-lg border border-white/15 bg-white/10 p-5 backdrop-blur">
-              <p className="text-3xl font-black">{freeEvents}</p>
-              <p className="mt-1 text-sm text-slate-100">Free events</p>
+            <div className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/10 p-4 shadow-2xl shadow-slate-950/20 backdrop-blur-md">
+              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-gradient-to-br from-emerald-500 to-green-600">
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-2.2 0-4 .9-4 2s1.8 2 4 2 4 .9 4 2-1.8 2-4 2m0-8V6m0 10v2m9-6a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </span>
+              <span>
+                <strong className="block text-2xl font-black">{freeEvents}</strong>
+                <span className="text-sm text-slate-200">Free Events</span>
+              </span>
             </div>
-            <div className="rounded-lg border border-white/15 bg-white/10 p-5 backdrop-blur">
-              <p className="text-xl font-black">
-                {events[0] ? formatDate(events[0].start_date) : "Coming soon"}
-              </p>
-              <p className="mt-1 text-sm text-slate-100">Next session</p>
+            <div className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/10 p-4 shadow-2xl shadow-slate-950/20 backdrop-blur-md">
+              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500">
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </span>
+              <span>
+                <strong className="block text-lg font-black">
+                  {events[0] ? formatDate(events[0].start_date) : "Coming soon"}
+                </strong>
+                <span className="text-sm text-slate-200">Next Session</span>
+              </span>
             </div>
           </div>
         </div>
@@ -210,7 +260,7 @@ export default function PublicEventsPage() {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search events, venues, purpose, or objective"
-                className="h-12 w-full rounded-md border border-slate-300 pl-12 pr-4 text-sm outline-none transition focus:border-[#1f5f8b] focus:ring-2 focus:ring-[#1f5f8b]/20"
+                className="h-12 w-full rounded-md border border-slate-300 pl-12 pr-4 text-sm outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
               />
             </label>
 
@@ -222,8 +272,8 @@ export default function PublicEventsPage() {
                   onClick={() => setFeeFilter(filter)}
                   className={`rounded px-4 py-2 capitalize transition ${
                     feeFilter === filter
-                      ? "bg-[#0b2e4a] text-white shadow-sm"
-                      : "text-slate-600 hover:bg-white"
+                      ? "bg-violet-600 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-white hover:text-violet-700"
                   }`}
                 >
                   {filter}
@@ -270,7 +320,7 @@ export default function PublicEventsPage() {
                     "View event details, venue, capacity, and registration information.";
 
                   return (
-                    <article key={event.id} className="group overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.10)] transition hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(15,23,42,0.16)]">
+                    <article key={event.id} className="group overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.10)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(15,23,42,0.16)]">
                       <div className="relative h-48 overflow-hidden">
                         <img
                           src={event.poster_url || visual.image}
@@ -289,8 +339,7 @@ export default function PublicEventsPage() {
                         </span>
                       </div>
 
-                      <div className="relative p-5">
-                        <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${visual.color}`} />
+                      <div className="p-5">
                         <div className="flex items-start justify-between gap-3">
                           <h3 className="text-xl font-black tracking-tight text-slate-950">
                             {event.title}
