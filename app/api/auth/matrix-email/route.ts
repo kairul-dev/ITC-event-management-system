@@ -23,13 +23,20 @@ export async function POST(request: Request) {
     }
 
     const supabase = getSupabaseAdminClient();
-    const normalizedMatrixNumber = matrixNumber.toUpperCase();
-    const { data, error } = await supabase
+    const isEmail = matrixNumber.includes("@");
+    
+    let query = supabase
       .from("users")
       .select("email, matrix_number")
-      .eq("role", role)
-      .ilike("matrix_number", normalizedMatrixNumber)
-      .limit(1);
+      .eq("role", role);
+
+    if (isEmail) {
+      query = query.ilike("email", matrixNumber.toLowerCase().trim());
+    } else {
+      query = query.ilike("matrix_number", matrixNumber.toUpperCase().trim());
+    }
+
+    const { data, error } = await query.limit(1);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

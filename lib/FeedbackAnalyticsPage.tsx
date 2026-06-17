@@ -38,6 +38,7 @@ export default function FeedbackAnalyticsPage({ title, subtitle }: FeedbackAnaly
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedEventId, setSelectedEventId] = useState("all");
+  const [eventSearch, setEventSearch] = useState("");
   const [analytics, setAnalytics] = useState<AnalyticsResponse>({
     events: [],
     averageRating: 0,
@@ -45,6 +46,14 @@ export default function FeedbackAnalyticsPage({ title, subtitle }: FeedbackAnaly
     ratingDistribution: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 },
     recentComments: [],
   });
+
+  const filteredEventsForSelect = useMemo(() => {
+    const term = eventSearch.trim().toLowerCase();
+    if (!term) return analytics.events;
+    return analytics.events.filter((event) =>
+      (event.title || "").toLowerCase().includes(term)
+    );
+  }, [analytics.events, eventSearch]);
 
   const selectedEvent = useMemo(
     () => analytics.events.find((event) => event.id === selectedEventId) || null,
@@ -112,18 +121,27 @@ export default function FeedbackAnalyticsPage({ title, subtitle }: FeedbackAnaly
           <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
           <p className="text-sm text-gray-500">{subtitle}</p>
         </div>
-        <select
-          value={selectedEventId}
-          onChange={(event) => handleEventChange(event.target.value)}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 lg:w-80"
-        >
-          <option value="all">All Events</option>
-          {analytics.events.map((event) => (
-            <option key={event.id} value={event.id}>
-              {event.title || "Untitled Event"}
-            </option>
-          ))}
-        </select>
+        <div className="flex flex-col gap-2 sm:flex-row w-full lg:w-fit lg:shrink-0">
+          <input
+            type="text"
+            placeholder="Search event..."
+            value={eventSearch}
+            onChange={(e) => setEventSearch(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:w-48"
+          />
+          <select
+            value={selectedEventId}
+            onChange={(event) => handleEventChange(event.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:w-64"
+          >
+            <option value="all">All Events</option>
+            {filteredEventsForSelect.map((event) => (
+              <option key={event.id} value={event.id}>
+                {event.title || "Untitled Event"}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {error && (
