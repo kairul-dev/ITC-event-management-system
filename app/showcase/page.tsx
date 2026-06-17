@@ -16,6 +16,7 @@ type ShowcaseEvent = {
   image: string;
   color: string;
   outline: string;
+  feeAmount?: number | null;
 };
 
 type EventRow = {
@@ -125,50 +126,9 @@ const formatShowcaseEvent = (event: EventRow, index: number): ShowcaseEvent => {
     image: event.poster_url || visual.image,
     color: visual.color,
     outline: visual.outline,
+    feeAmount: event.fee_amount,
   };
 };
-
-const stats = [
-  {
-    value: "120+",
-    label: "Student Registrations",
-    icon: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M8 7V3m8 4V3M5 11h14M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-      />
-    ),
-    color: "from-indigo-500 to-violet-600",
-  },
-  {
-    value: "400+",
-    label: "Active ITC Members",
-    icon: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M17 20h5v-2a4 4 0 00-4-4h-1M9 20H4v-2a4 4 0 014-4h1m8-6a4 4 0 11-8 0 4 4 0 018 0zm6 3a3 3 0 11-6 0"
-      />
-    ),
-    color: "from-pink-500 to-rose-500",
-  },
-  {
-    value: "25+",
-    label: "Club Events",
-    icon: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M12 21s7-4.438 7-11a7 7 0 10-14 0c0 6.562 7 11 7 11zm0-8a3 3 0 100-6 3 3 0 000 6z"
-      />
-    ),
-    color: "from-amber-400 to-orange-500",
-  },
-];
 
 export default function ShowcasePage() {
   const eventsPerPage = 4;
@@ -195,6 +155,17 @@ export default function ShowcasePage() {
     (activePage - 1) * eventsPerPage,
     activePage * eventsPerPage,
   );
+  const freeEvents = events.filter((event) => event.feeAmount === 0 || event.feeAmount == null).length;
+  const thisMonthEvents = events.filter((event) => {
+    const date = new Date(event.fullDate);
+    const now = new Date();
+    return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+  }).length;
+  const stats = [
+    { value: String(events.length), label: "Upcoming Events", color: "from-indigo-500 to-violet-600" },
+    { value: String(freeEvents), label: "Free Events", color: "from-orange-500 to-orange-400" },
+    { value: String(thisMonthEvents), label: "This Month", color: "from-indigo-500 to-violet-600" },
+  ];
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -222,14 +193,8 @@ export default function ShowcasePage() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
       <section className="relative overflow-hidden bg-slate-950 text-white">
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-45"
-          style={{
-            backgroundImage:
-              "url('https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1800&q=85')",
-          }}
-        />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_26%,rgba(124,58,237,0.42),transparent_28%),linear-gradient(90deg,rgba(2,6,23,0.96)_0%,rgba(15,23,42,0.86)_45%,rgba(2,6,23,0.48)_100%)]" />
+        <div className="absolute inset-y-0 right-0 w-full bg-cover bg-center lg:w-[58%]" style={{backgroundImage:"url('https://images.unsplash.com/photo-1505373877841-8d25f7d46678?auto=format&fit=crop&w=1600&q=90')"}} />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,#020617_0%,#070a2b_43%,rgba(7,10,43,0.72)_58%,rgba(2,6,23,0.15)_100%)]" />
 
         <header className="relative z-10 border-b border-white/10">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 sm:px-8 lg:px-10">
@@ -237,7 +202,7 @@ export default function ShowcasePage() {
               <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-500 via-fuchsia-500 to-orange-400 shadow-lg shadow-violet-950/30">
                 <span className="h-3 w-3 rounded-sm bg-slate-950" />
               </span>
-              <span className="text-lg">ITC FSKTM</span>
+              <span><strong className="block text-lg leading-none">ITC CLUB</strong><small className="mt-1 block text-[9px] font-medium tracking-wider text-slate-300">INFORMATION TECHNOLOGY CLUB</small></span>
             </Link>
 
             <nav className="hidden items-center gap-9 text-sm font-semibold text-white/80 lg:flex">
@@ -248,7 +213,7 @@ export default function ShowcasePage() {
                 Events
               </a>
               <a href="#about" className="transition hover:text-white">
-                About ITC
+                About Us
               </a>
               <Link
                 href="/login?role=student&next=%2Fstudent%2Fregistered-events"
@@ -273,125 +238,122 @@ export default function ShowcasePage() {
           </div>
         </header>
 
-        <div className="relative z-10 mx-auto grid max-w-7xl gap-10 px-5 pb-20 pt-16 sm:px-8 md:pb-24 md:pt-24 lg:grid-cols-[1fr_320px] lg:px-10">
-          <div className="max-w-3xl">
-            <p className="inline-flex rounded-md bg-violet-500 px-3 py-2 text-xs font-bold uppercase text-white shadow-lg shadow-violet-950/30">
-              Information Technology Club
+        <div className="relative z-10 mx-auto max-w-7xl px-5 pb-28 pt-16 sm:px-8 md:pb-32 lg:px-10 lg:pb-28 lg:pt-20">
+          <div className="max-w-xl">
+            <p className="text-sm font-black uppercase tracking-[0.12em] text-orange-400">
+              Connect&nbsp; • &nbsp;Learn&nbsp; • &nbsp;Innovate
             </p>
-            <h1 className="mt-7 text-5xl font-black leading-[1.03] tracking-tight text-white sm:text-6xl lg:text-7xl">
-              Browse ITC <span className="text-violet-400">Events</span>
-              <span className="text-orange-400">.</span>
-              <br />
-              Register With Ease.
+            <h1 className="mt-4 text-5xl font-black leading-[1.02] tracking-[-0.04em] text-white sm:text-6xl">
+              Where Technology<br />Meets Opportunity
             </h1>
-            <p className="mt-6 max-w-xl text-base leading-8 text-slate-200 sm:text-lg">
-              A student event portal for Information Technology Club members to
-              explore upcoming activities, check event details, and register for
-              programs that build skills, confidence, and community.
+            <p className="mt-5 max-w-lg text-base leading-7 text-slate-200">
+              Empowering students to explore, collaborate, and lead through impactful IT events, workshops, and real-world industry experiences.
             </p>
 
-            <form
-              onSubmit={handleSearch}
-              className="mt-8 flex max-w-2xl flex-col gap-3 rounded-lg bg-white p-2 shadow-2xl shadow-slate-950/30 sm:flex-row"
-            >
-              <label className="flex min-w-0 flex-1 items-center gap-3 px-3 text-slate-500">
-                <svg className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 110-15 7.5 7.5 0 010 15z" />
-                </svg>
-                <input
-                  type="search"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search ITC events, skills, or venues..."
-                  className="h-12 min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
-                />
-              </label>
-              <button
-                type="submit"
-                className="h-12 rounded-md bg-violet-600 px-8 text-sm font-bold text-white transition hover:bg-violet-500"
-              >
-                Search
-              </button>
-            </form>
-
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <a
                 href="#available-events"
-                className="inline-flex items-center justify-center rounded-md bg-violet-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-violet-500"
+                className="inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 px-8 text-sm font-bold text-white shadow-lg shadow-violet-950/30 transition hover:-translate-y-0.5"
               >
                 Browse Events
               </a>
               <Link
                 href="/verify-certificate"
-                className="inline-flex items-center justify-center rounded-md border border-white/35 bg-white/10 px-6 py-3 text-sm font-bold text-white backdrop-blur transition hover:bg-white/20"
+                className="inline-flex h-12 items-center justify-center rounded-xl border border-orange-500 bg-slate-950/40 px-8 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-white/10"
               >
                 Verify Certificate
               </Link>
             </div>
-          </div>
-
-          <div className="grid content-center gap-4 sm:grid-cols-3 lg:grid-cols-1">
-            {stats.map((stat) => (
-              <div
-                key={stat.label}
-                className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/10 p-4 shadow-2xl shadow-slate-950/20 backdrop-blur-md"
-              >
-                <span className={`grid h-14 w-14 shrink-0 place-items-center rounded-full bg-gradient-to-br ${stat.color}`}>
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    {stat.icon}
-                  </svg>
-                </span>
-                <span>
-                  <strong className="block text-2xl font-black">{stat.value}</strong>
-                  <span className="text-sm text-slate-200">{stat.label}</span>
-                </span>
-              </div>
-            ))}
+            <div className="mt-8 grid max-w-xl gap-4 border-t border-white/15 pt-5 text-xs text-slate-300 sm:grid-cols-3">
+              <p><strong className="block text-sm text-white">Student Driven</strong>Built by students, for students</p>
+              <p><strong className="block text-sm text-white">Real Impact</strong>Practical skills, real outcomes</p>
+              <p><strong className="block text-sm text-white">Trusted &amp; Secure</strong>Secured by blockchain</p>
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-5 py-10 sm:px-8 lg:px-10">
-        <div className="-mt-16 grid gap-5 rounded-lg border border-slate-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.16)] md:grid-cols-[1fr_1.4fr] md:items-center md:p-6">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-violet-600">
-              Secure Verification
+      <section className="relative z-20 mx-auto max-w-6xl px-5 py-8 sm:px-8">
+        <form
+          onSubmit={handleSearch}
+          className="-mt-9 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-[0_20px_55px_rgba(15,23,42,0.18)] sm:flex-row"
+        >
+          <label className="flex min-w-0 flex-1 items-center gap-3 px-3 text-slate-500">
+            <svg className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 110-15 7.5 7.5 0 010 15z" />
+            </svg>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => {
+                const value = event.target.value;
+                setSearchQuery(value);
+
+                if (!value.trim()) {
+                  setActiveSearch("");
+                  setCurrentPage(1);
+                }
+              }}
+              placeholder="Search ITC events, skills, or venues..."
+              className="h-12 min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
+            />
+          </label>
+          <button type="submit" className="h-12 rounded-lg bg-gradient-to-r from-violet-600 to-violet-500 px-9 text-sm font-bold text-white">
+            Search
+          </button>
+        </form>
+        <div className="mt-4 grid rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm md:grid-cols-3">
+          {stats.map((stat, index) => (
+            <div key={stat.label} className={`flex items-center gap-4 py-2 ${index ? "md:border-l md:border-slate-200 md:pl-8" : ""}`}>
+              <span className={`grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br ${stat.color} text-xl font-black text-white`}>{index === 0 ? "□" : index === 1 ? "◎" : "◇"}</span>
+              <div><strong className="text-3xl font-black text-slate-950">{stat.value}</strong><span className="ml-3 text-sm font-bold text-slate-800">{stat.label}</span><p className="text-xs text-slate-500">{index === 0 ? "Registered & open events" : index === 1 ? "Growing ITC community" : "Events happening soon"}</p></div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-5 pb-5 sm:px-8">
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#09082d] via-[#100b45] to-[#16095a] px-6 py-6 text-white shadow-xl sm:px-8 lg:grid lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-8">
+          <div className="relative">
+            <h2 className="text-2xl font-black tracking-tight sm:text-3xl">Blockchain Certificate Verification</h2>
+            <p className="mt-2 text-sm text-slate-200">
+              Verify certificate authenticity using <span className="font-bold text-orange-400">Ethereum Sepolia</span> blockchain records.
             </p>
-            <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-950">
-              Blockchain Certificate Verification
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Verify certificate authenticity using Ethereum Sepolia blockchain records.
-            </p>
+            <div className="mt-5 grid gap-3 text-xs text-slate-300 sm:grid-cols-3">
+              <span><strong className="block text-white">Tamper Proof</strong>Immutable records</span>
+              <span><strong className="block text-white">Instant Verification</strong>Real-time results</span>
+              <span><strong className="block text-white">Privacy Protected</strong>Secure &amp; confidential</span>
+            </div>
           </div>
 
-          <form action="/verify-certificate" className="flex flex-col gap-3 sm:flex-row">
-            <label className="min-w-0 flex-1">
-              <span className="sr-only">Certificate number</span>
-              <input
-                name="certificateNo"
-                placeholder="Example: CERT-1779247771947-2YGI90"
-                className="h-12 w-full rounded-md border border-slate-300 px-4 font-mono text-sm outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
-              />
-            </label>
-            <button
-              type="submit"
-              className="h-12 rounded-md bg-violet-600 px-6 text-sm font-bold text-white transition hover:bg-violet-500"
-            >
-              Verify Now
-            </button>
+          <form action="/verify-certificate" className="relative mt-6 lg:mt-0">
+            <p className="pb-2 text-xs font-semibold text-slate-200">Enter Certificate Number</p>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <label className="min-w-0 flex-1">
+                <span className="sr-only">Certificate number</span>
+                <input
+                  name="certificateNo"
+                  placeholder="Example: CERT-1779247771947-2YGI90"
+                  className="h-11 w-full rounded-lg border border-violet-500/60 bg-slate-950/50 px-4 font-mono text-sm text-white outline-none placeholder:text-slate-500"
+                />
+              </label>
+              <button type="submit" className="h-11 rounded-lg bg-gradient-to-r from-violet-600 to-violet-500 px-7 text-sm font-bold text-white">
+                Verify Now
+              </button>
+            </div>
+            <p className="mt-3 rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-xs text-slate-300">Secured by Ethereum Sepolia Network <span className="text-emerald-400">●</span></p>
           </form>
         </div>
       </section>
 
       <section
         id="available-events"
-        className="mx-auto max-w-7xl scroll-mt-6 px-5 py-12 sm:px-8 lg:px-10"
+        className="mx-auto max-w-6xl scroll-mt-6 px-5 pb-16 pt-2 sm:px-8"
       >
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <h2 className="text-3xl font-black tracking-tight text-slate-950">
-              Available ITC Events
+            <h2 className="text-2xl font-black tracking-tight text-slate-950">
+              Upcoming Events
             </h2>
             <p className="mt-2 text-sm text-slate-600">
               Browse club activities, view the details, and register as a student.
@@ -416,40 +378,40 @@ export default function ShowcasePage() {
               : "No published events are available yet."}
           </div>
         ) : (
-          <div className="mt-7 grid gap-7 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {visibleEvents.map((event) => (
             <article
               key={event.id || event.title}
-              className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.10)]"
+              className="group overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg"
             >
-              <div className="relative h-48 overflow-hidden">
+              <div className="relative h-36 overflow-hidden">
                 <img
                   src={event.image}
                   alt=""
-                  className="h-full w-full object-cover transition duration-500 hover:scale-105"
+                  className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                 />
-                <span className={`absolute left-4 top-4 rounded-md bg-gradient-to-r ${event.color} px-3 py-1.5 text-xs font-bold text-white shadow-lg`}>
+                <span className={`absolute right-3 top-3 rounded-md bg-gradient-to-r ${event.color} px-3 py-1 text-[10px] font-bold text-white`}>
                   {event.type}
                 </span>
-                <span className="absolute right-4 top-4 grid h-16 w-14 place-items-center rounded-md bg-white text-center font-black leading-none text-slate-950 shadow-lg">
-                  <span className="text-2xl">{event.date}</span>
-                  <span className="text-xs text-slate-500">{event.month}</span>
+                <span className="absolute left-3 top-3 grid h-14 w-12 place-items-center rounded-md bg-white text-center font-black leading-none text-slate-950 shadow-lg">
+                  <span className="text-[10px] text-violet-600">{event.month}</span>
+                  <span className="text-xl">{event.date}</span>
                 </span>
               </div>
 
-              <div className="p-5">
-                <h3 className="text-xl font-black text-slate-950">{event.title}</h3>
-                <p className="mt-3 line-clamp-3 min-h-12 text-sm leading-6 text-slate-600">
+              <div className="p-4">
+                <h3 className="line-clamp-1 text-base font-black text-slate-950">{event.title}</h3>
+                <p className="mt-2 line-clamp-2 min-h-10 text-xs leading-5 text-slate-600">
                   {event.description}
                 </p>
 
-                <div className="mt-4 grid gap-2 text-sm text-slate-500">
-                  <p className="flex items-center gap-2">
+                <div className="mt-3 grid gap-1 text-xs text-slate-500">
+                  <p className="flex items-center gap-1">
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3M5 11h14M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     {event.fullDate}
-                    <span className="ml-4 inline-flex items-center gap-2">
+                    <span className="ml-2 inline-flex items-center gap-1">
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
@@ -464,16 +426,16 @@ export default function ShowcasePage() {
                   </p>
                 </div>
 
-                <div className="mt-5 grid grid-cols-2 gap-3">
+                <div className="mt-4 flex items-center justify-between gap-3">
                   <Link
                     href={event.id ? `/events/${event.id}` : "/events"}
-                    className={`rounded-md border px-4 py-3 text-center text-sm font-bold transition hover:bg-slate-50 ${event.outline}`}
+                    className="text-xs font-bold text-violet-700 hover:underline"
                   >
                     View Details
                   </Link>
                   <Link
                     href={event.id ? `/events/${event.id}` : "/events"}
-                    className={`rounded-md bg-gradient-to-r px-4 py-3 text-center text-sm font-bold text-white transition hover:brightness-110 ${event.color}`}
+                    className={`rounded-lg bg-gradient-to-r px-5 py-2 text-center text-xs font-bold text-white ${event.color}`}
                   >
                     Register Now
                   </Link>
