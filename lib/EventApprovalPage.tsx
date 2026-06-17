@@ -1198,7 +1198,7 @@ export default function EventApprovalPage() {
                         <div>
                           <p className="text-sm font-black text-slate-950">Objectives</p>
                           <div className="mt-2 space-y-2">
-                    {stripPaperworkFileMarker(selectedEvent.objective)
+                    {(stripPaperworkFileMarker(selectedEvent.objective) || "No objectives have been provided for this event.")
                       .split(/\n|\*|-/)
                       .map((item) => item.trim())
                       .filter(Boolean)
