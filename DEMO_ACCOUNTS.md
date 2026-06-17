@@ -8,27 +8,28 @@ This document details all test accounts, login credentials, and verification key
 ## 1. Demo Student Login Accounts
 All seeded student accounts use a common demo password.
 * **Common Password:** `Student@12345`
+* **Protected Student Account (Ali - AI220385):** Uses the standardized presentation password `123456aA` to protect against updates.
 
-| Student Name | Username (Matrix Number) | Email Address | Faculty | Course | Role | Status |
-| --- | --- | --- | --- | --- | --- | --- |
-| **Ahmad Haris Bin Zulkifli** | `AI220001` | `student1@uthm.edu.my` | FSKTM | Software Engineering | Student | Active |
-| **Nurul Syahira Binti Azman** | `AI220002` | `student2@uthm.edu.my` | FSKTM | Computer Security | Student | Active |
-| **Chong Wei Keat** | `AI220003` | `student3@uthm.edu.my` | FSKTM | Multimedia Computing | Student | Active |
-| **ali** | `AI220385` | `ali@example.com` | FSKTM | Software Engineering | Student | Active |
+| Student Name | Username (Matrix Number) | Email Address | Faculty | Course | Role | Status | Password |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| **Ahmad Haris Bin Zulkifli** | `AI220001` | `student1@uthm.edu.my` | FSKTM | Software Engineering | Student | Active | `Student@12345` |
+| **Nurul Syahira Binti Azman** | `AI220002` | `student2@uthm.edu.my` | FSKTM | Computer Security | Student | Active | `Student@12345` |
+| **Chong Wei Keat** | `AI220003` | `student3@uthm.edu.my` | FSKTM | Multimedia Computing | Student | Active | `Student@12345` |
+| **ali** | `AI220385` | `ali@example.com` | FSKTM | Software Engineering | Student | Active | `123456aA` (Protected) |
 
 *Additionally, there are 37 other generated student accounts (`AI220004` to `AI220040` with email `ai220xxx@student.uthm.edu.my`) seeded for realistic dashboard metrics. They all use the same password `Student@12345`.*
 
 ---
 
 ## 2. Staff, Approver & Admin Accounts
-The standard demo staff credentials are listed below:
+The standard demo staff credentials are listed below. All staff accounts listed here are protected presentation accounts and use the standardized presentation password:
 
-| Role | Username (Matrix Number) | Email Address | Password | Name | Login Destination |
-| --- | --- | --- | --- | --- | --- |
-| **Admin** | `AI220382` | `khairul512003@gmail.com` | `123456aA` | khairul | `/admin` |
-| **Club Committee** | `AI220384` | `kh@gmail.com` | `123456aA` | student | `/club-committee` |
-| **High Council** | `AI220383` | `k@gmail.com` | `123456aA` | akmal | `/high-council` |
-| **Club Advisor** | `suriawati` | `suriawati@itc.local` | `123456aA` | suriawati | `/club-advisor` |
+| Role | Username (Matrix Number) | Email Address | Password | Name | Login Destination | Status |
+| --- | --- | --- | --- | --- | --- | --- |
+| **Admin** | `AI220382` | `khairul512003@gmail.com` | `123456aA` | khairul | `/admin` | Protected |
+| **Club Committee** | `AI220384` | `kh@gmail.com` | `123456aA` | student | `/club-committee` | Protected |
+| **High Council** | `AI220383` | `k@gmail.com` | `123456aA` | akmal | `/high-council` | Protected |
+| **Club Advisor** | `suriawati` | `suriawati@itc.local` | `123456aA` | suriawati | `/club-advisor` | Protected |
 
 ---
 

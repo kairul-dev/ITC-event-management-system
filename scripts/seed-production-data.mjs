@@ -91,6 +91,19 @@ async function anchorCertificateOnChain(certNo, studentName, eventTitle, certHas
 // Main seeding function
 async function main() {
   console.log("Starting database seed with realistic production-like data...");
+
+  // Load protected accounts config to ensure we never overwrite them
+  const protectedConfigPath = path.resolve(process.cwd(), "lib/protectedAccounts.json");
+  let protectedEmails = new Set();
+  let protectedMatrixNumbers = new Set();
+  try {
+    const protectedConfig = JSON.parse(fs.readFileSync(protectedConfigPath, "utf8"));
+    protectedEmails = new Set(protectedConfig.protectedAccounts.map(u => u.email.toLowerCase()));
+    protectedMatrixNumbers = new Set(protectedConfig.protectedAccounts.map(u => (u.matrixNumber || "").toUpperCase()));
+    console.log(`Loaded ${protectedConfig.protectedAccounts.length} protected accounts.`);
+  } catch (err) {
+    console.warn("Warning: Could not load lib/protectedAccounts.json:", err.message);
+  }
   
   // 2. Load staff IDs from the database (ensuring we preserve existing admin/advisor/committee/student)
   const { data: dbUsers, error: usersErr } = await supabase
@@ -212,6 +225,13 @@ async function main() {
 
   for (const s of allStudents) {
     const emailLower = s.email.toLowerCase();
+    const matrixUpper = s.matrixNumber ? s.matrixNumber.toUpperCase() : "";
+
+    if (protectedEmails.has(emailLower) || protectedMatrixNumbers.has(matrixUpper)) {
+      console.log(`[PROTECTION] Skipping protected demo presentation account: ${s.email} (${s.matrixNumber})`);
+      continue;
+    }
+
     const existingAuth = authUsersMap.get(emailLower);
     let authId = "";
     

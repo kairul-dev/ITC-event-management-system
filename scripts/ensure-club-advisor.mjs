@@ -48,27 +48,45 @@ const findAuthUserByEmail = async () => {
   }
 };
 
+const protectedPath = resolve(process.cwd(), "lib/protectedAccounts.json");
+let isProtected = false;
+try {
+  const protectedData = JSON.parse(readFileSync(protectedPath, "utf8"));
+  isProtected = protectedData.protectedAccounts.some(
+    (a) => a.email.toLowerCase() === email.toLowerCase()
+  );
+} catch (err) {}
+
+const isForce = process.argv.includes("--force") || process.argv.includes("force");
+
 let authUser = await findAuthUserByEmail();
 
 if (!authUser) {
+  const initialPassword = isProtected ? "123456aA" : password;
   const { data, error } = await supabase.auth.admin.createUser({
     email,
-    password,
+    password: initialPassword,
     email_confirm: true,
     user_metadata: { name, role: "club_advisor" },
   });
 
   if (error) throw error;
   authUser = data.user;
+  console.log(`Created new auth user for advisor: ${email}`);
 } else {
-  const { data, error } = await supabase.auth.admin.updateUserById(authUser.id, {
-    password,
-    email_confirm: true,
-    user_metadata: { ...(authUser.user_metadata || {}), name, role: "club_advisor" },
-  });
+  if (isProtected && !isForce) {
+    console.log(`[PROTECTION] ${email} is a protected demo presentation account. Skipping password/metadata updates in Auth. (Use --force to override)`);
+  } else {
+    const { data, error } = await supabase.auth.admin.updateUserById(authUser.id, {
+      password,
+      email_confirm: true,
+      user_metadata: { ...(authUser.user_metadata || {}), name, role: "club_advisor" },
+    });
 
-  if (error) throw error;
-  authUser = data.user;
+    if (error) throw error;
+    authUser = data.user;
+    console.log(`Updated auth user for advisor: ${email}`);
+  }
 }
 
 const { error: profileError } = await supabase.from("users").upsert(

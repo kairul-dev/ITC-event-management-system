@@ -1,0 +1,39 @@
+{
+  "protectedAccounts": [
+    {
+      "role": "admin",
+      "matrixNumber": "AI220382",
+      "email": "khairul512003@gmail.com",
+      "username": "AI220382",
+      "description": "FYP Presentation Demo Admin"
+    },
+    {
+      "role": "high_council",
+      "matrixNumber": "AI220383",
+      "email": "k@gmail.com",
+      "username": "AI220383",
+      "description": "FYP Presentation Demo High Council"
+    },
+    {
+      "role": "committee",
+      "matrixNumber": "AI220384",
+      "email": "kh@gmail.com",
+      "username": "AI220384",
+      "description": "FYP Presentation Demo Club Committee"
+    },
+    {
+      "role": "student",
+      "matrixNumber": "AI220385",
+      "email": "ali@example.com",
+      "username": "AI220385",
+      "description": "FYP Presentation Demo Student (Ali)"
+    },
+    {
+      "role": "club_advisor",
+      "matrixNumber": "ADVISOR-SURIAWATI",
+      "email": "suriawati@itc.local",
+      "username": "suriawati",
+      "description": "FYP Presentation Demo Club Advisor"
+    }
+  ]
+}
