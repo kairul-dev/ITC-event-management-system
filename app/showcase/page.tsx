@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type ShowcaseEvent = {
   id?: string;
@@ -83,6 +83,17 @@ const eventVisuals = [
 ];
 
 const fallbackVisual = eventVisuals[0];
+const placeholderTermPattern = /\b(?:test|demo|dummy|sample|audit)\b/gi;
+
+const cleanPresentationText = (value: string, fallback: string) => {
+  const cleaned = value
+    .replace(placeholderTermPattern, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([,.:;!?])/g, "$1")
+    .trim();
+
+  return cleaned || fallback;
+};
 
 const formatShowcaseEvent = (event: EventRow, index: number): ShowcaseEvent => {
   const startDate = new Date(event.start_date);
@@ -93,7 +104,7 @@ const formatShowcaseEvent = (event: EventRow, index: number): ShowcaseEvent => {
 
   return {
     id: event.id,
-    title: event.title,
+    title: cleanPresentationText(event.title, "ITC Community Event"),
     type: visual.type,
     date: startDate.toLocaleDateString("en-US", { day: "2-digit" }),
     month: startDate.toLocaleDateString("en-US", { month: "short" }).toUpperCase(),
@@ -106,11 +117,11 @@ const formatShowcaseEvent = (event: EventRow, index: number): ShowcaseEvent => {
       hour: "numeric",
       minute: "2-digit",
     }),
-    venue: event.location || "Venue will be announced",
-    description:
-      event.purpose ||
-      event.objective ||
+    venue: cleanPresentationText(event.location || "", "Venue will be announced"),
+    description: cleanPresentationText(
+      event.purpose || event.objective || "",
       "View the full details, check the venue and schedule, then register your seat through the student portal.",
+    ),
     image: event.poster_url || visual.image,
     color: visual.color,
     outline: visual.outline,
@@ -162,13 +173,38 @@ const stats = [
 export default function ShowcasePage() {
   const eventsPerPage = 4;
   const [events, setEvents] = useState<ShowcaseEvent[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeSearch, setActiveSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const totalPages = Math.ceil(events.length / eventsPerPage);
+  const filteredEvents = useMemo(() => {
+    const needle = activeSearch.trim().toLowerCase();
+
+    if (!needle) {
+      return events;
+    }
+
+    return events.filter((event) =>
+      [event.title, event.type, event.venue, event.description].some((value) =>
+        value.toLowerCase().includes(needle),
+      ),
+    );
+  }, [activeSearch, events]);
+  const totalPages = Math.ceil(filteredEvents.length / eventsPerPage);
   const activePage = Math.min(currentPage, totalPages || 1);
-  const visibleEvents = events.slice(
+  const visibleEvents = filteredEvents.slice(
     (activePage - 1) * eventsPerPage,
     activePage * eventsPerPage,
   );
+
+  const handleSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setActiveSearch(searchQuery);
+    setCurrentPage(1);
+    document.getElementById("available-events")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
 
   useEffect(() => {
     const loadEvents = async () => {
@@ -208,7 +244,7 @@ export default function ShowcasePage() {
               <Link href="/" className="border-b-2 border-violet-400 pb-2 text-violet-300">
                 Home
               </Link>
-              <a href="#events" className="transition hover:text-white">
+              <a href="#available-events" className="transition hover:text-white">
                 Events
               </a>
               <a href="#about" className="transition hover:text-white">
@@ -254,13 +290,18 @@ export default function ShowcasePage() {
               programs that build skills, confidence, and community.
             </p>
 
-            <form className="mt-8 flex max-w-2xl flex-col gap-3 rounded-lg bg-white p-2 shadow-2xl shadow-slate-950/30 sm:flex-row">
+            <form
+              onSubmit={handleSearch}
+              className="mt-8 flex max-w-2xl flex-col gap-3 rounded-lg bg-white p-2 shadow-2xl shadow-slate-950/30 sm:flex-row"
+            >
               <label className="flex min-w-0 flex-1 items-center gap-3 px-3 text-slate-500">
                 <svg className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 110-15 7.5 7.5 0 010 15z" />
                 </svg>
                 <input
                   type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
                   placeholder="Search ITC events, skills, or venues..."
                   className="h-12 min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
                 />
@@ -274,12 +315,12 @@ export default function ShowcasePage() {
             </form>
 
             <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/events"
+              <a
+                href="#available-events"
                 className="inline-flex items-center justify-center rounded-md bg-violet-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-violet-500"
               >
                 Browse Events
-              </Link>
+              </a>
               <Link
                 href="/verify-certificate"
                 className="inline-flex items-center justify-center rounded-md border border-white/35 bg-white/10 px-6 py-3 text-sm font-bold text-white backdrop-blur transition hover:bg-white/20"
@@ -314,13 +355,13 @@ export default function ShowcasePage() {
         <div className="-mt-16 grid gap-5 rounded-lg border border-slate-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.16)] md:grid-cols-[1fr_1.4fr] md:items-center md:p-6">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-violet-600">
-              Certificate Authenticity
+              Secure Verification
             </p>
             <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-950">
-              Check a certificate on Sepolia
+              Blockchain Certificate Verification
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Enter the certificate number to compare the system record with the hash saved on the Ethereum Sepolia smart contract.
+              Verify certificate authenticity using Ethereum Sepolia blockchain records.
             </p>
           </div>
 
@@ -343,7 +384,10 @@ export default function ShowcasePage() {
         </div>
       </section>
 
-      <section id="events" className="mx-auto max-w-7xl px-5 py-12 sm:px-8 lg:px-10">
+      <section
+        id="available-events"
+        className="mx-auto max-w-7xl scroll-mt-6 px-5 py-12 sm:px-8 lg:px-10"
+      >
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <h2 className="text-3xl font-black tracking-tight text-slate-950">
@@ -367,7 +411,9 @@ export default function ShowcasePage() {
 
         {visibleEvents.length === 0 ? (
           <div className="mt-7 rounded-lg border border-slate-200 bg-white p-10 text-center text-sm text-slate-600">
-            No published events are available yet.
+            {activeSearch
+              ? `No published events match "${activeSearch}".`
+              : "No published events are available yet."}
           </div>
         ) : (
           <div className="mt-7 grid gap-7 md:grid-cols-2 xl:grid-cols-4">
