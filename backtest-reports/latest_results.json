@@ -1,0 +1,33 @@
+{
+  "timestamp": "2026-07-06 13:06:35 UTC",
+  "symbol": "BTCUSDT",
+  "granularity": "1h",
+  "num_candles": 1000,
+  "latest_price": 74998.9315267377,
+  "is_mock_data": true,
+  "sma_optimization": {
+    "best_params": {
+      "fast_period": 5,
+      "slow_period": 100
+    },
+    "best_return_pct": 43.016401784213336,
+    "sharpe_ratio": 3.7322004848065062,
+    "max_drawdown_pct": 21.584443822474512,
+    "num_trades": 14,
+    "win_rate_pct": 28.57142857142857
+  },
+  "rsi_optimization": {
+    "best_params": {
+      "period": 14,
+      "oversold": 25.0,
+      "overbought": 75.0
+    },
+    "best_return_pct": 60.314874679324724,
+    "sharpe_ratio": 4.177463566935515,
+    "max_drawdown_pct": 23.74125534983239,
+    "num_trades": 4,
+    "win_rate_pct": 50.0
+  },
+  "best_overall_strategy": "RSI",
+  "best_overall_return_pct": 60.314874679324724
+}
