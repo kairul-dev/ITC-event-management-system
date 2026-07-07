@@ -3,7 +3,7 @@
 > [!WARNING]
 > **API Connection Offline**: Unreachable Bitget API. Displaying results based on synthetic market data.
 
-**Run Date (UTC):** 2026-07-07 18:05:07 UTC  
+**Run Date (UTC):** 2026-07-07 19:05:07 UTC  
 **Symbol:** BTCUSDT (1h Candles)  
 **Total Candles Analyzed:** 1000  
 **Latest Market Price:** $74,998.93  
@@ -34,10 +34,10 @@ Showing the last 5 trades executed by the RSI strategy:
 
 | # | Type | Price | Date |
 | :--- | :--- | :--- | :--- |
-| 1 | `BUY` | $63,064.78 | 2026-05-29 13:05:07 |
-| 2 | `SELL` | $110,686.46 | 2026-06-19 00:05:07 |
-| 3 | `BUY` | $79,708.55 | 2026-06-25 16:05:07 |
-| 4 | `SELL` | $73,098.62 | 2026-07-02 21:05:07 |
+| 1 | `BUY` | $63,064.78 | 2026-05-29 14:05:07 |
+| 2 | `SELL` | $110,686.46 | 2026-06-19 01:05:07 |
+| 3 | `BUY` | $79,708.55 | 2026-06-25 17:05:07 |
+| 4 | `SELL` | $73,098.62 | 2026-07-02 22:05:07 |
 
 
 *Report generated automatically by the Antigravity hourly backtesting worker.*
